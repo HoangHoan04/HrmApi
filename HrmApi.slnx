@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="HrmApi.Application/HrmApi.Application.csproj" />
+  <Project Path="HrmApi.Domain/HrmApi.Domain.csproj" />
+  <Project Path="HrmApi.Infrastructure/HrmApi.Infrastructure.csproj" />
+  <Project Path="HrmApi.WebApi/HrmApi.WebApi.csproj" />
+</Solution>

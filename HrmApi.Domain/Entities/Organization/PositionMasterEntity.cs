@@ -1,0 +1,32 @@
+﻿using HrmApi.Domain.Common;
+using System;
+using System.Collections.Generic;
+
+namespace HrmApi.Domain.Entities.Organization
+{
+    public class PositionMasterEntity : BaseEntity
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+        public bool IsLimitHoursWorking { get; set; }
+        public string? Limit { get; set; }
+        public int? WorkingHour { get; set; }
+        public bool IsTimeKeeping { get; set; }
+        public TimeSpan? HourWorkingStart { get; set; }
+        public TimeSpan? HourWorkingEnd { get; set; }
+        public TimeSpan? HourSnapShotStart { get; set; }
+        public TimeSpan? HourSnapShotEnd { get; set; }
+        public int? MinimumWorkingHour { get; set; }
+        public bool IsSwapPosition { get; set; }
+        public string? TargetChangePositionIds { get; set; }
+        public bool IsApprovedWhenHiringCandidate { get; set; }
+        public bool IsHadASecondInterview { get; set; }
+        public bool IsApprovedDayOff { get; set; }
+        public bool IsAllowOverTimekeepingStandard { get; set; }
+        public int? QuantityStandard { get; set; }
+        public List<PositionEntity> Positions { get; set; } = new List<PositionEntity>();
+    }
+}
