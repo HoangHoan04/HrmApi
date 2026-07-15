@@ -2,10 +2,6 @@ using System.Collections.Generic;
 
 namespace HrmApi.Application.Common.Models
 {
-    /// <summary>
-    /// Kết quả phân trang chung cho hệ thống
-    /// </summary>
-    /// <typeparam name="T">Kiểu dữ liệu của danh sách kết quả</typeparam>
     public class PagedResult<T>
     {
         public List<T> Items { get; set; } = new List<T>();

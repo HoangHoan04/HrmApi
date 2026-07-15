@@ -1,5 +1,6 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -22,10 +23,12 @@ namespace HrmApi.Application.Features.Companies.Commands
     public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, Guid>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public CreateCompanyCommandHandler(IApplicationDbContext context)
+        public CreateCompanyCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<Guid> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
@@ -53,6 +56,14 @@ namespace HrmApi.Application.Features.Companies.Commands
             _context.CompanyEntities.Add(company);
             await _context.SaveChangesAsync(cancellationToken);
 
+            await _actionLog.LogActionAsync(
+                ActionType.CREATE,
+                "Company",
+                company.Id,
+                null,
+                new { company.Code, company.Name, company.Description, company.Address, company.TaxCode, company.Hotline },
+                "Tạo mới công ty " + company.Name);
+
             return company.Id;
         }
     }
@@ -73,11 +84,12 @@ namespace HrmApi.Application.Features.Companies.Commands
     public class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyCommand, bool>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-
-        public UpdateCompanyCommandHandler(IApplicationDbContext context)
+        public UpdateCompanyCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(UpdateCompanyCommand request, CancellationToken cancellationToken)
@@ -95,6 +107,16 @@ namespace HrmApi.Application.Features.Companies.Commands
                 throw new InvalidOperationException("Mã công ty đã tồn tại ở doanh nghiệp khác.");
             }
 
+            var oldValue = new 
+            { 
+                company.Code, 
+                company.Name, 
+                company.Description, 
+                company.Address, 
+                company.TaxCode, 
+                company.Hotline 
+            };
+
             company.Code = request.Code.Trim();
             company.Name = request.Name.Trim();
             company.Description = request.Description?.Trim();
@@ -104,6 +126,25 @@ namespace HrmApi.Application.Features.Companies.Commands
             company.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            var newValue = new 
+            { 
+                company.Code, 
+                company.Name, 
+                company.Description, 
+                company.Address, 
+                company.TaxCode, 
+                company.Hotline 
+            };
+
+            await _actionLog.LogActionAsync(
+                ActionType.UPDATE,
+                "Company",
+                company.Id,
+                oldValue,
+                newValue,
+                "Cập nhật thông tin công ty " + company.Name);
+
             return true;
         }
     }
@@ -118,10 +159,12 @@ namespace HrmApi.Application.Features.Companies.Commands
     public class ActivateCompanyCommandHandler : IRequestHandler<ActivateCompanyCommand, bool>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public ActivateCompanyCommandHandler(IApplicationDbContext context)
+        public ActivateCompanyCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(ActivateCompanyCommand request, CancellationToken cancellationToken)
@@ -135,6 +178,15 @@ namespace HrmApi.Application.Features.Companies.Commands
             company.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.ACTIVATE,
+                "Company",
+                company.Id,
+                new { IsDeleted = true },
+                new { IsDeleted = false },
+                "Kích hoạt công ty " + company.Name);
+
             return true;
         }
     }
@@ -149,10 +201,12 @@ namespace HrmApi.Application.Features.Companies.Commands
     public class DeactivateCompanyCommandHandler : IRequestHandler<DeactivateCompanyCommand, bool>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public DeactivateCompanyCommandHandler(IApplicationDbContext context)
+        public DeactivateCompanyCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(DeactivateCompanyCommand request, CancellationToken cancellationToken)
@@ -166,6 +220,15 @@ namespace HrmApi.Application.Features.Companies.Commands
             company.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.DEACTIVATE,
+                "Company",
+                company.Id,
+                new { IsDeleted = false },
+                new { IsDeleted = true },
+                "Khóa công ty " + company.Name);
+
             return true;
         }
     }

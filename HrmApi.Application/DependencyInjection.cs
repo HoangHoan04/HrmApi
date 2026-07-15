@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
+using HrmApi.Application.Common.Interfaces;
 
 namespace HrmApi.Application
 {
@@ -10,6 +11,8 @@ namespace HrmApi.Application
             services.AddMediatR(cfg => {
                 cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
             });
+
+            services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
 
             return services;
         }

@@ -1,0 +1,32 @@
+namespace HrmApi.Domain.Enums
+{
+    public enum ActionType
+    {
+        CREATE,
+        DELETE,
+        UPDATE,
+        SYNC,
+        EDIT,
+        APPROVE,
+        SEND_APPROVE,
+        REJECT,
+        CANCEL,
+        IMPORT_EXCEL,
+        ACTIVATE,
+        DEACTIVATE,
+        RESTORE,
+        AWARD,
+        LOGIN,
+        LOGOUT,
+        REGISTER,
+        UPLOAD_FILE,
+        CREATE_EXAM,
+        SUBMIT_EXAM,
+        GRADE_EXAM,
+        PUBLISH,
+        UNPUBLISH,
+        COMMENT,
+        APPROVE_COMMENT,
+        SEND_NOTIFICATION
+    }
+}

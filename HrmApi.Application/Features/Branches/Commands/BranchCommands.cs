@@ -1,5 +1,6 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -25,10 +26,12 @@ namespace HrmApi.Application.Features.Branches.Commands
     public class CreateBranchCommandHandler : IRequestHandler<CreateBranchCommand, Guid>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public CreateBranchCommandHandler(IApplicationDbContext context)
+        public CreateBranchCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<Guid> Handle(CreateBranchCommand request, CancellationToken cancellationToken)
@@ -68,6 +71,14 @@ namespace HrmApi.Application.Features.Branches.Commands
             _context.BranchEntities.Add(branch);
             await _context.SaveChangesAsync(cancellationToken);
 
+            await _actionLog.LogActionAsync(
+                ActionType.CREATE,
+                "Branch",
+                branch.Id,
+                null,
+                new { branch.Code, branch.Name, branch.Description, branch.Address, branch.IpAddress, branch.GroupSalary, branch.ShortName, branch.Type, branch.CompanyId },
+                "Tạo mới chi nhánh " + branch.Name);
+
             return branch.Id;
         }
     }
@@ -91,10 +102,12 @@ namespace HrmApi.Application.Features.Branches.Commands
     public class UpdateBranchCommandHandler : IRequestHandler<UpdateBranchCommand, bool>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public UpdateBranchCommandHandler(IApplicationDbContext context)
+        public UpdateBranchCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(UpdateBranchCommand request, CancellationToken cancellationToken)
@@ -121,6 +134,19 @@ namespace HrmApi.Application.Features.Branches.Commands
                 }
             }
 
+            var oldValue = new 
+            { 
+                branch.Code, 
+                branch.Name, 
+                branch.Description, 
+                branch.Address, 
+                branch.IpAddress, 
+                branch.GroupSalary, 
+                branch.ShortName, 
+                branch.Type, 
+                branch.CompanyId 
+            };
+
             branch.Code = request.Code.Trim();
             branch.Name = request.Name.Trim();
             branch.Description = request.Description?.Trim() ?? string.Empty;
@@ -133,6 +159,28 @@ namespace HrmApi.Application.Features.Branches.Commands
             branch.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            var newValue = new 
+            { 
+                branch.Code, 
+                branch.Name, 
+                branch.Description, 
+                branch.Address, 
+                branch.IpAddress, 
+                branch.GroupSalary, 
+                branch.ShortName, 
+                branch.Type, 
+                branch.CompanyId 
+            };
+
+            await _actionLog.LogActionAsync(
+                ActionType.UPDATE,
+                "Branch",
+                branch.Id,
+                oldValue,
+                newValue,
+                "Cập nhật chi nhánh " + branch.Name);
+
             return true;
         }
     }
@@ -147,10 +195,12 @@ namespace HrmApi.Application.Features.Branches.Commands
     public class ActivateBranchCommandHandler : IRequestHandler<ActivateBranchCommand, bool>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public ActivateBranchCommandHandler(IApplicationDbContext context)
+        public ActivateBranchCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(ActivateBranchCommand request, CancellationToken cancellationToken)
@@ -164,6 +214,15 @@ namespace HrmApi.Application.Features.Branches.Commands
             branch.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.ACTIVATE,
+                "Branch",
+                branch.Id,
+                new { IsDeleted = true },
+                new { IsDeleted = false },
+                "Kích hoạt chi nhánh " + branch.Name);
+
             return true;
         }
     }
@@ -178,10 +237,12 @@ namespace HrmApi.Application.Features.Branches.Commands
     public class DeactivateBranchCommandHandler : IRequestHandler<DeactivateBranchCommand, bool>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IActionLogService _actionLog;
 
-        public DeactivateBranchCommandHandler(IApplicationDbContext context)
+        public DeactivateBranchCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
         {
             _context = context;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(DeactivateBranchCommand request, CancellationToken cancellationToken)
@@ -195,6 +256,15 @@ namespace HrmApi.Application.Features.Branches.Commands
             branch.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.DEACTIVATE,
+                "Branch",
+                branch.Id,
+                new { IsDeleted = false },
+                new { IsDeleted = true },
+                "Khóa chi nhánh " + branch.Name);
+
             return true;
         }
     }
