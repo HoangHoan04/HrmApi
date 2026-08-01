@@ -1,11 +1,14 @@
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Company;
 using HrmApi.Application.Features.Companies.Commands;
 using HrmApi.Application.Features.Companies.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace HrmApi.WebApi.Controllers
@@ -106,9 +109,50 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy dữ liệu rút gọn phục vụ chọn lựa SelectBox (Phương thức POST)
         /// </summary>
         [HttpPost("select-box")]
-        public async Task<ActionResult<List<CompanySelectBoxDto>>> GetSelectBox()
+        public async Task<ActionResult<List<CompanySelectBoxDto>>> GetSelectBox([FromBody] GetCompanySelectBoxQuery? query)
         {
-            var result = await _mediator.Send(new GetCompanySelectBoxQuery());
+            var result = await _mediator.Send(query ?? new GetCompanySelectBoxQuery());
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Tải file mẫu Excel import công ty
+        /// </summary>
+        [HttpPost("excel/template")]
+        public async Task<IActionResult> DownloadExcelTemplate()
+        {
+            var content = await _mediator.Send(new DownloadCompanyExcelTemplateQuery());
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Mau_Import_Cong_Ty.xlsx");
+        }
+
+        /// <summary>
+        /// Xuất danh sách công ty ra Excel
+        /// </summary>
+        [HttpPost("excel/export")]
+        public async Task<IActionResult> ExportExcel([FromBody] ExportCompaniesExcelQuery query)
+        {
+            var content = await _mediator.Send(query);
+            var fileName = $"Danh_Sach_Cong_Ty_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        /// <summary>
+        /// Import danh sách công ty từ Excel
+        /// </summary>
+        [HttpPost("excel/import")]
+        public async Task<ActionResult<CompanyImportResultDto>> ImportExcel(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Vui lòng chọn file Excel hợp lệ.");
+
+            using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream);
+
+            var result = await _mediator.Send(new ImportCompaniesExcelCommand
+            {
+                FileContent = memoryStream.ToArray()
+            });
+
             return Ok(result);
         }
     }

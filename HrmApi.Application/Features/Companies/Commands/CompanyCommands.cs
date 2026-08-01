@@ -1,4 +1,5 @@
 using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
 using MediatR;
@@ -10,14 +11,8 @@ using System.Threading.Tasks;
 namespace HrmApi.Application.Features.Companies.Commands
 {
     #region Create Command
-    public class CreateCompanyCommand : IRequest<Guid>
+    public class CreateCompanyCommand : CompanyCommandFields, IRequest<Guid>
     {
-        public string Code { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public string? Address { get; set; }
-        public string? TaxCode { get; set; }
-        public string? Hotline { get; set; }
     }
 
     public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, Guid>
@@ -33,25 +28,15 @@ namespace HrmApi.Application.Features.Companies.Commands
 
         public async Task<Guid> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
         {
-            var exists = await _context.CompanyEntities
-                .AnyAsync(x => x.Code.ToLower() == request.Code.ToLower(), cancellationToken);
-
-            if (exists)
-            {
-                throw new InvalidOperationException("Mã công ty đã tồn tại trong hệ thống.");
-            }
+            await ValidateAsync(request, null, cancellationToken, _context);
 
             var company = new CompanyEntity
             {
-                Code = request.Code.Trim(),
-                Name = request.Name.Trim(),
-                Description = request.Description?.Trim(),
-                Address = request.Address?.Trim(),
-                TaxCode = request.TaxCode?.Trim(),
-                Hotline = request.Hotline?.Trim(),
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
             };
+
+            CompanyMapper.ApplyCommandFields(company, request);
 
             _context.CompanyEntities.Add(company);
             await _context.SaveChangesAsync(cancellationToken);
@@ -61,24 +46,50 @@ namespace HrmApi.Application.Features.Companies.Commands
                 "Company",
                 company.Id,
                 null,
-                new { company.Code, company.Name, company.Description, company.Address, company.TaxCode, company.Hotline },
+                CompanyMapper.ToLogObject(company),
                 "Tạo mới công ty " + company.Name);
 
             return company.Id;
+        }
+
+        internal static async Task ValidateAsync(
+            CompanyCommandFields request,
+            Guid? excludeId,
+            CancellationToken cancellationToken,
+            IApplicationDbContext context)
+        {
+            if (string.IsNullOrWhiteSpace(request.Code))
+                throw new InvalidOperationException("Mã công ty là bắt buộc.");
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+                throw new InvalidOperationException("Tên công ty là bắt buộc.");
+
+            var exists = await context.CompanyEntities
+                .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
+                    && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
+
+            if (exists)
+                throw new InvalidOperationException("Mã công ty đã tồn tại trong hệ thống.");
+
+            if (request.ParentId.HasValue)
+            {
+                if (excludeId.HasValue && request.ParentId.Value == excludeId.Value)
+                    throw new InvalidOperationException("Công ty không thể là công ty mẹ của chính nó.");
+
+                var parentExists = await context.CompanyEntities
+                    .AnyAsync(x => x.Id == request.ParentId.Value, cancellationToken);
+
+                if (!parentExists)
+                    throw new InvalidOperationException("Công ty mẹ không tồn tại.");
+            }
         }
     }
     #endregion
 
     #region Update Command
-    public class UpdateCompanyCommand : IRequest<bool>
+    public class UpdateCompanyCommand : CompanyCommandFields, IRequest<bool>
     {
         public Guid Id { get; set; }
-        public string Code { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public string? Address { get; set; }
-        public string? TaxCode { get; set; }
-        public string? Hotline { get; set; }
     }
 
     public class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyCommand, bool>
@@ -99,50 +110,21 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             if (company == null) return false;
 
-            var duplicateCode = await _context.CompanyEntities
-                .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == request.Code.ToLower(), cancellationToken);
+            await CreateCompanyCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            if (duplicateCode)
-            {
-                throw new InvalidOperationException("Mã công ty đã tồn tại ở doanh nghiệp khác.");
-            }
+            var oldValue = CompanyMapper.ToLogObject(company);
 
-            var oldValue = new 
-            { 
-                company.Code, 
-                company.Name, 
-                company.Description, 
-                company.Address, 
-                company.TaxCode, 
-                company.Hotline 
-            };
-
-            company.Code = request.Code.Trim();
-            company.Name = request.Name.Trim();
-            company.Description = request.Description?.Trim();
-            company.Address = request.Address?.Trim();
-            company.TaxCode = request.TaxCode?.Trim();
-            company.Hotline = request.Hotline?.Trim();
+            CompanyMapper.ApplyCommandFields(company, request);
             company.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
-
-            var newValue = new 
-            { 
-                company.Code, 
-                company.Name, 
-                company.Description, 
-                company.Address, 
-                company.TaxCode, 
-                company.Hotline 
-            };
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
                 "Company",
                 company.Id,
                 oldValue,
-                newValue,
+                CompanyMapper.ToLogObject(company),
                 "Cập nhật thông tin công ty " + company.Name);
 
             return true;

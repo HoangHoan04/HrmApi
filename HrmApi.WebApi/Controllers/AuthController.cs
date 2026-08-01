@@ -1,5 +1,5 @@
 using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Auth;
 using HrmApi.Domain.Entities.Permission;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;

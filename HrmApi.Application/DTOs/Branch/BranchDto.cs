@@ -1,6 +1,6 @@
 using System;
 
-namespace HrmApi.Application.DTOs
+namespace HrmApi.Application.DTOs.Branch
 {
     public class BranchDto
     {

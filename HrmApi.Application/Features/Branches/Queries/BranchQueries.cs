@@ -1,6 +1,6 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Branch;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;

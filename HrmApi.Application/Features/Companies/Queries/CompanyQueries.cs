@@ -1,6 +1,7 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Company;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -14,6 +15,10 @@ namespace HrmApi.Application.Features.Companies.Queries
     #region Paged Query
     public class GetCompaniesPagedQuery : PagedRequest, IRequest<PagedResult<CompanyDto>>
     {
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public bool? IsDeleted { get; set; }
+        public Guid? ParentId { get; set; }
     }
 
     public class GetCompaniesPagedQueryHandler : IRequestHandler<GetCompaniesPagedQuery, PagedResult<CompanyDto>>
@@ -29,6 +34,28 @@ namespace HrmApi.Application.Features.Companies.Queries
         {
             var query = _context.CompanyEntities.AsNoTracking();
 
+            if (!string.IsNullOrWhiteSpace(request.Code))
+            {
+                var code = request.Code.Trim().ToLower();
+                query = query.Where(x => x.Code.ToLower().Contains(code));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                var name = request.Name.Trim().ToLower();
+                query = query.Where(x => x.Name.ToLower().Contains(name));
+            }
+
+            if (request.IsDeleted.HasValue)
+            {
+                query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
+            }
+
+            if (request.ParentId.HasValue && request.ParentId != Guid.Empty)
+            {
+                query = query.Where(x => x.ParentId == request.ParentId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.SearchText))
             {
                 var search = request.SearchText.Trim().ToLower();
@@ -37,48 +64,59 @@ namespace HrmApi.Application.Features.Companies.Queries
 
             var totalCount = await query.CountAsync(cancellationToken);
 
+            query = ApplySorting(query, request);
+
+            var entities = await query
+                .Skip((request.PageIndex - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
+
+            var parentIds = entities
+                .Where(x => x.ParentId.HasValue)
+                .Select(x => x.ParentId!.Value)
+                .Distinct()
+                .ToList();
+
+            var parentMap = parentIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await _context.CompanyEntities
+                    .AsNoTracking()
+                    .Where(x => parentIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+            var items = entities.Select(x =>
+            {
+                string? parentName = x.ParentId.HasValue && parentMap.TryGetValue(x.ParentId.Value, out var name)
+                    ? name
+                    : null;
+                return CompanyMapper.ToDto(x, parentName);
+            }).ToList();
+
+            return new PagedResult<CompanyDto>(items, totalCount, request.PageIndex, request.PageSize);
+        }
+
+        private static IQueryable<Domain.Entities.Organization.CompanyEntity> ApplySorting(
+            IQueryable<Domain.Entities.Organization.CompanyEntity> query,
+            GetCompaniesPagedQuery request)
+        {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
                 var isDesc = request.SortOrder?.ToLower() == "desc";
-                switch (request.SortField.ToLower())
+                return request.SortField.ToLower() switch
                 {
-                    case "code":
-                        query = isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code);
-                        break;
-                    case "name":
-                        query = isDesc ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name);
-                        break;
-                    case "createdat":
-                        query = isDesc ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt);
-                        break;
-                    default:
-                        query = query.OrderByDescending(x => x.CreatedAt);
-                        break;
-                }
-            }
-            else
-            {
-                query = query.OrderByDescending(x => x.CreatedAt);
+                    "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
+                    "name" => isDesc ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
+                    "status" or "isdeleted" => isDesc
+                        ? query.OrderByDescending(x => x.IsDeleted)
+                        : query.OrderBy(x => x.IsDeleted),
+                    "createdat" => isDesc
+                        ? query.OrderByDescending(x => x.CreatedAt)
+                        : query.OrderBy(x => x.CreatedAt),
+                    _ => query.OrderByDescending(x => x.CreatedAt)
+                };
             }
 
-            var items = await query
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .Select(x => new CompanyDto
-                {
-                    Id = x.Id,
-                    Code = x.Code,
-                    Name = x.Name,
-                    Description = x.Description,
-                    Address = x.Address,
-                    TaxCode = x.TaxCode,
-                    Hotline = x.Hotline,
-                    IsDeleted = x.IsDeleted,
-                    CreatedAt = x.CreatedAt
-                })
-                .ToListAsync(cancellationToken);
-
-            return new PagedResult<CompanyDto>(items, totalCount, request.PageIndex, request.PageSize);
+            return query.OrderByDescending(x => x.CreatedAt);
         }
     }
     #endregion
@@ -106,18 +144,17 @@ namespace HrmApi.Application.Features.Companies.Queries
 
             if (company == null) return null;
 
-            return new CompanyDto
+            string? parentName = null;
+            if (company.ParentId.HasValue)
             {
-                Id = company.Id,
-                Code = company.Code,
-                Name = company.Name,
-                Description = company.Description,
-                Address = company.Address,
-                TaxCode = company.TaxCode,
-                Hotline = company.Hotline,
-                IsDeleted = company.IsDeleted,
-                CreatedAt = company.CreatedAt
-            };
+                parentName = await _context.CompanyEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == company.ParentId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            return CompanyMapper.ToDto(company, parentName);
         }
     }
     #endregion
@@ -125,6 +162,7 @@ namespace HrmApi.Application.Features.Companies.Queries
     #region Select Box Query
     public class GetCompanySelectBoxQuery : IRequest<List<CompanySelectBoxDto>>
     {
+        public Guid? ExcludeId { get; set; }
     }
 
     public class GetCompanySelectBoxQueryHandler : IRequestHandler<GetCompanySelectBoxQuery, List<CompanySelectBoxDto>>
@@ -138,9 +176,16 @@ namespace HrmApi.Application.Features.Companies.Queries
 
         public async Task<List<CompanySelectBoxDto>> Handle(GetCompanySelectBoxQuery request, CancellationToken cancellationToken)
         {
-            return await _context.CompanyEntities
+            var query = _context.CompanyEntities
                 .AsNoTracking()
-                .Where(x => !x.IsDeleted)
+                .Where(x => !x.IsDeleted);
+
+            if (request.ExcludeId.HasValue && request.ExcludeId != Guid.Empty)
+            {
+                query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
+
+            return await query
                 .OrderBy(x => x.Name)
                 .Select(x => new CompanySelectBoxDto
                 {

@@ -1,5 +1,5 @@
 using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Branch;
 using HrmApi.Application.Features.Branches.Commands;
 using HrmApi.Application.Features.Branches.Queries;
 using MediatR;
