@@ -1,17 +1,18 @@
-using ClosedXML.Excel;
-using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.DTOs;
-using HrmApi.Application.Features.Companies.Commands;
-using HrmApi.Domain.Entities.Organization;
-using HrmApi.Domain.Enums;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ClosedXML.Excel;
+using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.DTOs;
+using HrmApi.Application.Features.Companies.Commands;
+using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Enums;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Application.Features.Companies.Commands
 {
@@ -152,7 +153,7 @@ namespace HrmApi.Application.Features.Companies.Commands
 
                     await _actionLog.LogActionAsync(
                         ActionType.CREATE,
-                        "Company",
+                        "CompanyEntity",
                         company.Id,
                         null,
                         CompanyMapper.ToLogObject(company),

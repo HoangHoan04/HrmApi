@@ -1,11 +1,11 @@
-using HrmApi.Application.Common.Interfaces;
-using HrmApi.Domain.Entities;
-using HrmApi.Domain.Entities.Organization;
-using HrmApi.Domain.Entities.Permission;
-using HrmApi.Domain.Entities.AuditLog;
-using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Interfaces;
+using HrmApi.Domain.Entities;
+using HrmApi.Domain.Entities.AuditLog;
+using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Entities.Permission;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Infrastructure.Persistence
 {
@@ -23,7 +23,7 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<PositionEntity> PositionEntities { get; set; }
         public DbSet<PositionMasterEntity> PositionMasterEntities { get; set; }
         /* User - Permission - Role */
-        public DbSet<UserEntity> UserEntities{ get; set; }
+        public DbSet<UserEntity> UserEntities { get; set; }
         public DbSet<RoleEntity> RoleEntities { get; set; }
         public DbSet<PermissionEntity> PermissionEntities { get; set; }
         public DbSet<RolePermissionEntity> RolePermissionEntities { get; set; }

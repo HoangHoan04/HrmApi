@@ -1,14 +1,15 @@
-using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
-using HrmApi.Application.DTOs.Company;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Common.Models;
+using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Company;
+using HrmApi.Application.Mappings;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Application.Features.Companies.Queries
 {
@@ -56,9 +57,9 @@ namespace HrmApi.Application.Features.Companies.Queries
                 query = query.Where(x => x.ParentId == request.ParentId);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.SearchText))
+            if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.SearchText.Trim().ToLower();
+                var search = request.Search.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(search) || x.Code.ToLower().Contains(search));
             }
 

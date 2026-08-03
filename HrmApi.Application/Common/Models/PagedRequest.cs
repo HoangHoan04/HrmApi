@@ -6,8 +6,8 @@ namespace HrmApi.Application.Common.Models
     {
         public int PageIndex { get; set; } = 1;
         public int PageSize { get; set; } = 10;
-        public string? SearchText { get; set; } = string.Empty;
+        public string? Search { get; set; } = string.Empty;
         public string? SortField { get; set; }
-        public string? SortOrder { get; set; } 
+        public string? SortOrder { get; set; }
     }
 }

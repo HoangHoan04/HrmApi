@@ -49,6 +49,8 @@ namespace HrmApi.Application.Mappings
                 TimeKeepingStandardId = entity.TimeKeepingStandardId,
                 IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedBy = entity.UpdatedBy,
                 UpdatedAt = entity.UpdatedAt
             };
         }

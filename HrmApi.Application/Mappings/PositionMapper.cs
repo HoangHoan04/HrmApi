@@ -4,7 +4,7 @@ using System.Text;
 
 namespace HrmApi.Application.Mappings
 {
-    internal class PositinMapper
+    internal class PositionMapper
     {
     }
 }

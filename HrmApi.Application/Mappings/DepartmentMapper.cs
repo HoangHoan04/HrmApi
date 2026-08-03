@@ -1,10 +1,131 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using HrmApi.Application.DTOs;
+using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Application.Mappings
 {
-    internal class DepartmentMapper
+    internal static class DepartmentMapper
     {
+        public static DepartmentDto ToDto(
+            DepartmentEntity entity,
+            string? parentDepartmentName = null,
+            string? branchName = null,
+            string? companyName = null,
+            string? managerName = null,
+            string? deputyManagerName = null)
+        {
+            return new DepartmentDto
+            {
+                Id = entity.Id,
+                Code = entity.Code,
+                Name = entity.Name,
+                ShortName = entity.ShortName,
+                Description = entity.Description,
+                Type = entity.Type,
+                CompanyId = entity.CompanyId,
+                BranchId = entity.BranchId,
+                ParentDepartmentId = entity.ParentDepartmentId,
+                Level = entity.Level,
+                Limit = entity.Limit,
+                CurrentHeadCount = entity.CurrentHeadCount,
+                ManagerId = entity.ManagerId,
+                DeputyManagerId = entity.DeputyManagerId,
+                Email = entity.Email,
+                PhoneExtension = entity.PhoneExtension,
+                CostCenterCode = entity.CostCenterCode,
+                IsActive = entity.IsActive,
+                DisplayOrder = entity.DisplayOrder,
+                EstablishedDate = entity.EstablishedDate,
+                DissolvedDate = entity.DissolvedDate,
+                IsNotifyMarketing = entity.IsNotifyMarketing,
+                CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedAt = entity.UpdatedAt,
+                UpdatedBy = entity.UpdatedBy,
+                IsDeleted = entity.IsDeleted
+            };
+        }
+
+        public static void ApplyCommandFields(DepartmentEntity entity, DepartmentCommandFields fields)
+        {
+            entity.Code = fields.Code.Trim();
+            entity.Name = fields.Name.Trim();
+            entity.ShortName = TrimOrNull(fields.ShortName);
+            entity.Description = TrimOrNull(fields.Description);
+            entity.Type = TrimOrNull(fields.Type);
+            entity.CompanyId = fields.CompanyId;
+            entity.BranchId = fields.BranchId;
+            entity.ParentDepartmentId = fields.ParentDepartmentId;
+            entity.Level = fields.Level;
+            entity.Limit = fields.Limit;
+            entity.CurrentHeadCount = fields.CurrentHeadCount;
+            entity.ManagerId = fields.ManagerId;
+            entity.DeputyManagerId = fields.DeputyManagerId;
+            entity.Email = TrimOrNull(fields.Email);
+            entity.PhoneExtension = TrimOrNull(fields.PhoneExtension);
+            entity.CostCenterCode = TrimOrNull(fields.CostCenterCode);
+            entity.IsActive = fields.IsActive;
+            entity.DisplayOrder = fields.DisplayOrder;
+            entity.EstablishedDate = fields.EstablishedDate;
+            entity.DissolvedDate = fields.DissolvedDate;
+            entity.IsNotifyMarketing = fields.IsNotifyMarketing;
+        }
+
+        public static object ToLogObject(DepartmentEntity entity)
+        {
+            return new
+            {
+                entity.Code,
+                entity.Name,
+                entity.ShortName,
+                entity.Description,
+                entity.Type,
+                entity.CompanyId,
+                entity.BranchId,
+                entity.ParentDepartmentId,
+                entity.Level,
+                entity.Limit,
+                entity.CurrentHeadCount,
+                entity.ManagerId,
+                entity.DeputyManagerId,
+                entity.Email,
+                entity.PhoneExtension,
+                entity.CostCenterCode,
+                entity.IsActive,
+                entity.DisplayOrder,
+                entity.EstablishedDate,
+                entity.DissolvedDate,
+                entity.IsNotifyMarketing
+            };
+        }
+
+        private static string? TrimOrNull(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+
+    public class DepartmentCommandFields
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? ShortName { get; set; }
+        public string? Description { get; set; }
+        public string? Type { get; set; }
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+        public Guid? ParentDepartmentId { get; set; }
+        public int Level { get; set; } = 1;
+        public int Limit { get; set; }
+        public int? CurrentHeadCount { get; set; }
+        public Guid? ManagerId { get; set; }
+        public Guid? DeputyManagerId { get; set; }
+        public string? Email { get; set; }
+        public string? PhoneExtension { get; set; }
+        public string? CostCenterCode { get; set; }
+        public bool IsActive { get; set; } = true;
+        public int DisplayOrder { get; set; }
+        public DateTime? EstablishedDate { get; set; }
+        public DateTime? DissolvedDate { get; set; }
+        public bool IsNotifyMarketing { get; set; }
     }
 }

@@ -1,12 +1,12 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HrmApi.Application.Features.Companies.Commands
 {
@@ -43,11 +43,11 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
-                "Company",
+                "CompanyEntity",
                 company.Id,
                 null,
                 CompanyMapper.ToLogObject(company),
-                "Tạo mới công ty " + company.Name);
+                "Tạo mới công ty " + company.Name + " thành công");
 
             return company.Id;
         }
@@ -119,13 +119,15 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             await _context.SaveChangesAsync(cancellationToken);
 
+            var newValue = CompanyMapper.ToLogObject(company);
+
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
-                "Company",
+                "CompanyEntity",
                 company.Id,
                 oldValue,
-                CompanyMapper.ToLogObject(company),
-                "Cập nhật thông tin công ty " + company.Name);
+                newValue,
+                "Cập nhật thông tin công ty " + company.Name + " thành công");
 
             return true;
         }
@@ -163,11 +165,11 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
-                "Company",
+                "CompanyEntity",
                 company.Id,
                 new { IsDeleted = true },
                 new { IsDeleted = false },
-                "Kích hoạt công ty " + company.Name);
+                "Kích hoạt công ty " + company.Name + " thành công");
 
             return true;
         }
@@ -205,11 +207,11 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
-                "Company",
+                "CompanyEntity",
                 company.Id,
                 new { IsDeleted = false },
                 new { IsDeleted = true },
-                "Khóa công ty " + company.Name);
+                "Ngưng hoạt động công ty " + company.Name + " thành công");
 
             return true;
         }

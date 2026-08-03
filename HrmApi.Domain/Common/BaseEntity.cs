@@ -17,5 +17,6 @@ namespace HrmApi.Domain.Common
         public DateTime? UpdatedAt { get; set; } = null;
 
         public bool IsDeleted { get; set; }
+        public string? Version { get; set; }
     }
 }

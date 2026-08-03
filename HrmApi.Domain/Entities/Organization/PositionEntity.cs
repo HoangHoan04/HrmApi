@@ -1,5 +1,5 @@
-﻿using HrmApi.Domain.Common;
-using System;
+﻿using System;
+using HrmApi.Domain.Common;
 
 namespace HrmApi.Domain.Entities.Organization
 {
@@ -10,28 +10,44 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class PositionEntity : BaseEntity
     {
-        /// <summary>Id công ty (denormalize từ Branch/Department để truy vấn nhanh)</summary>
+        /// <summary>
+        /// Id công ty (denormalize từ Branch/Department để truy vấn nhanh)
+        /// </summary>
         public Guid? CompanyId { get; set; }
 
-        /// <summary>Id chi nhánh mà chức danh này trực thuộc</summary>
+        /// <summary>
+        /// Id chi nhánh mà chức danh này trực thuộc
+        /// </summary>
         public Guid? BranchId { get; set; }
 
-        /// <summary>Id mẫu chức danh (Position Master) mà bản ghi này được tạo ra từ đó</summary>
+        /// <summary>
+        /// Id mẫu chức danh (Position Master) mà bản ghi này được tạo ra từ đó
+        /// </summary>
         public Guid? PositionMasterId { get; set; }
 
-        /// <summary>Id phòng ban mà chức danh này trực thuộc</summary>
+        /// <summary>
+        /// Id phòng ban mà chức danh này trực thuộc
+        /// </summary>
         public Guid? DepartmentId { get; set; }
 
-        /// <summary>Id tổ/nhóm mà chức danh này trực thuộc (nếu chức danh gắn ở cấp tổ thay vì cả phòng ban)</summary>
+        /// <summary>
+        /// Id tổ/nhóm mà chức danh này trực thuộc (nếu chức danh gắn ở cấp tổ thay vì cả phòng ban)
+        /// </summary>
         public Guid? PartId { get; set; }
 
-        /// <summary>Số lượng định biên thực tế của chức danh này tại phòng ban/tổ (có thể khác QuantityStandard của mẫu)</summary>
+        /// <summary>
+        /// Số lượng định biên thực tế của chức danh này tại phòng ban/tổ (có thể khác QuantityStandard của mẫu)
+        /// </summary>
         public int? QuantityStandard { get; set; }
 
-        /// <summary>Trạng thái kích hoạt (true: đang sử dụng, false: vô hiệu – không xóa dữ liệu)</summary>
+        /// <summary>
+        /// Trạng thái kích hoạt (true: đang sử dụng, false: vô hiệu – không xóa dữ liệu)
+        /// </summary>
         public bool IsActive { get; set; } = true;
 
-        /// <summary>Thứ tự hiển thị chức danh trong danh sách của phòng ban/tổ</summary>
+        /// <summary>
+        /// Thứ tự hiển thị chức danh trong danh sách của phòng ban/tổ
+        /// </summary>
         public int DisplayOrder { get; set; }
     }
 }

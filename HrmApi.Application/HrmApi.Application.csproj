@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,11 +21,8 @@
     <Folder Include="Common\Behaviours\" />
     <Folder Include="Common\Models\" />
     <Folder Include="Common\Exceptions\" />
-    <Folder Include="DTOs\" />
     <Folder Include="Features\Employees\Commands\" />
     <Folder Include="Features\Employees\Queries\" />
-    <Folder Include="Mappings\" />
-    <Folder Include="Features\" />
   </ItemGroup>
 
 </Project>

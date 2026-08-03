@@ -2,9 +2,8 @@ using System;
 
 namespace HrmApi.Application.DTOs
 {
-    public class CompanyDto
+    public class CompanyDto : BaseDto
     {
-        public Guid Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
@@ -42,8 +41,5 @@ namespace HrmApi.Application.DTOs
         public bool IsActive { get; set; } = true;
         public string? SocialInsuranceCode { get; set; }
         public Guid? TimeKeepingStandardId { get; set; }
-        public bool IsDeleted { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
     }
 }

@@ -1,9 +1,9 @@
-using HrmApi.Domain.Entities.Organization;
-using HrmApi.Domain.Entities.Permission;
-using HrmApi.Domain.Entities.AuditLog;
-using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Domain.Entities.AuditLog;
+using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Entities.Permission;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Application.Common.Interfaces
 {
@@ -12,6 +12,8 @@ namespace HrmApi.Application.Common.Interfaces
         /* Organizition */
         DbSet<CompanyEntity> CompanyEntities { get; }
         DbSet<BranchEntity> BranchEntities { get; }
+        DbSet<DepartmentEntity> DepartmentEntities { get; }
+        DbSet<PositionEntity> PositionEntities { get; }
         /* User - Permission - Role */
         DbSet<UserEntity> UserEntities { get; }
         DbSet<RoleEntity> RoleEntities { get; }

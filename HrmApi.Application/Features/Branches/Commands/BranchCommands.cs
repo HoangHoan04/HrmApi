@@ -1,26 +1,18 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HrmApi.Application.Features.Branches.Commands
 {
     #region Create Command
-    public class CreateBranchCommand : IRequest<Guid>
+    public class CreateBranchCommand : BranchCommandFields, IRequest<Guid>
     {
-        public string Code { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string IpAddress { get; set; } = string.Empty;
-        public string GroupSalary { get; set; } = string.Empty;
-        public string ShortName { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
-        public Guid? CompanyId { get; set; }
     }
 
     public class CreateBranchCommandHandler : IRequestHandler<CreateBranchCommand, Guid>
@@ -36,67 +28,68 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<Guid> Handle(CreateBranchCommand request, CancellationToken cancellationToken)
         {
-            var exists = await _context.BranchEntities
-                .AnyAsync(x => x.Code.ToLower() == request.Code.ToLower(), cancellationToken);
-
-            if (exists)
-            {
-                throw new InvalidOperationException("Mã chi nhánh đã tồn tại trong hệ thống.");
-            }
-
-            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
-            {
-                var companyExists = await _context.CompanyEntities.AnyAsync(c => c.Id == request.CompanyId.Value, cancellationToken);
-                if (!companyExists)
-                {
-                    throw new InvalidOperationException("Công ty được chọn không hợp lệ.");
-                }
-            }
+            await ValidateAsync(request, null, cancellationToken, _context);
 
             var branch = new BranchEntity
             {
-                Code = request.Code.Trim(),
-                Name = request.Name.Trim(),
-                Description = request.Description?.Trim() ?? string.Empty,
-                Address = request.Address?.Trim() ?? string.Empty,
-                IpAddress = request.IpAddress?.Trim() ?? string.Empty,
-                GroupSalary = request.GroupSalary?.Trim() ?? string.Empty,
-                ShortName = request.ShortName?.Trim() ?? string.Empty,
-                Type = request.Type?.Trim() ?? string.Empty,
-                CompanyId = request.CompanyId,
                 IsDeleted = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
+
+            BranchMapper.ApplyCommandFields(branch, request);
 
             _context.BranchEntities.Add(branch);
             await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
-                "Branch",
+                "BranchEntity",
                 branch.Id,
                 null,
-                new { branch.Code, branch.Name, branch.Description, branch.Address, branch.IpAddress, branch.GroupSalary, branch.ShortName, branch.Type, branch.CompanyId },
+                BranchMapper.ToLogObject(branch),
                 "Tạo mới chi nhánh " + branch.Name);
 
             return branch.Id;
+        }
+
+        internal static async Task ValidateAsync(
+            BranchCommandFields request,
+            Guid? excludeId,
+            CancellationToken cancellationToken,
+            IApplicationDbContext context)
+        {
+            if (string.IsNullOrWhiteSpace(request.Code))
+                throw new InvalidOperationException("Mã chi nhánh là bắt buộc.");
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+                throw new InvalidOperationException("Tên chi nhánh là bắt buộc.");
+
+            var exists = await context.BranchEntities
+                .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
+                    && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
+
+            if (exists)
+                throw new InvalidOperationException("Mã chi nhánh đã tồn tại trong hệ thống.");
+
+            if (request.ParentBranchId.HasValue)
+            {
+                if (excludeId.HasValue && request.ParentBranchId.Value == excludeId.Value)
+                    throw new InvalidOperationException("Chi nhánh không thể là chi nhánh mẹ của chính nó.");
+
+                var parentExists = await context.BranchEntities
+                    .AnyAsync(x => x.Id == request.ParentBranchId.Value, cancellationToken);
+
+                if (!parentExists)
+                    throw new InvalidOperationException("Chi nhánh mẹ không tồn tại.");
+            }
         }
     }
     #endregion
 
     #region Update Command
-    public class UpdateBranchCommand : IRequest<bool>
+    public class UpdateBranchCommand : BranchCommandFields, IRequest<bool>
     {
         public Guid Id { get; set; }
-        public string Code { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string IpAddress { get; set; } = string.Empty;
-        public string GroupSalary { get; set; } = string.Empty;
-        public string ShortName { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
-        public Guid? CompanyId { get; set; }
     }
 
     public class UpdateBranchCommandHandler : IRequestHandler<UpdateBranchCommand, bool>
@@ -117,65 +110,20 @@ namespace HrmApi.Application.Features.Branches.Commands
 
             if (branch == null) return false;
 
-            var duplicateCode = await _context.BranchEntities
-                .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == request.Code.ToLower(), cancellationToken);
+            await CreateBranchCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            if (duplicateCode)
-            {
-                throw new InvalidOperationException("Mã chi nhánh đã tồn tại ở chi nhánh khác.");
-            }
+            var oldValue = BranchMapper.ToLogObject(branch);
 
-            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
-            {
-                var companyExists = await _context.CompanyEntities.AnyAsync(c => c.Id == request.CompanyId.Value, cancellationToken);
-                if (!companyExists)
-                {
-                    throw new InvalidOperationException("Công ty được chọn không hợp lệ.");
-                }
-            }
-
-            var oldValue = new 
-            { 
-                branch.Code, 
-                branch.Name, 
-                branch.Description, 
-                branch.Address, 
-                branch.IpAddress, 
-                branch.GroupSalary, 
-                branch.ShortName, 
-                branch.Type, 
-                branch.CompanyId 
-            };
-
-            branch.Code = request.Code.Trim();
-            branch.Name = request.Name.Trim();
-            branch.Description = request.Description?.Trim() ?? string.Empty;
-            branch.Address = request.Address?.Trim() ?? string.Empty;
-            branch.IpAddress = request.IpAddress?.Trim() ?? string.Empty;
-            branch.GroupSalary = request.GroupSalary?.Trim() ?? string.Empty;
-            branch.ShortName = request.ShortName?.Trim() ?? string.Empty;
-            branch.Type = request.Type?.Trim() ?? string.Empty;
-            branch.CompanyId = request.CompanyId;
+            BranchMapper.ApplyCommandFields(branch, request);
             branch.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            var newValue = new 
-            { 
-                branch.Code, 
-                branch.Name, 
-                branch.Description, 
-                branch.Address, 
-                branch.IpAddress, 
-                branch.GroupSalary, 
-                branch.ShortName, 
-                branch.Type, 
-                branch.CompanyId 
-            };
+            var newValue = BranchMapper.ToLogObject(branch);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
-                "Branch",
+                "BranchEntity",
                 branch.Id,
                 oldValue,
                 newValue,
@@ -217,11 +165,11 @@ namespace HrmApi.Application.Features.Branches.Commands
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
-                "Branch",
+                "BranchEntity",
                 branch.Id,
                 new { IsDeleted = true },
                 new { IsDeleted = false },
-                "Kích hoạt chi nhánh " + branch.Name);
+                "Kích hoạt chi nhánh " + branch.Name + " thành công");
 
             return true;
         }
@@ -259,11 +207,11 @@ namespace HrmApi.Application.Features.Branches.Commands
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
-                "Branch",
+                "BranchEntity",
                 branch.Id,
                 new { IsDeleted = false },
                 new { IsDeleted = true },
-                "Khóa chi nhánh " + branch.Name);
+                "Ngưng hoạt động chi nhánh " + branch.Name + " thành công");
 
             return true;
         }

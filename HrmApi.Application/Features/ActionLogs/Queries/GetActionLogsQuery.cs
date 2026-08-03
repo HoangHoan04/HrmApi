@@ -1,11 +1,11 @@
-using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.Common.Models;
-using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Common.Models;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Application.Features.ActionLogs.Queries
 {
@@ -56,11 +56,13 @@ namespace HrmApi.Application.Features.ActionLogs.Queries
                 query = query.Where(x => x.EntityId == request.EntityId.Value);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.SearchText))
+            if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.SearchText.Trim().ToLower();
-                query = query.Where(x => x.CreatedByName.ToLower().Contains(search) || 
-                                         x.CreatedByCode.ToLower().Contains(search) || 
+                var search = request.Search.Trim().ToLower();
+                query = query.Where(x => x.CreatedByName.ToLower().Contains(search) ||
+
+                                         x.CreatedByCode.ToLower().Contains(search) ||
+
                                          (x.CreatedNote != null && x.CreatedNote.ToLower().Contains(search)));
             }
 

@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs;
 using HrmApi.Application.DTOs.Company;
@@ -6,10 +10,6 @@ using HrmApi.Application.Features.Companies.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 
 namespace HrmApi.WebApi.Controllers
 {
@@ -17,7 +17,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách công ty
     /// </summary>
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/companies")]
     public class CompaniesController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -30,7 +30,7 @@ namespace HrmApi.WebApi.Controllers
         /// <summary>
         /// Lấy danh sách công ty phân trang (Phương thức POST)
         /// </summary>
-        [HttpPost("list")]
+        [HttpPost("pagination")]
         public async Task<ActionResult<PagedResult<CompanyDto>>> GetPagedList([FromBody] GetCompaniesPagedQuery query)
         {
             var result = await _mediator.Send(query);
