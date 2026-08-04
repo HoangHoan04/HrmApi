@@ -14,6 +14,9 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<BranchEntity> BranchEntities { get; }
         DbSet<DepartmentEntity> DepartmentEntities { get; }
         DbSet<PositionEntity> PositionEntities { get; }
+        DbSet<PositionMasterEntity> PositionMasterEntities { get; }
+        DbSet<PartEntity> PartEntities { get; }
+        DbSet<PartMasterEntity> PartMasterEntities { get; }
         /* User - Permission - Role */
         DbSet<UserEntity> UserEntities { get; }
         DbSet<RoleEntity> RoleEntities { get; }

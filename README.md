@@ -4,12 +4,25 @@ Backend được phát triển bằng .NET 10 Clean Architecture. Hệ thống s
 
 ## 1. Cơ chế Tự động Tạo và Cập nhật Database
 
-Khi khởi chạy ứng dụng backend (lệnh `dotnet run` ở project `HrmApi.WebApi`), hệ thống sẽ **tự động** thực hiện:
+Hệ thống **tự tạo database (UTF-8) nếu chưa tồn tại**, rồi mới chạy migration. Điều này áp dụng cho cả:
 
-- Kiểm tra xem Database đã tồn tại chưa. Nếu chưa sẽ tự động tạo database.
-- Tự động chạy tất cả các File Migrations còn thiếu để cập nhật cấu trúc bảng mới nhất vào database.
+- **`dotnet run`** (khởi chạy API)
+- **`dotnet ef database update`** (chạy migration bằng CLI)
 
-Do đó, bạn chỉ cần cấu hình chính xác Connection String trong [appsettings.json](file:///f:/Projects/hrm/HrmApi/HrmApi.WebApi/appsettings.json) rồi khởi chạy Backend, database sẽ được tạo tự động.
+Luồng xử lý:
+
+1. Kết nối PostgreSQL qua database `postgres`
+2. Kiểm tra database trong connection string đã tồn tại chưa
+3. Nếu **chưa có** → tạo mới với `ENCODING UTF8`
+4. Nếu **đã có** nhưng **không phải UTF-8** → dừng và báo lỗi (cần drop database cũ)
+5. Chạy toàn bộ migration còn thiếu
+
+Các file liên quan:
+
+- `DatabaseBootstrap.cs` — tạo/kiểm tra database UTF-8
+- `ApplicationDbContextFactory.cs` — hook cho lệnh `dotnet ef`
+
+Do đó, bạn chỉ cần cấu hình đúng Connection String trong [appsettings.json](HrmApi.WebApi/appsettings.json), PostgreSQL phải đang chạy, rồi chạy API hoặc lệnh migration — database sẽ được tạo tự động.
 
 ---
 
@@ -49,10 +62,25 @@ dotnet ef migrations add InitialCreate --project HrmApi.Infrastructure --startup
 
 ## 3. Hướng dẫn cập nhật Database thủ công bằng CLI
 
-Nếu không muốn chờ khởi chạy WebApi tự động cập nhật, bạn có thể chạy lệnh để áp dụng migration trực tiếp vào Database:
+Chạy từ thư mục `HrmApi/`:
 
 ```bash
 dotnet ef database update --project HrmApi.Infrastructure --startup-project HrmApi.WebApi
+```
+
+Lệnh này sẽ:
+
+1. **Tự tạo database** (UTF-8) nếu chưa tồn tại
+2. **Áp dụng migration** còn thiếu
+
+Bạn sẽ thấy log dạng:
+
+```text
+Checking PostgreSQL database before EF migrations...
+Database HrmApiDb does not exist. Creating with UTF8 encoding...
+Database HrmApiDb is ready with UTF8 encoding.
+Applying migration '...'
+Done.
 ```
 
 ---
@@ -63,6 +91,41 @@ Hãy đảm bảo cấu hình kết nối PostgreSQL chính xác tại file [app
 
 ```json
 "ConnectionStrings": {
-  "DefaultConnection": "Host=localhost;Port=5432;Database=HrmApiDb;Username=postgres;Password=postgres;"
+  "DefaultConnection": "Host=localhost;Port=5432;Database=HrmApiDb;Username=postgres;Password=postgres;Encoding=UTF8;Client Encoding=UTF8"
 }
 ```
+
+> **Lưu ý:** Database mới luôn được tạo với **UTF-8** để hỗ trợ tiếng Việt. Nếu database cũ dùng encoding khác (ví dụ WIN1252), hãy drop và chạy lại migration:
+
+```sql
+DROP DATABASE IF EXISTS "HrmApiDb" WITH (FORCE);
+```
+
+---
+
+## 5. Xử lý lỗi kết nối PostgreSQL
+
+### Lỗi: `connection was forcibly closed` / `database system is in recovery mode`
+
+PostgreSQL đang **recovery mode** hoặc chưa sẵn sàng nhận kết nối.
+
+**Cách xử lý:**
+
+1. Mở **Services** (`services.msc`)
+2. Tìm service **PostgreSQL**
+3. **Restart** service (cần quyền Administrator)
+4. Chạy lại API hoặc migration
+
+Kiểm tra nhanh:
+
+```bash
+psql -h localhost -U postgres -d HrmApiDb -c "SELECT 1;"
+```
+
+### Cơ chế retry trong code
+
+API đã được cấu hình:
+
+- **Chờ PostgreSQL sẵn sàng** khi khởi động (retry tối đa 30 lần)
+- **EnableRetryOnFailure** cho EF Core (retry query khi lỗi tạm thời)
+- **Connection pool** với `Keepalive`, `Timeout` ổn định hơn

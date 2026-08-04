@@ -5,7 +5,7 @@ namespace HrmApi.Application.Mappings
 {
     internal class BranchMapper
     {
-        public static BranchDto ToDto(BranchEntity entity, string? parentName = null)
+        public static BranchDto ToDto(BranchEntity entity, string? companyName = null, string? parentBranchName = null)
         {
             return new BranchDto
             {
@@ -16,6 +16,7 @@ namespace HrmApi.Application.Mappings
                 Description = entity.Description,
                 Type = entity.Type,
                 CompanyId = entity.CompanyId,
+                CompanyName = companyName,
                 ParentBranchId = entity.ParentBranchId,
                 IsHeadQuarter = entity.IsHeadQuarter,
                 Address = entity.Address,
@@ -49,7 +50,7 @@ namespace HrmApi.Application.Mappings
                 UpdatedBy = entity.UpdatedBy,
                 UpdatedAt = entity.UpdatedAt,
                 IsDeleted = entity.IsDeleted,
-                ParentBranchName = parentName,
+                ParentBranchName = parentBranchName,
             };
         }
 

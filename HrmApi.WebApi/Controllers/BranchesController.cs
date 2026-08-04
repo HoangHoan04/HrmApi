@@ -14,7 +14,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách chi nhánh
     /// </summary>
     [ApiController]
-    [Route("api/v1/branches")]
+    [Route("api/v1/branch")]
     public class BranchesController : ControllerBase
     {
         private readonly IMediator _mediator;

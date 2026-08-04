@@ -1,18 +1,12 @@
-﻿using System;
-using HrmApi.Application.DTOs;
+﻿using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Department;
 using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Application.Mappings
 {
     internal static class DepartmentMapper
     {
-        public static DepartmentDto ToDto(
-            DepartmentEntity entity,
-            string? parentDepartmentName = null,
-            string? branchName = null,
-            string? companyName = null,
-            string? managerName = null,
-            string? deputyManagerName = null)
+        public static DepartmentDto ToDto(DepartmentEntity entity, string? companyName = null, string? branchName = null, string? parentDepartmentName = null)
         {
             return new DepartmentDto
             {
@@ -23,8 +17,11 @@ namespace HrmApi.Application.Mappings
                 Description = entity.Description,
                 Type = entity.Type,
                 CompanyId = entity.CompanyId,
+                CompanyName = companyName,
                 BranchId = entity.BranchId,
+                BranchName = branchName,
                 ParentDepartmentId = entity.ParentDepartmentId,
+                ParentDepartmentName = parentDepartmentName,
                 Level = entity.Level,
                 Limit = entity.Limit,
                 CurrentHeadCount = entity.CurrentHeadCount,
@@ -38,11 +35,11 @@ namespace HrmApi.Application.Mappings
                 EstablishedDate = entity.EstablishedDate,
                 DissolvedDate = entity.DissolvedDate,
                 IsNotifyMarketing = entity.IsNotifyMarketing,
+                IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
                 CreatedBy = entity.CreatedBy,
-                UpdatedAt = entity.UpdatedAt,
                 UpdatedBy = entity.UpdatedBy,
-                IsDeleted = entity.IsDeleted
+                UpdatedAt = entity.UpdatedAt
             };
         }
 
@@ -57,7 +54,7 @@ namespace HrmApi.Application.Mappings
             entity.BranchId = fields.BranchId;
             entity.ParentDepartmentId = fields.ParentDepartmentId;
             entity.Level = fields.Level;
-            entity.Limit = fields.Limit;
+            entity.Limit = fields.Limit ?? 0;
             entity.CurrentHeadCount = fields.CurrentHeadCount;
             entity.ManagerId = fields.ManagerId;
             entity.DeputyManagerId = fields.DeputyManagerId;
@@ -103,7 +100,6 @@ namespace HrmApi.Application.Mappings
             string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-
     public class DepartmentCommandFields
     {
         public string Code { get; set; } = string.Empty;
@@ -115,7 +111,7 @@ namespace HrmApi.Application.Mappings
         public Guid? BranchId { get; set; }
         public Guid? ParentDepartmentId { get; set; }
         public int Level { get; set; } = 1;
-        public int Limit { get; set; }
+        public int? Limit { get; set; }
         public int? CurrentHeadCount { get; set; }
         public Guid? ManagerId { get; set; }
         public Guid? DeputyManagerId { get; set; }

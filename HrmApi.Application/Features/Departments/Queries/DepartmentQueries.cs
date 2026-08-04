@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Department;
 using HrmApi.Application.Mappings;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +18,8 @@ namespace HrmApi.Application.Features.Departments.Queries
         public string? Code { get; set; }
         public string? Name { get; set; }
         public bool? IsDeleted { get; set; }
-        public Guid? BranchId { get; set; }
         public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
         public Guid? ParentDepartmentId { get; set; }
     }
 
@@ -49,16 +49,24 @@ namespace HrmApi.Application.Features.Departments.Queries
             }
 
             if (request.IsDeleted.HasValue)
+            {
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
+            }
 
-            if (request.BranchId.HasValue)
-                query = query.Where(x => x.BranchId == request.BranchId.Value);
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
 
-            if (request.CompanyId.HasValue)
-                query = query.Where(x => x.CompanyId == request.CompanyId.Value);
+            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == request.BranchId);
+            }
 
-            if (request.ParentDepartmentId.HasValue)
-                query = query.Where(x => x.ParentDepartmentId == request.ParentDepartmentId.Value);
+            if (request.ParentDepartmentId.HasValue && request.ParentDepartmentId != Guid.Empty)
+            {
+                query = query.Where(x => x.ParentDepartmentId == request.ParentDepartmentId);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -75,36 +83,37 @@ namespace HrmApi.Application.Features.Departments.Queries
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            var parentDeptIds = entities.Where(x => x.ParentDepartmentId.HasValue).Select(x => x.ParentDepartmentId!.Value).Distinct().ToList();
-            var branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
             var companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
-            var managerIds = entities.Where(x => x.ManagerId.HasValue).Select(x => x.ManagerId!.Value).Distinct().ToList();
-            var deputyIds = entities.Where(x => x.DeputyManagerId.HasValue).Select(x => x.DeputyManagerId!.Value).Distinct().ToList();
+            var branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+            var parentIds = entities.Where(x => x.ParentDepartmentId.HasValue).Select(x => x.ParentDepartmentId!.Value).Distinct().ToList();
 
-            var parentDeptNames = await _context.DepartmentEntities
-                .Where(x => parentDeptIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+            var companyMap = companyIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await _context.CompanyEntities
+                    .AsNoTracking()
+                    .Where(x => companyIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var branchNames = await _context.BranchEntities
-                .Where(x => branchIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+            var branchMap = branchIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await _context.BranchEntities
+                    .AsNoTracking()
+                    .Where(x => branchIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var companyNames = await _context.CompanyEntities
-                .Where(x => companyIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-
-            // var managerNames = await _context.EmployeeEntities
-            //     .Where(x => managerIds.Contains(x.Id))
-            //     .ToDictionaryAsync(x => x.Id, x => x.FullName, cancellationToken);
-
-            // var deputyNames = await _context.EmployeeEntities
-            //     .Where(x => deputyIds.Contains(x.Id))
-            //     .ToDictionaryAsync(x => x.Id, x => x.FullName, cancellationToken);
+            var parentMap = parentIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await _context.DepartmentEntities
+                    .AsNoTracking()
+                    .Where(x => parentIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             var items = entities.Select(x =>
             {
-                var dto = DepartmentMapper.ToDto(x);
-                return dto;
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cName) ? cName : null;
+                string? branchName = x.BranchId.HasValue && branchMap.TryGetValue(x.BranchId.Value, out var bName) ? bName : null;
+                string? parentName = x.ParentDepartmentId.HasValue && parentMap.TryGetValue(x.ParentDepartmentId.Value, out var pName) ? pName : null;
+                return DepartmentMapper.ToDto(x, companyName, branchName, parentName);
             }).ToList();
 
             return new PagedResult<DepartmentDto>(items, totalCount, request.PageIndex, request.PageSize);
@@ -121,9 +130,12 @@ namespace HrmApi.Application.Features.Departments.Queries
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
                     "name" => isDesc ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
-                    "level" => isDesc ? query.OrderByDescending(x => x.Level) : query.OrderBy(x => x.Level),
-                    "status" or "isdeleted" => isDesc ? query.OrderByDescending(x => x.IsDeleted) : query.OrderBy(x => x.IsDeleted),
-                    "createdat" => isDesc ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
+                    "status" or "isdeleted" => isDesc
+                        ? query.OrderByDescending(x => x.IsDeleted)
+                        : query.OrderBy(x => x.IsDeleted),
+                    "createdat" => isDesc
+                        ? query.OrderByDescending(x => x.CreatedAt)
+                        : query.OrderBy(x => x.CreatedAt),
                     _ => query.OrderByDescending(x => x.CreatedAt)
                 };
             }
@@ -132,7 +144,6 @@ namespace HrmApi.Application.Features.Departments.Queries
         }
     }
     #endregion
-
 
     #region Detail Query
     public class GetDepartmentByIdQuery : IRequest<DepartmentDto?>
@@ -157,34 +168,47 @@ namespace HrmApi.Application.Features.Departments.Queries
 
             if (department == null) return null;
 
-            var dto = DepartmentMapper.ToDto(department);
+            string? companyName = null;
+            if (department.CompanyId.HasValue)
+            {
+                companyName = await _context.CompanyEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == department.CompanyId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
 
+            string? branchName = null;
+            if (department.BranchId.HasValue)
+            {
+                branchName = await _context.BranchEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == department.BranchId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            string? parentName = null;
             if (department.ParentDepartmentId.HasValue)
             {
-                var parentName = await _context.DepartmentEntities
+                parentName = await _context.DepartmentEntities
+                    .AsNoTracking()
                     .Where(x => x.Id == department.ParentDepartmentId.Value)
                     .Select(x => x.Name)
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
-            return dto;
+            return DepartmentMapper.ToDto(department, companyName, branchName, parentName);
         }
     }
     #endregion
 
-    public class DepartmentSelectBoxDto
-    {
-        public Guid Id { get; set; }
-        public string Code { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-    }
-
+    #region Select Box Query
     public class GetDepartmentSelectBoxQuery : IRequest<List<DepartmentSelectBoxDto>>
     {
         public Guid? ExcludeId { get; set; }
-        public Guid? BranchId { get; set; }
         public Guid? CompanyId { get; set; }
-        public bool? IsActive { get; set; } = true;
+        public Guid? BranchId { get; set; }
     }
 
     public class GetDepartmentSelectBoxQueryHandler : IRequestHandler<GetDepartmentSelectBoxQuery, List<DepartmentSelectBoxDto>>
@@ -202,17 +226,20 @@ namespace HrmApi.Application.Features.Departments.Queries
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
-            if (request.IsActive.HasValue)
-                query = query.Where(x => x.IsActive == request.IsActive.Value);
-
             if (request.ExcludeId.HasValue && request.ExcludeId != Guid.Empty)
+            {
                 query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
 
-            if (request.BranchId.HasValue)
-                query = query.Where(x => x.BranchId == request.BranchId.Value);
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
 
-            if (request.CompanyId.HasValue)
-                query = query.Where(x => x.CompanyId == request.CompanyId.Value);
+            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == request.BranchId);
+            }
 
             return await query
                 .OrderBy(x => x.Name)
@@ -220,9 +247,12 @@ namespace HrmApi.Application.Features.Departments.Queries
                 {
                     Id = x.Id,
                     Code = x.Code,
-                    Name = x.Name
+                    Name = x.Name,
+                    CompanyId = x.CompanyId,
+                    BranchId = x.BranchId
                 })
                 .ToListAsync(cancellationToken);
         }
     }
+    #endregion
 }

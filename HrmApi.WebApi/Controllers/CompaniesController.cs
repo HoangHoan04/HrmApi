@@ -17,7 +17,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách công ty
     /// </summary>
     [ApiController]
-    [Route("api/v1/companies")]
+    [Route("api/v1/company")]
     public class CompaniesController : ControllerBase
     {
         private readonly IMediator _mediator;

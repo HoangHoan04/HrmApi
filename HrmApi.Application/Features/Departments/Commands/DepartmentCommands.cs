@@ -64,6 +64,21 @@ namespace HrmApi.Application.Features.Departments.Commands
             if (string.IsNullOrWhiteSpace(request.Name))
                 throw new InvalidOperationException("Tên phòng ban là bắt buộc.");
 
+            if (!request.BranchId.HasValue || request.BranchId == Guid.Empty)
+                throw new InvalidOperationException("Chi nhánh là bắt buộc.");
+
+            var branch = await context.BranchEntities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == request.BranchId.Value, cancellationToken);
+
+            if (branch == null)
+                throw new InvalidOperationException("Chi nhánh không tồn tại.");
+
+            if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
+                request.CompanyId = branch.CompanyId;
+            else if (branch.CompanyId.HasValue && branch.CompanyId != request.CompanyId)
+                throw new InvalidOperationException("Chi nhánh không thuộc công ty đã chọn.");
+
             var exists = await context.DepartmentEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);

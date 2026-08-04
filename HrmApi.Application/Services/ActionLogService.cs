@@ -67,7 +67,7 @@ namespace HrmApi.Application.Services
                 NewValue = newValJson,
                 IpAddress = ip,
                 UserAgent = userAgent,
-                Location = null, 
+                Location = null,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = userId
             };

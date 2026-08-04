@@ -85,24 +85,34 @@ namespace HrmApi.Application.Features.Branches.Queries
                 .ToList();
 
             var parentIds = entities
-                          .Where(x => x.ParentBranchId.HasValue)
-                          .Select(x => x.ParentBranchId!.Value)
-                          .Distinct()
-                          .ToList();
+                .Where(x => x.ParentBranchId.HasValue)
+                .Select(x => x.ParentBranchId!.Value)
+                .Distinct()
+                .ToList();
+
+            var companyMap = companyIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await _context.CompanyEntities
+                    .AsNoTracking()
+                    .Where(x => companyIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             var parentMap = parentIds.Count == 0
                 ? new Dictionary<Guid, string>()
                 : await _context.BranchEntities
                     .AsNoTracking()
                     .Where(x => parentIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             var items = entities.Select(x =>
             {
-                string? parentName = x.ParentBranchId.HasValue && parentMap.TryGetValue(x.ParentBranchId.Value, out var name)
-                    ? name
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cn)
+                    ? cn
                     : null;
-                return BranchMapper.ToDto(x, parentName);
+                string? parentBranchName = x.ParentBranchId.HasValue && parentMap.TryGetValue(x.ParentBranchId.Value, out var pn)
+                    ? pn
+                    : null;
+                return BranchMapper.ToDto(x, companyName, parentBranchName);
             }).ToList();
 
             return new PagedResult<BranchDto>(items, totalCount, request.PageIndex, request.PageSize);
@@ -166,8 +176,16 @@ namespace HrmApi.Application.Features.Branches.Queries
                 companyName = company?.Name;
             }
 
+            string? parentBranchName = null;
+            if (branch.ParentBranchId.HasValue)
+            {
+                var parentBranch = await _context.BranchEntities
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(b => b.Id == branch.ParentBranchId.Value, cancellationToken);
+                parentBranchName = parentBranch?.Name;
+            }
 
-            return BranchMapper.ToDto(branch, companyName);
+            return BranchMapper.ToDto(branch, companyName, parentBranchName);
         }
     }
     #endregion
@@ -176,6 +194,7 @@ namespace HrmApi.Application.Features.Branches.Queries
     public class GetBranchSelectBoxQuery : IRequest<List<BranchSelectBoxDto>>
     {
         public Guid? ExcludeId { get; set; }
+        public Guid? CompanyId { get; set; }
     }
 
     public class GetBranchSelectBoxQueryHandler : IRequestHandler<GetBranchSelectBoxQuery, List<BranchSelectBoxDto>>
@@ -196,6 +215,11 @@ namespace HrmApi.Application.Features.Branches.Queries
             if (request.ExcludeId.HasValue)
             {
                 query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
+
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
             }
 
             return await query

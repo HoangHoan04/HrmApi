@@ -4,7 +4,6 @@ using HrmApi.Infrastructure.Persistence;
 using HrmApi.Domain.Entities.Permission;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.IO;
 using System.Linq;
 
@@ -50,12 +49,15 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
+        await DatabaseBootstrap.EnsureUtf8DatabaseAsync(app.Configuration, logger);
+
         var context = services.GetRequiredService<ApplicationDbContext>();
-        context.Database.Migrate();
+        await context.Database.MigrateAsync();
         var seedUsername = Environment.GetEnvironmentVariable("SEED_ADMIN_USERNAME") ?? "admin";
-        var seedPassword = Environment.GetEnvironmentVariable("SEED_ADMIN_PASSWORD") ?? "admin@123";
+        var seedPassword = Environment.GetEnvironmentVariable("SEED_ADMIN_PASSWORD") ?? "admin123";
         var seedEmail = Environment.GetEnvironmentVariable("SEED_ADMIN_EMAIL") ?? "admin@hrm.com";
         var hasher = services.GetRequiredService<IPasswordHasher<UserEntity>>();
 
@@ -91,8 +93,8 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating or seeding the database.");
+        logger.LogCritical(ex, "Database bootstrap, migration, or seeding failed.");
+        throw;
     }
 }
 

@@ -81,6 +81,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("UserAgent")
                         .HasColumnType("text");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("ActionLogEntities");
@@ -219,6 +222,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
 
                     b.Property<string>("Ward")
                         .HasColumnType("text");
@@ -360,6 +366,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.Property<string>("Ward")
                         .HasColumnType("text");
 
@@ -465,6 +474,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BranchEntityId");
@@ -531,6 +543,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PartMasterEntityId");
@@ -588,6 +603,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BranchEntityId");
@@ -642,6 +660,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -742,6 +763,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.Property<int?>("WorkingHour")
                         .HasColumnType("integer");
 
@@ -798,6 +822,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("PermissionEntities");
@@ -847,6 +874,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("RoleEntities");
@@ -882,6 +912,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -976,6 +1009,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("UserEntities");
@@ -1013,6 +1049,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -1078,6 +1117,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
