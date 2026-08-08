@@ -229,6 +229,52 @@ namespace HrmApi.Application.Features.Branches.Queries
                     Id = x.Id,
                     Code = x.Code,
                     Name = x.Name,
+                })
+                .ToListAsync(cancellationToken);
+        }
+    }
+    #endregion
+
+    #region Cascade Query
+    /// <summary>
+    /// Load chi nhánh theo công ty (bắt buộc companyId).
+    /// </summary>
+    public class GetBranchesByCompanyQuery : IRequest<List<BranchSelectBoxDto>>
+    {
+        public Guid CompanyId { get; set; }
+        public Guid? ExcludeId { get; set; }
+    }
+
+    public class GetBranchesByCompanyQueryHandler : IRequestHandler<GetBranchesByCompanyQuery, List<BranchSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+
+        public GetBranchesByCompanyQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<BranchSelectBoxDto>> Handle(GetBranchesByCompanyQuery request, CancellationToken cancellationToken)
+        {
+            if (request.CompanyId == Guid.Empty)
+                throw new InvalidOperationException("Id công ty là bắt buộc.");
+
+            var query = _context.BranchEntities
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted && x.CompanyId == request.CompanyId);
+
+            if (request.ExcludeId.HasValue)
+            {
+                query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
+
+            return await query
+                .OrderBy(x => x.Name)
+                .Select(x => new BranchSelectBoxDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
                     CompanyId = x.CompanyId
                 })
                 .ToListAsync(cancellationToken);

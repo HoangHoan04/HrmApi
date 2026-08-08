@@ -17,8 +17,7 @@ using System.Threading.Tasks;
 namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
-    [Route("api/v1/auth")]
-    public class AuthController : ControllerBase
+    public abstract class AuthController : ControllerBase
     {
         private readonly IApplicationDbContext _context;
         private readonly IPasswordHasher<UserEntity> _passwordHasher;
@@ -68,8 +67,10 @@ namespace HrmApi.WebApi.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
         {
+            System.Console.WriteLine($"[API Auth] Login attempt received for username: '{request?.Username}'");
             if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
             {
+                System.Console.WriteLine("[API Auth] Login rejected: Username or password null/empty.");
                 return BadRequest("Tài khoản và mật khẩu không được để trống.");
             }
 
@@ -78,17 +79,20 @@ namespace HrmApi.WebApi.Controllers
 
             if (user == null)
             {
+                System.Console.WriteLine($"[API Auth] Login rejected: User '{request.Username}' not found.");
                 return BadRequest("Tài khoản hoặc mật khẩu không chính xác.");
             }
 
             if (!user.IsActive)
             {
+                System.Console.WriteLine($"[API Auth] Login rejected: User '{user.Username}' is inactive.");
                 return BadRequest("Tài khoản đang bị khóa hoặc ngưng hoạt động.");
             }
 
             if (user.IsLocked && user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
             {
                 var lockTimeRemaining = Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
+                System.Console.WriteLine($"[API Auth] Login rejected: User '{user.Username}' is locked for another {lockTimeRemaining} minutes.");
                 return BadRequest($"Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau {lockTimeRemaining} phút.");
             }
 
@@ -96,12 +100,14 @@ namespace HrmApi.WebApi.Controllers
             if (passwordResult == PasswordVerificationResult.Failed)
             {
                 user.FailedLoginAttempts++;
+                System.Console.WriteLine($"[API Auth] Login rejected: Incorrect password for user '{user.Username}'. Failed attempts: {user.FailedLoginAttempts}");
                 if (user.FailedLoginAttempts >= 5)
                 {
                     user.IsLocked = true;
                     user.LockedUntil = DateTime.UtcNow.AddMinutes(15);
                     user.FailedLoginAttempts = 0;
                     await _context.SaveChangesAsync(default);
+                    System.Console.WriteLine($"[API Auth] User '{user.Username}' has been locked due to too many failed attempts.");
                     return BadRequest("Tài khoản của bạn đã bị khóa tạm thời 15 phút do nhập sai mật khẩu quá 5 lần.");
                 }
 
@@ -136,6 +142,8 @@ namespace HrmApi.WebApi.Controllers
             user.LastLoginAt = DateTime.UtcNow;
             user.LastLoginIp = HttpContext.Connection.RemoteIpAddress?.ToString();
             await _context.SaveChangesAsync(default);
+
+            System.Console.WriteLine($"[API Auth] Login successful for user: '{user.Username}'. Token generated.");
 
             return Ok(new LoginResponse
             {
@@ -316,6 +324,35 @@ namespace HrmApi.WebApi.Controllers
             await _context.SaveChangesAsync(default);
 
             return Ok(new { message = "Thay đổi mật khẩu thành công." });
+        }
+
+        [Authorize]
+        [HttpPost("update-profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+        {
+            if (request == null)
+            {
+                return BadRequest("Thông tin cập nhật không hợp lệ.");
+            }
+
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null)
+            {
+                return BadRequest("Tài khoản không tồn tại.");
+            }
+
+            user.Email = request.Email;
+            user.PhoneNumber = request.PhoneNumber;
+
+            await _context.SaveChangesAsync(default);
+
+            return Ok(new { message = "Cập nhật thông tin thành công." });
         }
 
         private string GenerateJwtToken(UserEntity user)

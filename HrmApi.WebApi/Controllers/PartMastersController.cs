@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -153,6 +153,16 @@ namespace HrmApi.WebApi.Controllers
             });
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Load mẫu bộ phận theo công ty/chi nhánh (dùng cho cascade dropdown).
+        /// </summary>
+        [HttpPost("by-scope")]
+        public async Task<ActionResult<List<PartMasterSelectBoxDto>>> GetByScope(
+            [FromBody] GetPartMastersByScopeQuery query)
+        {
+            return Ok(await _mediator.Send(query));
         }
     }
 }

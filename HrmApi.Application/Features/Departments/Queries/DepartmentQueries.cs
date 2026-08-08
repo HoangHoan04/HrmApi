@@ -255,4 +255,52 @@ namespace HrmApi.Application.Features.Departments.Queries
         }
     }
     #endregion
+
+    #region Cascade Query
+    /// <summary>
+    /// Load phòng ban theo chi nhánh (bắt buộc branchId).
+    /// </summary>
+    public class GetDepartmentsByBranchQuery : IRequest<List<DepartmentSelectBoxDto>>
+    {
+        public Guid BranchId { get; set; }
+        public Guid? ExcludeId { get; set; }
+    }
+
+    public class GetDepartmentsByBranchQueryHandler : IRequestHandler<GetDepartmentsByBranchQuery, List<DepartmentSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+
+        public GetDepartmentsByBranchQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<DepartmentSelectBoxDto>> Handle(GetDepartmentsByBranchQuery request, CancellationToken cancellationToken)
+        {
+            if (request.BranchId == Guid.Empty)
+                throw new InvalidOperationException("Id chi nhánh là bắt buộc.");
+
+            var query = _context.DepartmentEntities
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted && x.BranchId == request.BranchId);
+
+            if (request.ExcludeId.HasValue)
+            {
+                query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
+
+            return await query
+                .OrderBy(x => x.Name)
+                .Select(x => new DepartmentSelectBoxDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
+                    CompanyId = x.CompanyId,
+                    BranchId = x.BranchId
+                })
+                .ToListAsync(cancellationToken);
+        }
+    }
+    #endregion
 }

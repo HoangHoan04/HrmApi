@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -272,6 +272,55 @@ namespace HrmApi.Application.Features.Parts.Queries
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
+            return await query
+                .OrderBy(x => x.DisplayOrder)
+                .ThenBy(x => x.Name)
+                .Select(x => new PartSelectBoxDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name ?? x.Code,
+                    DepartmentId = x.DepartmentId,
+                    PartMasterId = x.PartMasterId
+                })
+                .ToListAsync(cancellationToken);
+        }
+    }
+    #endregion
+
+    #region Cascade Query
+    /// <summary>
+    /// Load bộ phận (Part) theo phòng ban (bắt buộc departmentId).
+    /// </summary>
+    public class GetPartsByDepartmentQuery : IRequest<List<PartSelectBoxDto>>
+    {
+        public Guid DepartmentId { get; set; }
+        public Guid? ExcludeId { get; set; }
+    }
+
+    public class GetPartsByDepartmentQueryHandler : IRequestHandler<GetPartsByDepartmentQuery, List<PartSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+
+        public GetPartsByDepartmentQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<PartSelectBoxDto>> Handle(GetPartsByDepartmentQuery request, CancellationToken cancellationToken)
+        {
+            if (request.DepartmentId == Guid.Empty)
+                throw new InvalidOperationException("Id phòng ban là bắt buộc.");
+
+            var query = _context.PartEntities
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted && x.DepartmentId == request.DepartmentId);
+
+            if (request.ExcludeId.HasValue)
+            {
+                query = query.Where(x => x.Id != request.ExcludeId.Value);
             }
 
             return await query

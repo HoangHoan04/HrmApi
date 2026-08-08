@@ -86,7 +86,6 @@ namespace HrmApi.Application.Features.Departments.Commands
             if (exists)
                 throw new InvalidOperationException("Mã phòng ban đã tồn tại trong hệ thống.");
 
-            // Kiểm tra Company (nếu có)
             if (request.CompanyId.HasValue)
             {
                 var companyExists = await context.CompanyEntities
@@ -95,7 +94,6 @@ namespace HrmApi.Application.Features.Departments.Commands
                     throw new InvalidOperationException("Công ty không tồn tại.");
             }
 
-            // Kiểm tra Branch (nếu có)
             if (request.BranchId.HasValue)
             {
                 var branchExists = await context.BranchEntities
@@ -104,7 +102,6 @@ namespace HrmApi.Application.Features.Departments.Commands
                     throw new InvalidOperationException("Chi nhánh không tồn tại.");
             }
 
-            // Kiểm tra ParentDepartment (nếu có)
             if (request.ParentDepartmentId.HasValue)
             {
                 if (excludeId.HasValue && request.ParentDepartmentId.Value == excludeId.Value)
@@ -116,23 +113,23 @@ namespace HrmApi.Application.Features.Departments.Commands
                     throw new InvalidOperationException("Phòng ban cha không tồn tại.");
             }
 
-            // // Kiểm tra Manager (nếu có)
-            // if (request.ManagerId.HasValue)
-            // {
-            //     var managerExists = await context.EmployeeEntities
-            //         .AnyAsync(x => x.Id == request.ManagerId.Value, cancellationToken);
-            //     if (!managerExists)
-            //         throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
-            // }
+            // Kiểm tra Manager (nếu có)
+            if (request.ManagerId.HasValue)
+            {
+                var managerExists = await context.EmployeeEntities
+                    .AnyAsync(x => x.Id == request.ManagerId.Value, cancellationToken);
+                if (!managerExists)
+                    throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
+            }
 
-            // // Kiểm tra DeputyManager (nếu có)
-            // if (request.DeputyManagerId.HasValue)
-            // {
-            //     var deputyExists = await context.EmployeeEntities
-            //         .AnyAsync(x => x.Id == request.DeputyManagerId.Value, cancellationToken);
-            //     if (!deputyExists)
-            //         throw new InvalidOperationException("Nhân viên phó phòng không tồn tại.");
-            // }
+            // Kiểm tra DeputyManager (nếu có)
+            if (request.DeputyManagerId.HasValue)
+            {
+                var deputyExists = await context.EmployeeEntities
+                    .AnyAsync(x => x.Id == request.DeputyManagerId.Value, cancellationToken);
+                if (!deputyExists)
+                    throw new InvalidOperationException("Nhân viên phó phòng không tồn tại.");
+            }
         }
     }
     #endregion

@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using HrmApi.Domain.Entities.AuditLog;
+using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Entities.Permission;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,13 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<PositionMasterEntity> PositionMasterEntities { get; }
         DbSet<PartEntity> PartEntities { get; }
         DbSet<PartMasterEntity> PartMasterEntities { get; }
+        /* Employee */
+        DbSet<EmployeeEntity> EmployeeEntities { get; }
+        DbSet<EmployeeDependentEntity> EmployeeDependentEntities { get; }
+        DbSet<EmployeeEducationEntity> EmployeeEducationEntities { get; }
+        DbSet<EmployeeCertificateEntity> EmployeeCertificateEntities { get; }
+        DbSet<EmployeeFileEntity> EmployeeFileEntities { get; }
+        DbSet<EmployeeSalaryHistoryEntity> EmployeeSalaryHistoryEntities { get; }
         /* User - Permission - Role */
         DbSet<UserEntity> UserEntities { get; }
         DbSet<RoleEntity> RoleEntities { get; }

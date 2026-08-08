@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -186,6 +186,56 @@ namespace HrmApi.Application.Features.PartMasters.Queries
             {
                 query = query.Where(x => x.Id != request.ExcludeId.Value);
             }
+
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
+            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
+            return await query
+                .OrderBy(x => x.Name)
+                .Select(x => new PartMasterSelectBoxDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
+                    CompanyId = x.CompanyId,
+                    BranchId = x.BranchId
+                })
+                .ToListAsync(cancellationToken);
+        }
+    }
+    #endregion
+
+    #region Cascade Query
+    /// <summary>
+    /// Load mẫu bộ phận theo công ty/chi nhánh.
+    /// </summary>
+    public class GetPartMastersByScopeQuery : IRequest<List<PartMasterSelectBoxDto>>
+    {
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+    }
+
+    public class GetPartMastersByScopeQueryHandler : IRequestHandler<GetPartMastersByScopeQuery, List<PartMasterSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+
+        public GetPartMastersByScopeQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<PartMasterSelectBoxDto>> Handle(GetPartMastersByScopeQuery request, CancellationToken cancellationToken)
+        {
+            var query = _context.PartMasterEntities
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted);
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {

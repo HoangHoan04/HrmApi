@@ -3,6 +3,7 @@ using System;
 using HrmApi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HrmApi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808041048_AddCertificateImageUrl")]
+    partial class AddCertificateImageUrl
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -109,9 +112,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("text");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -282,18 +282,12 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Bankname")
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("BranchId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("CompanyEmail")
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("CompanyId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("ContractType")
                         .HasColumnType("text");
@@ -312,9 +306,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("DayOfBirth")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DepartmentId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -359,9 +350,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("NowAddress")
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("PartId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("PermanentAddress")
                         .HasColumnType("text");
 
@@ -372,9 +360,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("PlaceOfIsssuance")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("PositionId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Religion")
                         .HasColumnType("text");
@@ -410,16 +395,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BranchId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("DepartmentId");
-
-                    b.HasIndex("PartId");
-
-                    b.HasIndex("PositionId");
 
                     b.ToTable("EmployeeEntities");
                 });
@@ -1609,39 +1584,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("HrmApi.Domain.Entities.Employee.EmployeeEntity", b =>
-                {
-                    b.HasOne("HrmApi.Domain.Entities.Organization.BranchEntity", "Branch")
-                        .WithMany()
-                        .HasForeignKey("BranchId");
-
-                    b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
-                        .WithMany()
-                        .HasForeignKey("CompanyId");
-
-                    b.HasOne("HrmApi.Domain.Entities.Organization.DepartmentEntity", "Department")
-                        .WithMany()
-                        .HasForeignKey("DepartmentId");
-
-                    b.HasOne("HrmApi.Domain.Entities.Organization.PartEntity", "Part")
-                        .WithMany()
-                        .HasForeignKey("PartId");
-
-                    b.HasOne("HrmApi.Domain.Entities.Organization.PositionEntity", "Position")
-                        .WithMany()
-                        .HasForeignKey("PositionId");
-
-                    b.Navigation("Branch");
-
-                    b.Navigation("Company");
-
-                    b.Navigation("Department");
-
-                    b.Navigation("Part");
-
-                    b.Navigation("Position");
                 });
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Employee.EmployeeFileEntity", b =>

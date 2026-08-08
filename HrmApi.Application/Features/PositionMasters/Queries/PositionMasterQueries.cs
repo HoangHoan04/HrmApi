@@ -186,4 +186,54 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
                 .ToListAsync(cancellationToken);
         }
     }
+
+    #region Cascade Query
+    /// <summary>
+    /// Load mẫu chức danh theo công ty/chi nhánh.
+    /// </summary>
+    public class GetPositionMastersByScopeQuery : IRequest<List<PositionMasterSelectBoxDto>>
+    {
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+    }
+
+    public class GetPositionMastersByScopeQueryHandler : IRequestHandler<GetPositionMastersByScopeQuery, List<PositionMasterSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+
+        public GetPositionMastersByScopeQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<PositionMasterSelectBoxDto>> Handle(GetPositionMastersByScopeQuery request, CancellationToken cancellationToken)
+        {
+            var query = _context.PositionMasterEntities
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted);
+
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
+            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
+            return await query
+                .OrderBy(x => x.Name)
+                .Select(x => new PositionMasterSelectBoxDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
+                    CompanyId = x.CompanyId,
+                    BranchId = x.BranchId
+                })
+                .ToListAsync(cancellationToken);
+        }
+    }
+    #endregion
 }

@@ -23,6 +23,7 @@ namespace HrmApi.Infrastructure
                 options.UseNpgsql(npgsqlBuilder.ConnectionString, builder =>
                 {
                     builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                    builder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
                     builder.EnableRetryOnFailure(
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
@@ -31,7 +32,10 @@ namespace HrmApi.Infrastructure
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
             services.AddScoped<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
+            services.AddScoped<IPasswordHasherService, PasswordHasherService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddHttpClient(nameof(UploadFileService));
+            services.AddScoped<IUploadFileService, UploadFileService>();
 
             var jwtSecret = configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
             var key = Encoding.ASCII.GetBytes(jwtSecret);

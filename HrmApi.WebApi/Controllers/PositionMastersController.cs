@@ -118,5 +118,13 @@ namespace HrmApi.WebApi.Controllers
 
             return Ok(result);
         }
+
+        /// <summary>Load mẫu chức danh theo công ty/chi nhánh (dùng cho cascade dropdown).</summary>
+        [HttpPost("by-scope")]
+        public async Task<ActionResult<List<PositionMasterSelectBoxDto>>> GetByScope(
+            [FromBody] GetPositionMastersByScopeQuery query)
+        {
+            return Ok(await _mediator.Send(query));
+        }
     }
 }

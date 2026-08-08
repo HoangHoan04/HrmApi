@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -153,6 +153,23 @@ namespace HrmApi.WebApi.Controllers
             });
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Load bộ phận/tổ theo id phòng ban (dùng cho cascade dropdown).
+        /// </summary>
+        [HttpPost("by-department")]
+        public async Task<ActionResult<List<PartSelectBoxDto>>> GetByDepartment(
+            [FromBody] GetPartsByDepartmentQuery query)
+        {
+            try
+            {
+                return Ok(await _mediator.Send(query));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

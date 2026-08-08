@@ -153,5 +153,22 @@ namespace HrmApi.WebApi.Controllers
 
             return Ok(result);
         }
+
+        /// <summary>
+        /// Load chi nhánh theo id công ty (dùng cho cascade dropdown).
+        /// </summary>
+        [HttpPost("by-company")]
+        public async Task<ActionResult<List<BranchSelectBoxDto>>> GetByCompany(
+            [FromBody] GetBranchesByCompanyQuery query)
+        {
+            try
+            {
+                return Ok(await _mediator.Send(query));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
