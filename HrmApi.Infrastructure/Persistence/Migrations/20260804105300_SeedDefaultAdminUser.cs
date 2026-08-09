@@ -5,10 +5,18 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HrmApi.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
+    /// <remarks>
+    /// Kept for migration history compatibility.
+    /// Default admin is seeded in AddAuthAndActionLog (admin / admin123@).
+    /// This migration only ensures the same credentials on databases that already
+    /// ran AddAuthAndActionLog before the seed was added there.
+    /// </remarks>
     public partial class SeedDefaultAdminUser : Migration
     {
         private const string AdminUserId = "00000000-0000-0000-0000-000000000001";
-        private const string AdminPasswordHash = "AQAAAAIAAYagAAAAEO6DbdrBc3Oqab6pGCKnitV7IW/JnB7Og6GCraSPoR9moJ94Gvrpsz4SogeJqaiA9w==";
+        // ASP.NET Identity PasswordHasher hash for password: admin123@
+        private const string AdminPasswordHash =
+            "AQAAAAIAAYagAAAAEITvLBC8mNjBkxCTF0525NRdxwsUM1pg8QOhHBF2lVmytM+LI3CDdbdW1OUcj77jhw==";
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -47,6 +55,18 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     WHERE LOWER("Username") = 'admin'
                       AND "IsDeleted" = FALSE
                 );
+
+                UPDATE "UserEntities"
+                SET
+                    "PasswordHash" = '{AdminPasswordHash}',
+                    "IsActive" = TRUE,
+                    "IsLocked" = FALSE,
+                    "LockedUntil" = NULL,
+                    "FailedLoginAttempts" = 0,
+                    "MustChangePassword" = FALSE,
+                    "UpdatedAt" = NOW() AT TIME ZONE 'UTC'
+                WHERE LOWER("Username") = 'admin'
+                  AND "IsDeleted" = FALSE;
                 """);
         }
 

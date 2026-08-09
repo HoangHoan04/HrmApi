@@ -17,10 +17,17 @@ Luồng xử lý:
 4. Nếu **đã có** nhưng **không phải UTF-8** → dừng và báo lỗi (cần drop database cũ)
 5. Chạy toàn bộ migration còn thiếu
 
+Sau migration, tài khoản mặc định đã sẵn sàng (seed trong migration, **không** reset mật khẩu khi chạy lại API):
+
+| Username | Password |
+|----------|----------|
+| `admin`  | `admin123@` |
+
 Các file liên quan:
 
 - `DatabaseBootstrap.cs` — tạo/kiểm tra database UTF-8
 - `ApplicationDbContextFactory.cs` — hook cho lệnh `dotnet ef`
+- Migration `AddAuthAndActionLog` — seed admin mặc định
 
 Do đó, bạn chỉ cần cấu hình đúng Connection String trong [appsettings.json](HrmApi.WebApi/appsettings.json), PostgreSQL phải đang chạy, rồi chạy API hoặc lệnh migration — database sẽ được tạo tự động.
 

@@ -1,5 +1,6 @@
 using System.Reflection;
 using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Common.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HrmApi.Application
@@ -14,6 +15,7 @@ namespace HrmApi.Application
             });
 
             services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
+            services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();
 
             return services;
         }

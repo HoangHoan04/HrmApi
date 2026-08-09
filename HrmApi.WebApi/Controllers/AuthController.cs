@@ -96,7 +96,9 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest($"Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau {lockTimeRemaining} phút.");
             }
 
-            var passwordResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+            var passwordHash = user.PasswordHash ?? string.Empty;
+            var passwordResult = _passwordHasher.VerifyHashedPassword(user, passwordHash, request.Password ?? string.Empty);
+            System.Console.WriteLine($"[API Auth] Password verify for '{user.Username}': result={passwordResult}, hashLen={passwordHash.Length}, pwdLen={(request.Password ?? string.Empty).Length}");
             if (passwordResult == PasswordVerificationResult.Failed)
             {
                 user.FailedLoginAttempts++;
@@ -124,13 +126,14 @@ namespace HrmApi.WebApi.Controllers
             var refreshToken = GenerateRefreshToken();
 
             var refreshTokenHash = HashToken(refreshToken);
+            var platform = Request.Path.StartsWithSegments("/api/v1/mobile") ? "MOBILE" : "WEB";
             var userToken = new UserTokenEntity
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
                 RefreshTokenHash = refreshTokenHash,
                 ExpiresAt = DateTime.UtcNow.AddDays(7),
-                Platform = "WEB",
+                Platform = platform,
                 IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
                 UserAgent = Request.Headers["User-Agent"].ToString(),
                 CreatedAt = DateTime.UtcNow,
@@ -368,7 +371,8 @@ namespace HrmApi.WebApi.Controllers
                 new Claim(ClaimTypes.Role, user.Type),
                 new Claim("UserCode", user.Username),
                 new Claim("CompanyId", user.CompanyId?.ToString() ?? string.Empty),
-                new Claim("BranchId", user.BranchId?.ToString() ?? string.Empty)
+                new Claim("BranchId", user.BranchId?.ToString() ?? string.Empty),
+                new Claim("EmployeeId", user.EmployeeId?.ToString() ?? string.Empty)
             };
 
             var expiryInMinutes = double.Parse(_configuration["JwtSettings:ExpiryInMinutes"] ?? "720");

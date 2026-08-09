@@ -27,6 +27,45 @@ namespace HrmApi.WebApi.Services
             }
         }
 
+        public Guid? EmployeeId
+        {
+            get
+            {
+                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("EmployeeId");
+                if (Guid.TryParse(idStr, out var id) && id != Guid.Empty)
+                {
+                    return id;
+                }
+                return null;
+            }
+        }
+
+        public Guid? CompanyId
+        {
+            get
+            {
+                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
+                if (Guid.TryParse(idStr, out var id) && id != Guid.Empty)
+                {
+                    return id;
+                }
+                return null;
+            }
+        }
+
+        public Guid? BranchId
+        {
+            get
+            {
+                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("BranchId");
+                if (Guid.TryParse(idStr, out var id) && id != Guid.Empty)
+                {
+                    return id;
+                }
+                return null;
+            }
+        }
+
         public string? UserCode => _httpContextAccessor.HttpContext?.User?.FindFirstValue("UserCode") ?? Username;
 
         public string? Username => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name);

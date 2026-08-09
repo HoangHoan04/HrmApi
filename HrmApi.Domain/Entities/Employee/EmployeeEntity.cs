@@ -27,6 +27,10 @@ namespace HrmApi.Domain.Entities.Employee
         /// </summary>
         public string? FullName { get; set; }
         /// <summary>
+        /// Giới tính nhân viên
+        /// </summary>
+        public string? Gender { get; set; }
+        /// <summary>
         /// Số điện thoại nhân viên
         /// </summary>
         public string Phone { get; set; } = string.Empty;

@@ -2,8 +2,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using HrmApi.Domain.Entities.AuditLog;
 using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Entities.Permission;
+using HrmApi.Domain.Entities.Timekeeping;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Application.Common.Interfaces
@@ -25,6 +27,18 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<EmployeeCertificateEntity> EmployeeCertificateEntities { get; }
         DbSet<EmployeeFileEntity> EmployeeFileEntities { get; }
         DbSet<EmployeeSalaryHistoryEntity> EmployeeSalaryHistoryEntities { get; }
+        /* Timekeeping */
+        DbSet<TimeKeepingStandardEntity> TimeKeepingStandardEntities { get; }
+        DbSet<ShiftMasterEntity> ShiftMasterEntities { get; }
+        DbSet<ShiftEntity> ShiftEntities { get; }
+        DbSet<WorkScheduledEmployeeEntity> WorkScheduledEmployeeEntities { get; }
+        DbSet<TimekeepingEntity> TimekeepingEntities { get; }
+        DbSet<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; }
+        /* Leave */
+        DbSet<DayOffConfigEntity> DayOffConfigEntities { get; }
+        DbSet<DayOffConfigEmployeeEntity> DayOffConfigEmployeeEntities { get; }
+        DbSet<PublicHolidayEntity> PublicHolidayEntities { get; }
+        DbSet<RegisterDayOffEntity> RegisterDayOffEntities { get; }
         /* User - Permission - Role */
         DbSet<UserEntity> UserEntities { get; }
         DbSet<RoleEntity> RoleEntities { get; }

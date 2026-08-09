@@ -113,7 +113,6 @@ namespace HrmApi.Application.Features.Departments.Commands
                     throw new InvalidOperationException("Phòng ban cha không tồn tại.");
             }
 
-            // Kiểm tra Manager (nếu có)
             if (request.ManagerId.HasValue)
             {
                 var managerExists = await context.EmployeeEntities
@@ -122,7 +121,6 @@ namespace HrmApi.Application.Features.Departments.Commands
                     throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
             }
 
-            // Kiểm tra DeputyManager (nếu có)
             if (request.DeputyManagerId.HasValue)
             {
                 var deputyExists = await context.EmployeeEntities

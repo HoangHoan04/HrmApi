@@ -5,6 +5,9 @@ namespace HrmApi.Application.Common.Interfaces
     public interface ICurrentUserService
     {
         Guid? UserId { get; }
+        Guid? EmployeeId { get; }
+        Guid? CompanyId { get; }
+        Guid? BranchId { get; }
         string? UserCode { get; }
         string? Username { get; }
         string? IpAddress { get; }
