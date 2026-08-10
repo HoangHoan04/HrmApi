@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Leave;
@@ -27,19 +24,18 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
         {
             await ValidateAsync(request, null, cancellationToken);
 
-            var entity = new DayOffConfigEntity
+            DayOffConfigEntity entity = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
-                DayOffType = request.DayOffType ?? DayOffType.Annual,
                 DefaultDaysPerYear = request.DefaultDaysPerYear ?? 12,
                 IsPaid = request.IsPaid ?? true,
                 IsActive = request.IsActive ?? true,
             };
             DayOffConfigMapper.ApplyCommandFields(entity, request);
 
-            _context.DayOffConfigEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.DayOffConfigEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -55,15 +51,22 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
         internal async Task ValidateAsync(DayOffConfigCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã cấu hình nghỉ phép là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name))
-                throw new InvalidOperationException("Tên cấu hình nghỉ phép là bắt buộc.");
+            }
 
-            var exists = await _context.DayOffConfigEntities
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên cấu hình nghỉ phép là bắt buộc.");
+            }
+
+            bool exists = await _context.DayOffConfigEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
             if (exists)
+            {
                 throw new InvalidOperationException("Mã cấu hình nghỉ phép đã tồn tại.");
+            }
         }
     }
 
@@ -87,14 +90,17 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
 
         public async Task<bool> Handle(UpdateDayOffConfigCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            DayOffConfigEntity? entity = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+            if (entity == null)
+            {
+                return false;
+            }
 
             await _createHandler.ValidateAsync(request, request.Id, cancellationToken);
-            var oldValue = DayOffConfigMapper.ToLogObject(entity);
+            object oldValue = DayOffConfigMapper.ToLogObject(entity);
             DayOffConfigMapper.ApplyCommandFields(entity, request);
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -126,12 +132,16 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
 
         public async Task<bool> Handle(ActivateDayOffConfigCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            DayOffConfigEntity? entity = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = false;
             entity.IsActive = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.ACTIVATE, "DayOffConfigEntity", entity.Id, null, DayOffConfigMapper.ToLogObject(entity), "Kích hoạt cấu hình nghỉ phép");
             return true;
         }
@@ -155,12 +165,16 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
 
         public async Task<bool> Handle(DeactivateDayOffConfigCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            DayOffConfigEntity? entity = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.DEACTIVATE, "DayOffConfigEntity", entity.Id, null, DayOffConfigMapper.ToLogObject(entity), "Vô hiệu hóa cấu hình nghỉ phép");
             return true;
         }

@@ -1,5 +1,5 @@
-﻿using System;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Employee;
 
 namespace HrmApi.Domain.Entities.Organization
 {
@@ -9,6 +9,7 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class PartEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã riêng của tổ/nhóm (nếu cần đặt mã khác với mẫu, ví dụ "TOCAT-01")
         /// </summary>
@@ -50,6 +51,11 @@ namespace HrmApi.Domain.Entities.Organization
         public Guid? ManagerId { get; set; }
 
         /// <summary>
+        /// Navigation tới tổ trưởng / trưởng nhóm
+        /// </summary>
+        public virtual EmployeeEntity? Manager { get; set; }
+
+        /// <summary>
         /// Số lượng nhân sự định biên của tổ/nhóm này
         /// </summary>
         public int? Limit { get; set; }
@@ -63,5 +69,31 @@ namespace HrmApi.Domain.Entities.Organization
         /// Thứ tự hiển thị tổ/nhóm trong danh sách của phòng ban
         /// </summary>
         public int DisplayOrder { get; set; }
+        /// <summary>
+        /// Navigation property tới công ty mà tổ/nhóm này trực thuộc (CompanyEntity)
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới chi nhánh mà tổ/nhóm này trực thuộc (BranchEntity)
+        /// </summary>
+        public virtual BranchEntity? Branch { get; set; }
+        /// <summary>
+        /// Navigation property tới mẫu tổ/nhóm mà bản ghi này được tạo ra từ đó (PartMasterEntity)
+        /// </summary>
+        public virtual PartMasterEntity? PartMaster { get; set; }
+        /// <summary>
+        /// Navigation property tới phòng ban mà tổ/nhóm này trực thuộc (DepartmentEntity)
+        /// </summary>
+        public virtual DepartmentEntity? Department { get; set; }
+        /// <summary>
+        /// Navigation property tới nhân viên là Tổ trưởng / Trưởng nhóm (EmployeeEntity)
+        /// </summary>
+        public virtual ICollection<EmployeeEntity> EmployeeEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới chức vụ mà tổ/nhóm này trực thuộc (PositionEntity)
+        /// </summary>
+        public virtual ICollection<PositionEntity> PositionEntities { get; set; } = [];
+
+
     }
 }

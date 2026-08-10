@@ -1,5 +1,4 @@
 ﻿using HrmApi.Domain.Common;
-using System;
 
 namespace HrmApi.Domain.Entities.Employee
 {
@@ -8,6 +7,7 @@ namespace HrmApi.Domain.Entities.Employee
     /// </summary>
     public class EmployeeSalaryHistoryEntity : BaseEntity
     {
+
         /// <summary>
         /// Id nhân viên (khóa ngoại tới EmployeeEntity)
         /// </summary>
@@ -58,9 +58,12 @@ namespace HrmApi.Domain.Entities.Employee
         /// </summary>
         public string? Note { get; set; }
 
+        /* Navigation Relations */
         /// <summary>
         /// Navigation property tới nhân viên sở hữu lịch sử lương này
         /// </summary>
         public virtual EmployeeEntity? Employee { get; set; }
+
+
     }
 }

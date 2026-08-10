@@ -1,7 +1,5 @@
 using HrmApi.Domain.Common;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using HrmApi.Domain.Entities.EmployeeMovement;
 
 namespace HrmApi.Domain.Entities.Employee
 {
@@ -97,7 +95,7 @@ namespace HrmApi.Domain.Entities.Employee
         /// <summary>
         /// Tên ngân hàng
         /// </summary>
-        public string? Bankname { get; set; }
+        public string? BankName { get; set; }
         /// <summary>
         /// Tên chi nhánh ngân hàng
         /// </summary>
@@ -147,18 +145,52 @@ namespace HrmApi.Domain.Entities.Employee
         /// </summary>
         public string? ResignationReason { get; set; }
 
-        /* Organization Links */
+        /// <summary>
+        /// Công ty mà nhân viên đang làm việc (Khóa ngoại tới bảng CompanyEntity)
+        /// </summary>
         public Guid? CompanyId { get; set; }
+        /// <summary>
+        /// Chi nhánh mà nhân viên đang làm việc (Khóa ngoại tới bảng BranchEntity)
+        /// </summary>
         public Guid? BranchId { get; set; }
+        /// <summary>
+        /// Phòng ban mà nhân viên đang làm việc (Khóa ngoại tới bảng DepartmentEntity)
+        /// </summary>
         public Guid? DepartmentId { get; set; }
+        /// <summary>
+        /// Bộ phận mà nhân viên đang làm việc (Khóa ngoại tới bảng PartEntity)
+        /// </summary>
         public Guid? PartId { get; set; }
+        /// <summary>
+        /// Chức vụ mà nhân viên đang đảm nhiệm (Khóa ngoại tới bảng PositionEntity)
+        /// </summary>
         public Guid? PositionId { get; set; }
 
+        /// <summary>
+        /// Navigation property tới công ty mà nhân viên đang làm việc
+        /// </summary>
         public virtual Organization.CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới chi nhánh mà nhân viên đang làm việc
+        /// </summary>
         public virtual Organization.BranchEntity? Branch { get; set; }
+        /// <summary>
+        /// Navigation property tới phòng ban mà nhân viên đang làm việc
+        /// </summary>
         public virtual Organization.DepartmentEntity? Department { get; set; }
+        /// <summary>
+        /// Navigation property tới bộ phận mà nhân viên đang làm việc
+        /// </summary>
         public virtual Organization.PartEntity? Part { get; set; }
+        /// <summary>
+        /// Navigation property tới chức vụ mà nhân viên đang đảm nhiệm
+        /// </summary>
         public virtual Organization.PositionEntity? Position { get; set; }
+
+        /// <summary>
+        /// Navigation property tới tài khoản đăng nhập gắn với nhân viên này (UserEntity)
+        /// </summary>
+        public virtual Permission.UserEntity? User { get; set; }
 
         /// <summary>
         /// Danh sách người phụ thuộc của nhân viên
@@ -184,5 +216,21 @@ namespace HrmApi.Domain.Entities.Employee
         /// Lịch sử thay đổi lương
         /// </summary>
         public virtual ICollection<EmployeeSalaryHistoryEntity> SalaryHistories { get; set; } = [];
+
+        /// <summary>
+        /// Danh sách hợp đồng lao động của nhân viên (thử việc, chính thức, gia hạn,...)
+        /// </summary>
+        public virtual ICollection<Contract.ContractEntity> Contracts { get; set; } = [];
+
+        /// <summary>
+        /// Danh sách các đợt điều chuyển (thuyên chuyển, biệt phái, luân chuyển,...) của nhân viên
+        /// </summary>
+        public virtual ICollection<TransferEmployeeEntity> TransferEmployees { get; set; } = [];
+
+        /// <summary>
+        /// Lịch sử chi tiết thay đổi cơ cấu tổ chức/chức vụ của nhân viên (theo từng đợt điều chuyển)
+        /// </summary>
+        public virtual ICollection<TransferEmployeePositionEntity> TransferEmployeePositions { get; set; } = [];
+
     }
 }

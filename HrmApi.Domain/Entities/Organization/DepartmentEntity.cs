@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Employee;
 
 namespace HrmApi.Domain.Entities.Organization
 {
@@ -9,6 +8,7 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class DepartmentEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã phòng ban (duy nhất, dùng để nhận diện)
         /// </summary>
@@ -50,11 +50,14 @@ namespace HrmApi.Domain.Entities.Organization
         public Guid? ParentDepartmentId { get; set; }
 
         /// <summary>
+        /// Navigation tới phòng ban cha
+        /// </summary>
+        public virtual DepartmentEntity? ParentDepartment { get; set; }
+
+        /// <summary>
         /// Cấp bậc của phòng ban trong cây tổ chức (1: cấp cao nhất, tăng dần theo độ sâu)
         /// </summary>
         public int Level { get; set; } = 1;
-
-        // --- Định biên nhân sự ---
 
         /// <summary>
         /// Số lượng nhân sự tối đa được phép của phòng ban (định biên)
@@ -66,19 +69,25 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public int? CurrentHeadCount { get; set; }
 
-        // --- Người quản lý ---
-
         /// <summary>
         /// Id nhân viên là Trưởng phòng / Quản lý phòng ban
         /// </summary>
         public Guid? ManagerId { get; set; }
 
         /// <summary>
+        /// Navigation tới trưởng phòng
+        /// </summary>
+        public virtual Employee.EmployeeEntity? Manager { get; set; }
+
+        /// <summary>
         /// Id nhân viên là Phó phòng / Trợ lý quản lý (nếu có)
         /// </summary>
         public Guid? DeputyManagerId { get; set; }
 
-        // --- Liên hệ ---
+        /// <summary>
+        /// Navigation tới phó phòng
+        /// </summary>
+        public virtual Employee.EmployeeEntity? DeputyManager { get; set; }
 
         /// <summary>
         /// Email liên hệ chung của phòng ban
@@ -90,14 +99,10 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public string? PhoneExtension { get; set; }
 
-        // --- Kế toán / chi phí ---
-
         /// <summary>
         /// Mã trung tâm chi phí (Cost Center) dùng cho phân bổ ngân sách, kế toán quản trị
         /// </summary>
         public string? CostCenterCode { get; set; }
-
-        // --- Vận hành / trạng thái ---
 
         /// <summary>
         /// Trạng thái kích hoạt (true: đang hoạt động, false: vô hiệu – không xóa dữ liệu)
@@ -124,11 +129,30 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public bool IsNotifyMarketing { get; set; }
 
-        // --- Quan hệ ---
-
         /// <summary>
         /// Danh sách phòng ban con (nếu có cấu trúc phân cấp phòng/tổ trực thuộc)
         /// </summary>
-        public List<DepartmentEntity> ChildDepartments { get; set; } = new List<DepartmentEntity>();
+        public List<DepartmentEntity> ChildDepartments { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới công ty sở hữu phòng ban này
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới chi nhánh chứa phòng ban này
+        /// </summary>
+        public virtual BranchEntity? Branch { get; set; }
+        /// <summary>
+        /// Navigation property tới danh sách nhân viên thuộc phòng ban này
+        /// </summary>
+        public virtual ICollection<EmployeeEntity> EmployeeEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới các bộ phận (Part) trực thuộc phòng ban này
+        /// </summary>
+        public virtual ICollection<PartEntity> PartEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới các chức vụ (Position) trực thuộc phòng ban này
+        /// </summary>
+        public virtual ICollection<PositionEntity> PositionEntities { get; set; } = [];
     }
 }

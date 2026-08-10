@@ -1,5 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Common;
 
 namespace HrmApi.Domain.Entities.Organization
@@ -12,6 +10,7 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class PositionMasterEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã mẫu chức danh (duy nhất, dùng để nhận diện)
         /// </summary>
@@ -68,8 +67,6 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public TimeSpan? HourWorkingEnd { get; set; }
 
-        // --- Chấm công ---
-
         /// <summary>
         /// Chức danh này có áp dụng chấm công (bằng máy chấm công / hệ thống) hay không
         /// </summary>
@@ -101,8 +98,6 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public string? TargetChangePositionIds { get; set; }
 
-        // --- Tuyển dụng / phê duyệt ---
-
         /// <summary>
         /// Việc tuyển ứng viên vào chức danh này có cần phê duyệt hay không
         /// </summary>
@@ -118,14 +113,10 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public bool IsApprovedDayOff { get; set; }
 
-        // --- Định biên ---
-
         /// <summary>
         /// Số lượng định biên chuẩn cho chức danh này (theo quy hoạch nhân sự)
         /// </summary>
         public int? QuantityStandard { get; set; }
-
-        // --- Vận hành / trạng thái ---
 
         /// <summary>
         /// Trạng thái kích hoạt (true: đang sử dụng, false: vô hiệu – không xóa dữ liệu)
@@ -137,11 +128,18 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public int DisplayOrder { get; set; }
 
-        // --- Quan hệ ---
-
         /// <summary>
         /// Danh sách chức danh cụ thể (tại từng phòng ban/tổ) được tạo từ mẫu này
         /// </summary>
-        public List<PositionEntity> Positions { get; set; } = new List<PositionEntity>();
+        public List<PositionEntity> Positions { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới công ty sở hữu mẫu chức danh này (CompanyEntity)
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới chi nhánh sở hữu mẫu chức danh này (BranchEntity)
+        /// </summary>
+        public virtual BranchEntity? Branch { get; set; }
     }
 }

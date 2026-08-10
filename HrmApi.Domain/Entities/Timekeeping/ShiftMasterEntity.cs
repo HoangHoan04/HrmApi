@@ -1,5 +1,5 @@
-﻿using System;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Domain.Entities.Timekeeping
 {
@@ -8,6 +8,7 @@ namespace HrmApi.Domain.Entities.Timekeeping
     /// </summary>
     public class ShiftMasterEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã ca
         /// </summary>
@@ -57,5 +58,24 @@ namespace HrmApi.Domain.Entities.Timekeeping
         /// Đang kích hoạt
         /// </summary>
         public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Navigation property tới công ty sở hữu ca làm việc (CompanyEntity)
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới danh sách các ca làm việc thuộc mẫu ca này (ShiftEntity)
+        /// </summary>
+        public virtual ICollection<ShiftEntity> ShiftEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách các bản ghi chấm công thuộc mẫu ca này (TimekeepingEntity)
+        /// </summary>
+        public virtual ICollection<TimekeepingEntity> TimekeepingEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách các nhân viên được phân ca thuộc mẫu ca này (WorkScheduledEmployeeEntity)
+        /// </summary>
+        public virtual ICollection<WorkScheduledEmployeeEntity> WorkScheduledEmployeeEntities { get; set; } = [];
+
+
     }
 }

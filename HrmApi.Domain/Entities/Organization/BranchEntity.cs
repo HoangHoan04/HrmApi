@@ -1,6 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Leave;
+using HrmApi.Domain.Entities.Permission;
+using HrmApi.Domain.Entities.Timekeeping;
 
 namespace HrmApi.Domain.Entities.Organization
 {
@@ -9,6 +11,7 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class BranchEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã chi nhánh (duy nhất, dùng để nhận diện)
         /// </summary>
@@ -37,12 +40,17 @@ namespace HrmApi.Domain.Entities.Organization
         /// <summary>
         /// Id công ty sở hữu chi nhánh này
         /// </summary>
-        public Guid? CompanyId { get; set; } = null;
+        public Guid? CompanyId { get; set; }
 
         /// <summary>
         /// Id chi nhánh cha (nếu chi nhánh này là chi nhánh phụ thuộc chi nhánh khác)
         /// </summary>
         public Guid? ParentBranchId { get; set; } = null;
+
+        /// <summary>
+        /// Navigation tới chi nhánh cha
+        /// </summary>
+        public virtual BranchEntity? ParentBranch { get; set; }
 
         /// <summary>
         /// Có phải là trụ sở chính (Head Office) hay không
@@ -110,6 +118,11 @@ namespace HrmApi.Domain.Entities.Organization
         public Guid? ManagerId { get; set; }
 
         /// <summary>
+        /// Navigation tới nhân viên quản lý chi nhánh
+        /// </summary>
+        public virtual Employee.EmployeeEntity? Manager { get; set; }
+
+        /// <summary>
         /// Họ tên người quản lý chi nhánh (lưu snapshot, phòng khi không liên kết được Employee)
         /// </summary>
         public string? ManagerName { get; set; }
@@ -119,61 +132,73 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
 
         public string? ManagerPhone { get; set; }
+
         /// <summary>
         /// Mã số thuế riêng của chi nhánh (nếu hạch toán độc lập)
         /// </summary>
 
         public string? TaxCode { get; set; }
+
         /// <summary>
         /// Mã số đăng ký kinh doanh của chi nhánh (nếu có)
         /// </summary>
 
         public string? BusinessRegistrationCode { get; set; }
+
         /// <summary>
         /// Ngày chi nhánh bắt đầu hoạt động
         /// </summary>
 
         public DateTime? OpeningDate { get; set; }
+
         /// <summary>
         /// Ngày chi nhánh ngừng hoạt động (nếu đã đóng cửa)
         /// </summary>
 
         public DateTime? ClosingDate { get; set; }
+
         /// <summary>
         /// Trạng thái hoạt động: Hoạt động, Tạm ngừng, Đã đóng cửa, … (có thể dùng enum)
         /// </summary>
 
         public string? OperatingStatus { get; set; }
+
         /// <summary>
         /// Trạng thái kích hoạt trong hệ thống (true: đang sử dụng, false: vô hiệu – không xóa dữ liệu)
         /// </summary>
 
         public bool IsActive { get; set; } = true;
+
         /// <summary>
         /// Có sử dụng module HRM (chấm công, nhân sự, …) cho chi nhánh này hay không
         /// </summary>
 
         public bool IsUsingHrm { get; set; }
+
         /// <summary>
         /// Thứ tự hiển thị chi nhánh trên danh sách / cây tổ chức
         /// </summary>
 
         public int DisplayOrder { get; set; }
+
         /// <summary>
         /// Nhóm tính lương áp dụng cho chi nhánh (liên kết bảng cấu hình lương)
         /// </summary>
 
         public string GroupSalary { get; set; } = string.Empty;
+
         /// <summary>
         /// Id chuẩn chấm công áp dụng riêng cho chi nhánh (nếu khác chuẩn của công ty)
         /// </summary>
 
         public Guid? TimeKeepingStandardId { get; set; }
+
         /// <summary>
         /// Số lượng nhân viên tối đa được phép tại chi nhánh (dùng cho kế hoạch nhân sự)
         /// </summary>
 
         public int? MaxEmployeeCapacity { get; set; }
+
         /// <summary>
         /// Múi giờ làm việc của chi nhánh (nếu khác múi giờ mặc định công ty)
         /// </summary>
@@ -183,16 +208,70 @@ namespace HrmApi.Domain.Entities.Organization
         /// <summary>
         /// Danh sách chi nhánh con (nếu có cấu trúc chi nhánh cha - con)
         /// </summary>
-        public List<BranchEntity> ChildBranches { get; set; } = new List<BranchEntity>();
+        public List<BranchEntity> ChildBranches { get; set; } = [];
 
         /// <summary>
         /// Danh sách bộ phận sản xuất / tổ (Part Master) thuộc chi nhánh
         /// </summary>
-        public List<PartMasterEntity> PartMasters { get; set; } = new List<PartMasterEntity>();
+        public List<PartMasterEntity> PartMasters { get; set; } = [];
 
         /// <summary>
         /// Danh sách phòng ban thuộc chi nhánh
         /// </summary>
-        public List<DepartmentEntity> Departments { get; set; } = new List<DepartmentEntity>();
+        public List<DepartmentEntity> Departments { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới công ty sở hữu chi nhánh này (CompanyEntity)
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; } = null;
+        /// <summary>
+        /// Navigation property tới chi nhánh cha (nếu có) (BranchEntity)
+        /// </summary>
+        public virtual TimeKeepingStandardEntity? TimeKeepingStandard { get; set; }
+        /// <summary>
+        /// Navigation property tới danh sách nhân viên đang làm việc tại chi nhánh này (EmployeeEntity)
+        /// </summary>
+        public virtual ICollection<EmployeeEntity> EmployeeEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách đăng ký nghỉ phép của nhân viên tại chi nhánh này (RegisterDayOffEntity)
+        /// </summary>
+        public virtual ICollection<RegisterDayOffEntity> RegisterDayOffEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách bộ phận sản xuất / tổ (PartEntity) thuộc chi nhánh này (PartEntity)
+        /// </summary>
+        public virtual ICollection<PartEntity> PartEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách phòng ban (DepartmentEntity) thuộc chi nhánh này (DepartmentEntity)
+        /// </summary>
+        public virtual ICollection<PositionEntity> PositionEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách chức vụ (PositionMasterEntity) thuộc chi nhánh này (PositionMasterEntity)
+        /// </summary>
+        public virtual ICollection<PositionMasterEntity> PositionMasterEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách vai trò (RoleEntity) thuộc chi nhánh này (RoleEntity)
+        /// </summary>
+        public virtual ICollection<RoleEntity> RoleEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách người dùng (UserEntity) thuộc chi nhánh này (UserEntity)
+        /// </summary>
+        public virtual ICollection<UserEntity> UserEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách ca làm việc (ShiftEntity) thuộc chi nhánh này (ShiftEntity)
+        /// </summary>
+        public virtual ICollection<ShiftEntity> ShiftEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách chấm công (TimekeepingEntity) thuộc chi nhánh này (TimekeepingEntity)
+        /// </summary>
+        public virtual ICollection<TimekeepingEntity> TimekeepingEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách tổng hợp chấm công (TimekeepingSummaryEntity) thuộc chi nhánh này (TimekeepingSummaryEntity)
+        /// </summary>
+        public virtual ICollection<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; set; } = [];
+        /// <summary>
+        /// Navigation property tới danh sách lịch làm việc (WorkScheduledEntity) thuộc chi nhánh này (WorkScheduledEntity)
+        /// </summary>
+        public virtual ICollection<WorkScheduledEmployeeEntity> WorkScheduledEmployeeEntities { get; set; } = [];
+
+
     }
 }

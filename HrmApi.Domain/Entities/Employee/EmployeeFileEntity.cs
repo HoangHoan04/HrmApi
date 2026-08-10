@@ -1,5 +1,4 @@
 ﻿using HrmApi.Domain.Common;
-using System;
 
 namespace HrmApi.Domain.Entities.Employee
 {
@@ -8,6 +7,7 @@ namespace HrmApi.Domain.Entities.Employee
     /// </summary>
     public class EmployeeFileEntity : BaseEntity
     {
+
         /// <summary>
         /// Id nhân viên sở hữu file (khóa ngoại tới EmployeeEntity)
         /// </summary>
@@ -52,5 +52,7 @@ namespace HrmApi.Domain.Entities.Employee
         /// Navigation property tới nhân viên sở hữu file này
         /// </summary>
         public virtual EmployeeEntity? Employee { get; set; }
+
+
     }
 }

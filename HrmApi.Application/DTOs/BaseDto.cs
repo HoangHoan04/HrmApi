@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace HrmApi.Application.DTOs
+﻿namespace HrmApi.Application.DTOs
 {
     public class BaseDto
     {

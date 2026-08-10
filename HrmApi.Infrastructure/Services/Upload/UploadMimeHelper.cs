@@ -41,10 +41,17 @@ namespace HrmApi.Infrastructure.Services.Upload
 
         internal static string DetectCategory(string mimetype)
         {
-            if (ImageMimes.Contains(mimetype)) return "image";
-            if (AudioMimes.Contains(mimetype)) return "audio";
-            if (DocumentMimes.Contains(mimetype)) return "document";
-            return "other";
+            if (ImageMimes.Contains(mimetype))
+            {
+                return "image";
+            }
+
+            if (AudioMimes.Contains(mimetype))
+            {
+                return "audio";
+            }
+
+            return DocumentMimes.Contains(mimetype) ? "document" : "other";
         }
 
         internal static string GetExtension(string mimetype)
@@ -82,7 +89,7 @@ namespace HrmApi.Infrastructure.Services.Upload
                 return null;
             }
 
-            var normalizedType = contentType.Split(';')[0].Trim();
+            string normalizedType = contentType.Split(';')[0].Trim();
             return normalizedType switch
             {
                 "image/avif" => ".avif",
@@ -104,14 +111,14 @@ namespace HrmApi.Infrastructure.Services.Upload
         {
             try
             {
-                var pathname = new Uri(imageUrl).AbsolutePath.ToLowerInvariant();
+                string pathname = new Uri(imageUrl).AbsolutePath.ToLowerInvariant();
                 var match = System.Text.RegularExpressions.Regex.Match(pathname, @"\.[a-z0-9]+$");
                 if (!match.Success)
                 {
                     return null;
                 }
 
-                var extension = match.Value;
+                string extension = match.Value;
                 HashSet<string> valid = [".avif", ".bmp", ".gif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".svg", ".tif", ".tiff", ".webp"];
                 return valid.Contains(extension) ? extension : null;
             }
@@ -130,7 +137,7 @@ namespace HrmApi.Infrastructure.Services.Upload
 
         internal static string NormalizeZipTitle(string fileTitle)
         {
-            var sanitized = System.Text.RegularExpressions.Regex.Replace(fileTitle.Trim(), @"[^a-zA-Z0-9\-_]+", "-");
+            string sanitized = System.Text.RegularExpressions.Regex.Replace(fileTitle.Trim(), @"[^a-zA-Z0-9\-_]+", "-");
             sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"-+", "-").Trim('-');
             return string.IsNullOrWhiteSpace(sanitized) ? "images" : sanitized;
         }

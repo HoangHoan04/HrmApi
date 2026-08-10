@@ -33,7 +33,7 @@ namespace HrmApi.Application.Mappings
                 CheckOutLongitude = entity.CheckOutLongitude,
                 CheckInDistanceM = entity.CheckInDistanceM,
                 CheckOutDistanceM = entity.CheckOutDistanceM,
-                Status = entity.Status,
+                Status = entity.Status.ToString(),
                 LateMinutes = entity.LateMinutes,
                 EarlyMinutes = entity.EarlyMinutes,
                 WorkedMinutes = entity.WorkedMinutes,
@@ -98,7 +98,7 @@ namespace HrmApi.Application.Mappings
             return new MobileTodayDto
             {
                 WorkDate = workDate,
-                Status = onLeave ? Domain.Enums.AttendanceStatus.Leave : (entity?.Status ?? Domain.Enums.AttendanceStatus.Incomplete),
+                Status = (onLeave ? Domain.Enums.AttendanceStatus.LEAVE : (entity?.Status ?? Domain.Enums.AttendanceStatus.INCOMPLETE)).ToString(),
                 CheckInAt = entity?.CheckInAt,
                 CheckOutAt = entity?.CheckOutAt,
                 LateMinutes = entity?.LateMinutes ?? 0,
@@ -118,7 +118,7 @@ namespace HrmApi.Application.Mappings
         public static MobileMonthDayDto ToMonthDayDto(TimekeepingEntity entity) => new()
         {
             WorkDate = entity.WorkDate,
-            Status = entity.Status,
+            Status = entity.Status.ToString(),
             CheckInAt = entity.CheckInAt,
             CheckOutAt = entity.CheckOutAt,
             WorkedMinutes = entity.WorkedMinutes,

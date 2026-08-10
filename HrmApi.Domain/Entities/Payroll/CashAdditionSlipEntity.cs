@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace HrmApi.Domain.Entities.Payroll
+﻿namespace HrmApi.Domain.Entities.Payroll
 {
     internal class CashAdditionSlipEntity
     {

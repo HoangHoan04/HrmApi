@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Common;
 
 namespace HrmApi.Domain.Entities.Organization
 {
     /// <summary>
-    /// 
     /// Mẫu Tổ/Nhóm (Part Master) — định nghĩa danh mục các loại tổ/nhóm dùng chung
     /// cho công ty hoặc chi nhánh (ví dụ: "Tổ cắt", "Tổ may", "Tổ đóng gói").
-    /// 
     /// </summary>
     public class PartMasterEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã mẫu tổ/nhóm (duy nhất, dùng để nhận diện)
         /// </summary>
@@ -52,16 +49,19 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public int DisplayOrder { get; set; }
 
-        // --- Quan hệ ---
-
-        /// <summary>
-        /// Danh sách mẫu chức danh (Position Master) có thể gán cho tổ/nhóm thuộc mẫu này
-        /// </summary>
-        public List<PositionMasterEntity> PositionMasters { get; set; } = new List<PositionMasterEntity>();
-
         /// <summary>
         /// Danh sách các tổ/nhóm cụ thể (tại từng phòng ban) được tạo từ mẫu này
         /// </summary>
-        public List<PartEntity> Parts { get; set; } = new List<PartEntity>();
+        public List<PartEntity> Parts { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới công ty sở hữu mẫu tổ/nhóm này
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới chi nhánh sở hữu mẫu tổ/nhóm này
+        /// </summary>
+        public virtual BranchEntity? Branch { get; set; }
+
     }
 }

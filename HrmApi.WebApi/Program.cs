@@ -2,15 +2,18 @@ using HrmApi.Application;
 using HrmApi.Infrastructure;
 using HrmApi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using System.IO;
 
-var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+string envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
 if (File.Exists(envPath))
 {
-    foreach (var line in File.ReadAllLines(envPath))
+    foreach (string line in File.ReadAllLines(envPath))
     {
-        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-        var parts = line.Split('=', 2);
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
+        {
+            continue;
+        }
+
+        string[] parts = line.Split('=', 2);
         if (parts.Length == 2)
         {
             Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
@@ -18,7 +21,7 @@ if (File.Exists(envPath))
     }
 }
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -43,25 +46,24 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        _ = policy.WithOrigins("http://localhost:4200")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
 });
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+using (IServiceScope scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
-    var logger = services.GetRequiredService<ILogger<Program>>();
+    IServiceProvider services = scope.ServiceProvider;
+    ILogger<Program> logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
         await DatabaseBootstrap.EnsureUtf8DatabaseAsync(app.Configuration, logger);
 
-        var context = services.GetRequiredService<ApplicationDbContext>();
+        ApplicationDbContext context = services.GetRequiredService<ApplicationDbContext>();
         await context.Database.MigrateAsync();
-        // Default admin (admin / admin123@) is seeded by EF migrations — no runtime password reset.
     }
     catch (Exception ex)
     {
@@ -72,8 +74,8 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment() || true)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
+    _ = app.UseSwagger();
+    _ = app.UseSwaggerUI(options =>
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "HRM API v1");
         options.RoutePrefix = "swagger";
@@ -84,7 +86,5 @@ app.UseCors("AllowAngularDev");
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

@@ -1,5 +1,5 @@
-﻿using System;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Employee;
 
 namespace HrmApi.Domain.Entities.Organization
 {
@@ -10,6 +10,7 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class PositionEntity : BaseEntity
     {
+
         /// <summary>
         /// Id công ty (denormalize từ Branch/Department để truy vấn nhanh)
         /// </summary>
@@ -49,5 +50,33 @@ namespace HrmApi.Domain.Entities.Organization
         /// Thứ tự hiển thị chức danh trong danh sách của phòng ban/tổ
         /// </summary>
         public int DisplayOrder { get; set; }
+        /// <summary>
+        /// Navigation property tới công ty mà chức danh này trực thuộc
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+
+        /// <summary>
+        /// Navigation property tới chi nhánh mà chức danh này trực thuộc
+        /// </summary>
+        public virtual BranchEntity? Branch { get; set; }
+
+        /// <summary>
+        /// Navigation property tới mẫu chức danh mà bản ghi này được tạo ra từ đó
+        /// </summary>
+        public virtual PositionMasterEntity? PositionMaster { get; set; }
+        /// <summary>
+        /// Navigation property tới phòng ban mà chức danh này trực thuộc
+        /// </summary>
+        public virtual DepartmentEntity? Department { get; set; }
+        /// <summary>
+        /// Navigation property tới tổ/nhóm mà chức danh này trực thuộc
+        /// </summary>
+        public virtual PartEntity? Part { get; set; }
+        /// <summary>
+        /// Navigation property tới danh sách nhân viên đang đảm nhiệm chức danh này
+        /// </summary>
+        public virtual ICollection<EmployeeEntity> EmployeeEntities { get; set; } = [];
+
+
     }
 }

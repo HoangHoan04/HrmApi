@@ -19,8 +19,8 @@ Luồng xử lý:
 
 Sau migration, tài khoản mặc định đã sẵn sàng (seed trong migration, **không** reset mật khẩu khi chạy lại API):
 
-| Username | Password |
-|----------|----------|
+| Username | Password    |
+| -------- | ----------- |
 | `admin`  | `admin123@` |
 
 Các file liên quan:

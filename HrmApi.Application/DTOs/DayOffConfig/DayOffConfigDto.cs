@@ -1,4 +1,4 @@
-using System;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.DTOs.DayOffConfig
 {
@@ -20,7 +20,7 @@ namespace HrmApi.Application.DTOs.DayOffConfig
         public Guid Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public string DayOffType { get; set; } = "ANNUAL";
+        public DayOffType DayOffType { get; set; }
         public Guid? CompanyId { get; set; }
     }
 }

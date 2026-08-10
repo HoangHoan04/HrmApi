@@ -1,6 +1,4 @@
 using HrmApi.Application.Common.Interfaces;
-using Microsoft.AspNetCore.Http;
-using System;
 using System.Security.Claims;
 
 namespace HrmApi.WebApi.Services
@@ -18,12 +16,8 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (Guid.TryParse(idStr, out var id))
-                {
-                    return id;
-                }
-                return null;
+                string? idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+                return Guid.TryParse(idStr, out Guid id) ? id : null;
             }
         }
 
@@ -31,12 +25,8 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("EmployeeId");
-                if (Guid.TryParse(idStr, out var id) && id != Guid.Empty)
-                {
-                    return id;
-                }
-                return null;
+                string? idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("EmployeeId");
+                return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
             }
         }
 
@@ -44,12 +34,8 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
-                if (Guid.TryParse(idStr, out var id) && id != Guid.Empty)
-                {
-                    return id;
-                }
-                return null;
+                string? idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("CompanyId");
+                return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
             }
         }
 
@@ -57,12 +43,8 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                var idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("BranchId");
-                if (Guid.TryParse(idStr, out var id) && id != Guid.Empty)
-                {
-                    return id;
-                }
-                return null;
+                string? idStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("BranchId");
+                return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
             }
         }
 

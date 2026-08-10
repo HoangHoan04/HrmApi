@@ -1,5 +1,5 @@
-﻿using System;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Domain.Entities.Timekeeping
 {
@@ -8,6 +8,7 @@ namespace HrmApi.Domain.Entities.Timekeeping
     /// </summary>
     public class TimeKeepingStandardEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã chuẩn chấm công
         /// </summary>
@@ -47,5 +48,15 @@ namespace HrmApi.Domain.Entities.Timekeeping
         /// Đang kích hoạt
         /// </summary>
         public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Navigation property tới công ty sở hữu chuẩn chấm công này
+        /// </summary>
+        public virtual CompanyEntity? Company { get; set; }
+        /// <summary>
+        /// Navigation property tới các chi nhánh sử dụng chuẩn chấm công này
+        /// </summary>
+        public virtual ICollection<BranchEntity> BranchEntities { get; set; } = [];
+
     }
 }

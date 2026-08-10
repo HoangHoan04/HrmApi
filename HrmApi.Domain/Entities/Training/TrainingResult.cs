@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace HrmApi.Domain.Entities.Training
+﻿namespace HrmApi.Domain.Entities.Training
 {
     internal class TrainingResult
     {

@@ -1,5 +1,6 @@
-﻿using System;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Domain.Entities.Timekeeping
 {
@@ -8,6 +9,7 @@ namespace HrmApi.Domain.Entities.Timekeeping
     /// </summary>
     public class WorkScheduledEmployeeEntity : BaseEntity
     {
+
         /// <summary>
         /// Id nhân viên
         /// </summary>
@@ -37,5 +39,24 @@ namespace HrmApi.Domain.Entities.Timekeeping
         /// Ghi chú
         /// </summary>
         public string? Note { get; set; }
+
+        /// <summary>
+        /// Navigation property tới nhân viên được xếp lịch
+        /// </summary>
+        public virtual EmployeeEntity? Employee { get; set; }
+        /// <summary>
+        /// Navigation property tới ca làm việc cụ thể (ShiftEntity)
+        /// </summary>
+        public virtual ShiftEntity? Shift { get; set; }
+        /// <summary>
+        /// Navigation property tới mẫu ca (ShiftMasterEntity)
+        /// </summary>
+        public virtual ShiftMasterEntity? ShiftMaster { get; set; }
+        /// <summary>
+        /// Navigation property tới chi nhánh làm việc (BranchEntity)
+        /// </summary>
+        public virtual BranchEntity? Branch { get; set; }
+
+
     }
 }

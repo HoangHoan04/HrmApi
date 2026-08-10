@@ -1,4 +1,3 @@
-using System.Linq;
 using HrmApi.Application.DTOs;
 using HrmApi.Domain.Entities.Employee;
 
@@ -8,7 +7,7 @@ namespace HrmApi.Application.Mappings
     {
         public static EmployeeDto ToDto(EmployeeEntity entity, bool includeChildren = false)
         {
-            var dto = new EmployeeDto
+            EmployeeDto dto = new()
             {
                 Id = entity.Id,
                 Code = entity.Code,
@@ -31,7 +30,7 @@ namespace HrmApi.Application.Mappings
                 CurrentCity = entity.CurrentCity,
                 CurrentWard = entity.CurrentWard,
                 BankAccountNumber = entity.BankAccountNumber,
-                Bankname = entity.Bankname,
+                Bankname = entity.BankName,
                 BankBranchName = entity.BankBranchName,
                 BankAccountHolder = entity.BankAccountHolder,
                 TaxCode = entity.TaxCode,
@@ -114,7 +113,7 @@ namespace HrmApi.Application.Mappings
             entity.CurrentCity = TrimOrNull(fields.CurrentCity);
             entity.CurrentWard = TrimOrNull(fields.CurrentWard);
             entity.BankAccountNumber = TrimOrNull(fields.BankAccountNumber);
-            entity.Bankname = TrimOrNull(fields.Bankname);
+            entity.BankName = TrimOrNull(fields.Bankname);
             entity.BankBranchName = TrimOrNull(fields.BankBranchName);
             entity.BankAccountHolder = TrimOrNull(fields.BankAccountHolder);
             entity.TaxCode = TrimOrNull(fields.TaxCode);
@@ -158,7 +157,7 @@ namespace HrmApi.Application.Mappings
                 entity.CurrentCity,
                 entity.CurrentWard,
                 entity.BankAccountNumber,
-                entity.Bankname,
+                entity.BankName,
                 entity.BankBranchName,
                 entity.BankAccountHolder,
                 entity.TaxCode,
@@ -174,109 +173,123 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        public static EmployeeDependentDto ToDependentDto(EmployeeDependentEntity entity) => new()
+        public static EmployeeDependentDto ToDependentDto(EmployeeDependentEntity entity)
         {
-            Id = entity.Id,
-            EmployeeId = entity.EmployeeId,
-            FullName = entity.FullName,
-            Relationship = entity.Relationship,
-            DayOfBirth = entity.DayOfBirth,
-            Gender = entity.Gender,
-            IdentityNumber = entity.IdentityNumber,
-            TaxCode = entity.TaxCode,
-            DependentFromDate = entity.DependentFromDate,
-            DependentToDate = entity.DependentToDate,
-            Status = entity.Status,
-            Note = entity.Note,
-            IsDeleted = entity.IsDeleted,
-            CreatedAt = entity.CreatedAt,
-            CreatedBy = entity.CreatedBy,
-            UpdatedBy = entity.UpdatedBy,
-            UpdatedAt = entity.UpdatedAt
-        };
+            return new()
+            {
+                Id = entity.Id,
+                EmployeeId = entity.EmployeeId,
+                FullName = entity.FullName,
+                Relationship = entity.Relationship,
+                DayOfBirth = entity.DayOfBirth,
+                Gender = entity.Gender,
+                IdentityNumber = entity.IdentityNumber,
+                TaxCode = entity.TaxCode,
+                DependentFromDate = entity.DependentFromDate,
+                DependentToDate = entity.DependentToDate,
+                Status = entity.Status,
+                Note = entity.Note,
+                IsDeleted = entity.IsDeleted,
+                CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedBy = entity.UpdatedBy,
+                UpdatedAt = entity.UpdatedAt
+            };
+        }
 
-        public static EmployeeEducationDto ToEducationDto(EmployeeEducationEntity entity) => new()
+        public static EmployeeEducationDto ToEducationDto(EmployeeEducationEntity entity)
         {
-            Id = entity.Id,
-            EmployeeId = entity.EmployeeId,
-            SchoolName = entity.SchoolName,
-            Degree = entity.Degree,
-            Major = entity.Major,
-            StartDate = entity.StartDate,
-            EndDate = entity.EndDate,
-            Gpa = entity.Gpa,
-            IsDeleted = entity.IsDeleted,
-            CreatedAt = entity.CreatedAt,
-            CreatedBy = entity.CreatedBy,
-            UpdatedBy = entity.UpdatedBy,
-            UpdatedAt = entity.UpdatedAt
-        };
+            return new()
+            {
+                Id = entity.Id,
+                EmployeeId = entity.EmployeeId,
+                SchoolName = entity.SchoolName,
+                Degree = entity.Degree,
+                Major = entity.Major,
+                StartDate = entity.StartDate,
+                EndDate = entity.EndDate,
+                Gpa = entity.Gpa,
+                IsDeleted = entity.IsDeleted,
+                CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedBy = entity.UpdatedBy,
+                UpdatedAt = entity.UpdatedAt
+            };
+        }
 
-        public static EmployeeCertificateDto ToCertificateDto(EmployeeCertificateEntity entity) => new()
+        public static EmployeeCertificateDto ToCertificateDto(EmployeeCertificateEntity entity)
         {
-            Id = entity.Id,
-            EmployeeId = entity.EmployeeId,
-            Name = entity.Name,
-            IssuingOrganization = entity.IssuingOrganization,
-            IssueDate = entity.IssueDate,
-            ExpiryDate = entity.ExpiryDate,
-            CredentialId = entity.CredentialId,
-            ImageUrl = entity.ImageUrl,
-            IsDeleted = entity.IsDeleted,
-            CreatedAt = entity.CreatedAt,
-            CreatedBy = entity.CreatedBy,
-            UpdatedBy = entity.UpdatedBy,
-            UpdatedAt = entity.UpdatedAt
-        };
+            return new()
+            {
+                Id = entity.Id,
+                EmployeeId = entity.EmployeeId,
+                Name = entity.Name,
+                IssuingOrganization = entity.IssuingOrganization,
+                IssueDate = entity.IssueDate,
+                ExpiryDate = entity.ExpiryDate,
+                CredentialId = entity.CredentialId,
+                ImageUrl = entity.ImageUrl,
+                IsDeleted = entity.IsDeleted,
+                CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedBy = entity.UpdatedBy,
+                UpdatedAt = entity.UpdatedAt
+            };
+        }
 
-        public static EmployeeFileDto ToFileDto(EmployeeFileEntity entity) => new()
+        public static EmployeeFileDto ToFileDto(EmployeeFileEntity entity)
         {
-            Id = entity.Id,
-            EmployeeId = entity.EmployeeId,
-            FileCategory = entity.FileCategory,
-            FileName = entity.FileName,
-            FileUrl = entity.FileUrl,
-            ContentType = entity.ContentType,
-            FileSize = entity.FileSize,
-            Description = entity.Description,
-            ExpiryDate = entity.ExpiryDate,
-            IsDeleted = entity.IsDeleted,
-            CreatedAt = entity.CreatedAt,
-            CreatedBy = entity.CreatedBy,
-            UpdatedBy = entity.UpdatedBy,
-            UpdatedAt = entity.UpdatedAt
-        };
+            return new()
+            {
+                Id = entity.Id,
+                EmployeeId = entity.EmployeeId,
+                FileCategory = entity.FileCategory,
+                FileName = entity.FileName,
+                FileUrl = entity.FileUrl,
+                ContentType = entity.ContentType,
+                FileSize = entity.FileSize,
+                Description = entity.Description,
+                ExpiryDate = entity.ExpiryDate,
+                IsDeleted = entity.IsDeleted,
+                CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedBy = entity.UpdatedBy,
+                UpdatedAt = entity.UpdatedAt
+            };
+        }
 
-        public static EmployeeSalaryHistoryDto ToSalaryHistoryDto(EmployeeSalaryHistoryEntity entity) => new()
+        public static EmployeeSalaryHistoryDto ToSalaryHistoryDto(EmployeeSalaryHistoryEntity entity)
         {
-            Id = entity.Id,
-            EmployeeId = entity.EmployeeId,
-            EffectiveDate = entity.EffectiveDate,
-            OldBasicSalary = entity.OldBasicSalary,
-            NewBasicSalary = entity.NewBasicSalary,
-            Allowance = entity.Allowance,
-            ChangeType = entity.ChangeType,
-            Reason = entity.Reason,
-            DecisionNumber = entity.DecisionNumber,
-            ApprovedBy = entity.ApprovedBy,
-            Note = entity.Note,
-            IsDeleted = entity.IsDeleted,
-            CreatedAt = entity.CreatedAt,
-            CreatedBy = entity.CreatedBy,
-            UpdatedBy = entity.UpdatedBy,
-            UpdatedAt = entity.UpdatedAt
-        };
+            return new()
+            {
+                Id = entity.Id,
+                EmployeeId = entity.EmployeeId,
+                EffectiveDate = entity.EffectiveDate,
+                OldBasicSalary = entity.OldBasicSalary,
+                NewBasicSalary = entity.NewBasicSalary,
+                Allowance = entity.Allowance,
+                ChangeType = entity.ChangeType,
+                Reason = entity.Reason,
+                DecisionNumber = entity.DecisionNumber,
+                ApprovedBy = entity.ApprovedBy,
+                Note = entity.Note,
+                IsDeleted = entity.IsDeleted,
+                CreatedAt = entity.CreatedAt,
+                CreatedBy = entity.CreatedBy,
+                UpdatedBy = entity.UpdatedBy,
+                UpdatedAt = entity.UpdatedAt
+            };
+        }
 
         public static string BuildFullName(string firstName, string lastName, string? fullName)
         {
-            if (!string.IsNullOrWhiteSpace(fullName))
-                return fullName.Trim();
-
-            return $"{firstName.Trim()} {lastName.Trim()}".Trim();
+            return !string.IsNullOrWhiteSpace(fullName) ? fullName.Trim() : $"{firstName.Trim()} {lastName.Trim()}".Trim();
         }
 
-        private static string? TrimOrNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        private static string? TrimOrNull(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
     }
 
     public class EmployeeCommandFields

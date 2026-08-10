@@ -1,6 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Common;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Leave;
+using HrmApi.Domain.Entities.Permission;
+using HrmApi.Domain.Entities.Timekeeping;
 
 namespace HrmApi.Domain.Entities.Organization
 {
@@ -9,6 +11,7 @@ namespace HrmApi.Domain.Entities.Organization
     /// </summary>
     public class CompanyEntity : BaseEntity
     {
+
         /// <summary>
         /// Mã công ty (duy nhất, dùng để nhận diện)
         /// </summary>
@@ -63,6 +66,11 @@ namespace HrmApi.Domain.Entities.Organization
         /// Id của công ty mẹ (nếu có) – dùng để xây dựng cây tổ chức công ty
         /// </summary>
         public Guid? ParentId { get; set; } = null;
+
+        /// <summary>
+        /// Navigation tới công ty mẹ
+        /// </summary>
+        public virtual CompanyEntity? ParentCompany { get; set; }
 
         /// <summary>
         /// Ngày bắt đầu tính lương trong tháng (ví dụ: ngày 20) để xác định chu kỳ lương
@@ -189,16 +197,95 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public Guid? TimeKeepingStandardId { get; set; }
 
-        // --- Quan hệ ---
-
         /// <summary>
         /// Danh sách công ty con (cấu trúc cây)
         /// </summary>
-        public List<CompanyEntity> ChildCompanies { get; set; } = new List<CompanyEntity>();
+        public List<CompanyEntity> ChildCompanies { get; set; } = [];
 
         /// <summary>
         /// Danh sách chi nhánh thuộc công ty
         /// </summary>
-        public List<BranchEntity> Branches { get; set; } = new List<BranchEntity>();
+        public List<BranchEntity> Branches { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới chuẩn chấm công áp dụng cho công ty này
+        /// </summary>
+        public virtual TimeKeepingStandardEntity? TimeKeepingStandard { get; set; }
+
+        /// <summary>
+        /// Navigation property tới danh sách nhân viên thuộc công ty
+        /// </summary>
+        public virtual ICollection<EmployeeEntity> EmployeeEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách cấu hình ngày nghỉ lễ thuộc công ty
+        /// </summary>
+        public virtual ICollection<DayOffConfigEntity> DayOffConfigEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách ngày nghỉ lễ thuộc công ty
+        /// </summary>
+        public virtual ICollection<PublicHolidayEntity> PublicHolidayEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách đăng ký nghỉ phép thuộc công ty
+        /// </summary>
+        public virtual ICollection<RegisterDayOffEntity> RegisterDayOffEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách phòng ban thuộc công ty
+        /// </summary>
+        public virtual ICollection<DepartmentEntity> DepartmentEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách bộ phận thuộc công ty
+        /// </summary>
+        public virtual ICollection<PartEntity> PartEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách chức vụ thuộc công ty
+        /// </summary>
+        public virtual ICollection<PartMasterEntity> PartMasterEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách chức vụ thuộc công ty
+        /// </summary>
+        public virtual ICollection<PositionEntity> PositionEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách chức vụ chuẩn thuộc công ty
+        /// </summary>
+        public virtual ICollection<PositionMasterEntity> PositionMasterEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách vai trò thuộc công ty
+        /// </summary>
+        public virtual ICollection<RoleEntity> RoleEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách người dùng thuộc công ty
+        /// </summary>
+        public virtual ICollection<UserEntity> UserEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách ca làm việc thuộc công ty
+        /// </summary>
+        public virtual ICollection<ShiftMasterEntity> ShiftMasterEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách chấm công thuộc công ty
+        /// </summary>
+        public virtual ICollection<TimekeepingEntity> TimekeepingEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách chuẩn chấm công thuộc công ty
+        /// </summary>
+        public virtual ICollection<TimeKeepingStandardEntity> TimeKeepingStandardEntities { get; set; } = [];
+
+        /// <summary>
+        /// Navigation property tới danh sách tổng hợp chấm công thuộc công ty
+        /// </summary>
+        public virtual ICollection<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; set; } = [];
+
     }
 }

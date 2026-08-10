@@ -42,7 +42,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");
 
             var record = await _rules.GetOrCreateTodayRecordAsync(employee, today, cancellationToken);
-            if (record.Status == AttendanceStatus.Leave)
+            if (record.Status == AttendanceStatus.LEAVE)
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");
             if (record.CheckInAt.HasValue)
                 throw new InvalidOperationException("Bạn đã chấm vào ca hôm nay.");

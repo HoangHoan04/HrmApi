@@ -1,5 +1,6 @@
 using HrmApi.Application.DTOs.DayOffConfig;
 using HrmApi.Domain.Entities.Leave;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Mappings
 {
@@ -15,7 +16,7 @@ namespace HrmApi.Application.Mappings
                 Description = entity.Description,
                 CompanyId = entity.CompanyId,
                 CompanyName = companyName,
-                DayOffType = entity.DayOffType,
+                DayOffType = entity.DayOffType.ToString(),
                 DefaultDaysPerYear = entity.DefaultDaysPerYear,
                 IsPaid = entity.IsPaid,
                 IsActive = entity.IsActive,
@@ -33,24 +34,48 @@ namespace HrmApi.Application.Mappings
             entity.Code = fields.Code?.Trim() ?? entity.Code;
             entity.Name = fields.Name?.Trim() ?? entity.Name;
             entity.Description = string.IsNullOrWhiteSpace(fields.Description) ? entity.Description : fields.Description.Trim();
-            if (fields.CompanyId.HasValue) entity.CompanyId = fields.CompanyId;
-            if (!string.IsNullOrWhiteSpace(fields.DayOffType)) entity.DayOffType = fields.DayOffType.Trim();
-            if (fields.DefaultDaysPerYear.HasValue) entity.DefaultDaysPerYear = fields.DefaultDaysPerYear.Value;
-            if (fields.IsPaid.HasValue) entity.IsPaid = fields.IsPaid.Value;
-            if (fields.IsActive.HasValue) entity.IsActive = fields.IsActive.Value;
+            if (fields.CompanyId.HasValue)
+            {
+                entity.CompanyId = fields.CompanyId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(fields.DayOffType))
+            {
+                if (System.Enum.TryParse<HrmApi.Domain.Enums.DayOffType>(fields.DayOffType, true, out DayOffType parsedType))
+                {
+                    entity.DayOffType = parsedType;
+                }
+            }
+            if (fields.DefaultDaysPerYear.HasValue)
+            {
+                entity.DefaultDaysPerYear = fields.DefaultDaysPerYear.Value;
+            }
+
+            if (fields.IsPaid.HasValue)
+            {
+                entity.IsPaid = fields.IsPaid.Value;
+            }
+
+            if (fields.IsActive.HasValue)
+            {
+                entity.IsActive = fields.IsActive.Value;
+            }
         }
 
-        public static object ToLogObject(DayOffConfigEntity entity) => new
+        public static object ToLogObject(DayOffConfigEntity entity)
         {
-            entity.Id,
-            entity.Code,
-            entity.Name,
-            entity.CompanyId,
-            entity.DayOffType,
-            entity.DefaultDaysPerYear,
-            entity.IsPaid,
-            entity.IsActive
-        };
+            return new
+            {
+                entity.Id,
+                entity.Code,
+                entity.Name,
+                entity.CompanyId,
+                entity.DayOffType,
+                entity.DefaultDaysPerYear,
+                entity.IsPaid,
+                entity.IsActive
+            };
+        }
     }
 
     public class DayOffConfigCommandFields

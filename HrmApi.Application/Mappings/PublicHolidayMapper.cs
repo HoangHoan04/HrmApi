@@ -31,24 +31,45 @@ namespace HrmApi.Application.Mappings
         {
             entity.Code = fields.Code?.Trim() ?? entity.Code;
             entity.Name = fields.Name?.Trim() ?? entity.Name;
-            if (fields.CompanyId.HasValue) entity.CompanyId = fields.CompanyId;
-            if (fields.HolidayDate != default) entity.HolidayDate = fields.HolidayDate;
-            if (fields.IsRecurringYearly.HasValue) entity.IsRecurringYearly = fields.IsRecurringYearly.Value;
+            if (fields.CompanyId.HasValue)
+            {
+                entity.CompanyId = fields.CompanyId;
+            }
+
+            if (fields.HolidayDate != default)
+            {
+                entity.HolidayDate = fields.HolidayDate;
+            }
+
+            if (fields.IsRecurringYearly.HasValue)
+            {
+                entity.IsRecurringYearly = fields.IsRecurringYearly.Value;
+            }
+
             if (fields.Description != null)
+            {
                 entity.Description = string.IsNullOrWhiteSpace(fields.Description) ? null : fields.Description.Trim();
-            if (fields.IsActive.HasValue) entity.IsActive = fields.IsActive.Value;
+            }
+
+            if (fields.IsActive.HasValue)
+            {
+                entity.IsActive = fields.IsActive.Value;
+            }
         }
 
-        public static object ToLogObject(PublicHolidayEntity entity) => new
+        public static object ToLogObject(PublicHolidayEntity entity)
         {
-            entity.Id,
-            entity.Code,
-            entity.Name,
-            entity.CompanyId,
-            entity.HolidayDate,
-            entity.IsRecurringYearly,
-            entity.IsActive
-        };
+            return new
+            {
+                entity.Id,
+                entity.Code,
+                entity.Name,
+                entity.CompanyId,
+                entity.HolidayDate,
+                entity.IsRecurringYearly,
+                entity.IsActive
+            };
+        }
     }
 
     public class PublicHolidayCommandFields

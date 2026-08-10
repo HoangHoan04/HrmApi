@@ -7,6 +7,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Common\**" />
+    <Compile Remove="Extensions\**" />
+    <Compile Remove="Filters\**" />
+    <Compile Remove="Middleware\**" />
+    <Content Remove="Common\**" />
+    <Content Remove="Extensions\**" />
+    <Content Remove="Filters\**" />
+    <Content Remove="Middleware\**" />
+    <EmbeddedResource Remove="Common\**" />
+    <EmbeddedResource Remove="Extensions\**" />
+    <EmbeddedResource Remove="Filters\**" />
+    <EmbeddedResource Remove="Middleware\**" />
+    <None Remove="Common\**" />
+    <None Remove="Extensions\**" />
+    <None Remove="Filters\**" />
+    <None Remove="Middleware\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="MediatR" Version="14.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
@@ -21,13 +40,6 @@
   <ItemGroup>
     <ProjectReference Include="..\HrmApi.Application\HrmApi.Application.csproj" />
     <ProjectReference Include="..\HrmApi.Infrastructure\HrmApi.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Middleware\" />
-    <Folder Include="Filters\" />
-    <Folder Include="Extensions\" />
-    <Folder Include="Common\" />
   </ItemGroup>
 
 </Project>

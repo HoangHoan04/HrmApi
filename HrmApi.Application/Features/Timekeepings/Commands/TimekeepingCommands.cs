@@ -42,9 +42,9 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
             if (request.CheckOutAt.HasValue) entity.CheckOutAt = request.CheckOutAt;
             if (request.Note != null) entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
-            if (!string.IsNullOrWhiteSpace(request.Status))
+            if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<HrmApi.Domain.Enums.AttendanceStatus>(request.Status, true, out var parsedStatus))
             {
-                entity.Status = request.Status.Trim();
+                entity.Status = parsedStatus;
             }
             else
             {
@@ -181,18 +181,18 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                             WorkDate = workDate,
                             ShiftId = window.ShiftId,
                             ShiftMasterId = window.ShiftMasterId,
-                            Status = onLeave ? AttendanceStatus.Leave : AttendanceStatus.Absent,
+                            Status = onLeave ? AttendanceStatus.LEAVE : AttendanceStatus.ABSENT,
                             CreatedAt = DateTime.UtcNow,
                             IsDeleted = false
                         });
                     }
                     else if (!existing.CheckInAt.HasValue
-                             && existing.Status != AttendanceStatus.Leave
-                             && existing.Status != AttendanceStatus.Absent
+                             && existing.Status != AttendanceStatus.LEAVE
+                             && existing.Status != AttendanceStatus.ABSENT
                              && !existing.IsManualAdjusted)
                     {
                         var onLeave = await _rules.HasApprovedLeaveAsync(employeeId, workDate, cancellationToken);
-                        existing.Status = onLeave ? AttendanceStatus.Leave : AttendanceStatus.Absent;
+                        existing.Status = onLeave ? AttendanceStatus.LEAVE : AttendanceStatus.ABSENT;
                         existing.UpdatedAt = DateTime.UtcNow;
                     }
                 }
@@ -221,16 +221,16 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
 
                 summary.CompanyId = employee.CompanyId;
                 summary.BranchId = employee.BranchId;
-                summary.OnTimeDays = records.Count(r => r.Status == AttendanceStatus.OnTime);
-                summary.LateDays = records.Count(r => r.Status == AttendanceStatus.Late);
-                summary.EarlyDays = records.Count(r => r.Status == AttendanceStatus.Early);
-                summary.LeaveDays = records.Count(r => r.Status == AttendanceStatus.Leave);
-                summary.AbsentDays = records.Count(r => r.Status == AttendanceStatus.Absent);
-                summary.IncompleteDays = records.Count(r => r.Status == AttendanceStatus.Incomplete);
+                summary.OnTimeDays = records.Count(r => r.Status == AttendanceStatus.ON_TIME);
+                summary.LateDays = records.Count(r => r.Status == AttendanceStatus.LATE);
+                summary.EarlyDays = records.Count(r => r.Status == AttendanceStatus.EARLY);
+                summary.LeaveDays = records.Count(r => r.Status == AttendanceStatus.LEAVE);
+                summary.AbsentDays = records.Count(r => r.Status == AttendanceStatus.ABSENT);
+                summary.IncompleteDays = records.Count(r => r.Status == AttendanceStatus.INCOMPLETE);
                 summary.WorkingDays = records.Count(r =>
-                    r.Status == AttendanceStatus.OnTime
-                    || r.Status == AttendanceStatus.Late
-                    || r.Status == AttendanceStatus.Early);
+                    r.Status == AttendanceStatus.ON_TIME
+                    || r.Status == AttendanceStatus.LATE
+                    || r.Status == AttendanceStatus.EARLY);
                 summary.TotalWorkedMinutes = records.Sum(r => r.WorkedMinutes);
                 summary.TotalLateMinutes = records.Sum(r => r.LateMinutes);
                 summary.TotalEarlyMinutes = records.Sum(r => r.EarlyMinutes);

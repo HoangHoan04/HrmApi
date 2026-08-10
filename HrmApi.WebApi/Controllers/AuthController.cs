@@ -1,18 +1,16 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Auth;
+using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Permission;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace HrmApi.WebApi.Controllers
 {
@@ -40,17 +38,21 @@ namespace HrmApi.WebApi.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> GetCurrentUser()
         {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdStr, out var userId))
+            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId))
             {
                 return Unauthorized();
             }
 
-            var user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            UserEntity? user = await _context.UserEntities
+                .Include(u => u.Employee)
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
             if (user == null)
             {
                 return NotFound("Người dùng không tồn tại.");
             }
+
+            EmployeeEntity? employee = user.Employee;
 
             return Ok(new
             {
@@ -60,7 +62,23 @@ namespace HrmApi.WebApi.Controllers
                 user.PhoneNumber,
                 user.Type,
                 user.CompanyId,
-                user.BranchId
+                user.BranchId,
+                user.EmployeeId,
+                Employee = employee != null && !employee.IsDeleted ? new
+                {
+                    employee.Id,
+                    employee.Code,
+                    employee.FirstName,
+                    employee.LastName,
+                    employee.FullName,
+                    employee.Gender,
+                    employee.Phone,
+                    employee.Email,
+                    employee.CompanyEmail,
+                    employee.DayOfBirth,
+                    employee.BankAccountNumber,
+                    employee.BankName
+                } : null
             });
         }
 
@@ -74,7 +92,7 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Tài khoản và mật khẩu không được để trống.");
             }
 
-            var user = await _context.UserEntities
+            UserEntity? user = await _context.UserEntities
                 .FirstOrDefaultAsync(u => u.Username.ToLower() == request.Username.ToLower() && !u.IsDeleted);
 
             if (user == null)
@@ -91,13 +109,13 @@ namespace HrmApi.WebApi.Controllers
 
             if (user.IsLocked && user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
             {
-                var lockTimeRemaining = Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
+                double lockTimeRemaining = Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
                 System.Console.WriteLine($"[API Auth] Login rejected: User '{user.Username}' is locked for another {lockTimeRemaining} minutes.");
                 return BadRequest($"Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau {lockTimeRemaining} phút.");
             }
 
-            var passwordHash = user.PasswordHash ?? string.Empty;
-            var passwordResult = _passwordHasher.VerifyHashedPassword(user, passwordHash, request.Password ?? string.Empty);
+            string passwordHash = user.PasswordHash ?? string.Empty;
+            PasswordVerificationResult passwordResult = _passwordHasher.VerifyHashedPassword(user, passwordHash, request.Password ?? string.Empty);
             System.Console.WriteLine($"[API Auth] Password verify for '{user.Username}': result={passwordResult}, hashLen={passwordHash.Length}, pwdLen={(request.Password ?? string.Empty).Length}");
             if (passwordResult == PasswordVerificationResult.Failed)
             {
@@ -108,13 +126,13 @@ namespace HrmApi.WebApi.Controllers
                     user.IsLocked = true;
                     user.LockedUntil = DateTime.UtcNow.AddMinutes(15);
                     user.FailedLoginAttempts = 0;
-                    await _context.SaveChangesAsync(default);
+                    _ = await _context.SaveChangesAsync(default);
                     System.Console.WriteLine($"[API Auth] User '{user.Username}' has been locked due to too many failed attempts.");
                     return BadRequest("Tài khoản của bạn đã bị khóa tạm thời 15 phút do nhập sai mật khẩu quá 5 lần.");
                 }
 
-                await _context.SaveChangesAsync(default);
-                var attemptsLeft = 5 - user.FailedLoginAttempts;
+                _ = await _context.SaveChangesAsync(default);
+                int attemptsLeft = 5 - user.FailedLoginAttempts;
                 return BadRequest($"Tài khoản hoặc mật khẩu không chính xác. Bạn còn {attemptsLeft} lần thử.");
             }
 
@@ -122,12 +140,12 @@ namespace HrmApi.WebApi.Controllers
             user.IsLocked = false;
             user.LockedUntil = null;
 
-            var tokenString = GenerateJwtToken(user);
-            var refreshToken = GenerateRefreshToken();
+            string tokenString = GenerateJwtToken(user);
+            string refreshToken = GenerateRefreshToken();
 
-            var refreshTokenHash = HashToken(refreshToken);
-            var platform = Request.Path.StartsWithSegments("/api/v1/mobile") ? "MOBILE" : "WEB";
-            var userToken = new UserTokenEntity
+            string refreshTokenHash = HashToken(refreshToken);
+            string platform = Request.Path.StartsWithSegments("/api/v1/mobile") ? "MOBILE" : "WEB";
+            UserTokenEntity userToken = new()
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
@@ -140,11 +158,11 @@ namespace HrmApi.WebApi.Controllers
                 CreatedBy = user.Id
             };
 
-            _context.UserTokenEntities.Add(userToken);
+            _ = _context.UserTokenEntities.Add(userToken);
 
             user.LastLoginAt = DateTime.UtcNow;
             user.LastLoginIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-            await _context.SaveChangesAsync(default);
+            _ = await _context.SaveChangesAsync(default);
 
             System.Console.WriteLine($"[API Auth] Login successful for user: '{user.Username}'. Token generated.");
 
@@ -169,8 +187,8 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("RefreshToken không được để trống.");
             }
 
-            var refreshTokenHash = HashToken(request.RefreshToken);
-            var tokenEntity = await _context.UserTokenEntities
+            string refreshTokenHash = HashToken(request.RefreshToken);
+            UserTokenEntity? tokenEntity = await _context.UserTokenEntities
                 .Include(t => t.User)
                 .FirstOrDefaultAsync(t => t.RefreshTokenHash == refreshTokenHash && !t.IsDeleted);
 
@@ -179,20 +197,20 @@ namespace HrmApi.WebApi.Controllers
                 return Unauthorized("Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.");
             }
 
-            var user = tokenEntity.User;
+            UserEntity user = tokenEntity.User;
             if (user == null || !user.IsActive || (user.IsLocked && user.LockedUntil > DateTime.UtcNow))
             {
                 return Unauthorized("Tài khoản đang bị khóa hoặc ngưng hoạt động.");
             }
 
-            var newAccessToken = GenerateJwtToken(user);
-            var newRefreshToken = GenerateRefreshToken();
+            string newAccessToken = GenerateJwtToken(user);
+            string newRefreshToken = GenerateRefreshToken();
 
             tokenEntity.RevokedAt = DateTime.UtcNow;
             tokenEntity.RevokedReason = "Rotated";
 
-            var newRefreshTokenHash = HashToken(newRefreshToken);
-            var newUserToken = new UserTokenEntity
+            string newRefreshTokenHash = HashToken(newRefreshToken);
+            UserTokenEntity newUserToken = new()
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
@@ -207,8 +225,8 @@ namespace HrmApi.WebApi.Controllers
 
             tokenEntity.ReplacedByTokenId = newUserToken.Id;
 
-            _context.UserTokenEntities.Add(newUserToken);
-            await _context.SaveChangesAsync(default);
+            _ = _context.UserTokenEntities.Add(newUserToken);
+            _ = await _context.SaveChangesAsync(default);
 
             return Ok(new LoginResponse
             {
@@ -231,7 +249,7 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Email không được để trống.");
             }
 
-            var user = await _context.UserEntities
+            UserEntity? user = await _context.UserEntities
                 .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted);
 
             if (user == null)
@@ -239,13 +257,13 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Email không tồn tại trong hệ thống.");
             }
 
-            var otp = new Random().Next(100000, 999999).ToString();
+            string otp = new Random().Next(100000, 999999).ToString();
             user.ResetPasswordOtp = otp;
             user.ResetPasswordOtpExpiresAt = DateTime.UtcNow.AddMinutes(10);
 
-            await _context.SaveChangesAsync(default);
+            _ = await _context.SaveChangesAsync(default);
 
-            var emailBody = $@"
+            string emailBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;'>
                     <h2 style='color: #3b82f6;'>Đặt lại mật khẩu HRM System</h2>
                     <p>Xin chào <strong>{user.Username}</strong>,</p>
@@ -269,7 +287,7 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Các trường thông tin không được để trống.");
             }
 
-            var user = await _context.UserEntities
+            UserEntity? user = await _context.UserEntities
                 .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted);
 
             if (user == null)
@@ -285,10 +303,10 @@ namespace HrmApi.WebApi.Controllers
             user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
             user.ResetPasswordOtp = null;
             user.ResetPasswordOtpExpiresAt = null;
-            user.MustChangePassword = true; 
+            user.MustChangePassword = true;
             user.PasswordChangedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(default);
+            _ = await _context.SaveChangesAsync(default);
 
             return Ok(new { message = "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới." });
         }
@@ -302,19 +320,19 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Thông tin mật khẩu không được để trống.");
             }
 
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdStr, out var userId))
+            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId))
             {
                 return Unauthorized();
             }
 
-            var user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            UserEntity? user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
             if (user == null)
             {
                 return BadRequest("Tài khoản không tồn tại.");
             }
 
-            var passwordResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.OldPassword);
+            PasswordVerificationResult passwordResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.OldPassword);
             if (passwordResult == PasswordVerificationResult.Failed)
             {
                 return BadRequest("Mật khẩu cũ không chính xác.");
@@ -324,7 +342,7 @@ namespace HrmApi.WebApi.Controllers
             user.MustChangePassword = false;
             user.PasswordChangedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(default);
+            _ = await _context.SaveChangesAsync(default);
 
             return Ok(new { message = "Thay đổi mật khẩu thành công." });
         }
@@ -338,13 +356,13 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Thông tin cập nhật không hợp lệ.");
             }
 
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdStr, out var userId))
+            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId))
             {
                 return Unauthorized();
             }
 
-            var user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            UserEntity? user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
             if (user == null)
             {
                 return BadRequest("Tài khoản không tồn tại.");
@@ -353,18 +371,18 @@ namespace HrmApi.WebApi.Controllers
             user.Email = request.Email;
             user.PhoneNumber = request.PhoneNumber;
 
-            await _context.SaveChangesAsync(default);
+            _ = await _context.SaveChangesAsync(default);
 
             return Ok(new { message = "Cập nhật thông tin thành công." });
         }
 
         private string GenerateJwtToken(UserEntity user)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var jwtSecret = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
-            var key = Encoding.ASCII.GetBytes(jwtSecret);
+            JwtSecurityTokenHandler tokenHandler = new();
+            string jwtSecret = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
+            byte[] key = Encoding.ASCII.GetBytes(jwtSecret);
 
-            var claims = new[]
+            Claim[] claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username),
@@ -375,8 +393,8 @@ namespace HrmApi.WebApi.Controllers
                 new Claim("EmployeeId", user.EmployeeId?.ToString() ?? string.Empty)
             };
 
-            var expiryInMinutes = double.Parse(_configuration["JwtSettings:ExpiryInMinutes"] ?? "720");
-            var tokenDescriptor = new SecurityTokenDescriptor
+            double expiryInMinutes = double.Parse(_configuration["JwtSettings:ExpiryInMinutes"] ?? "720");
+            SecurityTokenDescriptor tokenDescriptor = new()
             {
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(expiryInMinutes),
@@ -385,27 +403,23 @@ namespace HrmApi.WebApi.Controllers
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
 
-            var token = tokenHandler.CreateToken(tokenDescriptor);
+            SecurityToken token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
 
         private string GenerateRefreshToken()
         {
-            var randomNumber = new byte[32];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(randomNumber);
-                return Convert.ToBase64String(randomNumber);
-            }
+            byte[] randomNumber = new byte[32];
+            using RandomNumberGenerator rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
         }
 
         private string HashToken(string token)
         {
-            using (var sha256 = SHA256.Create())
-            {
-                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(token));
-                return Convert.ToBase64String(hashedBytes);
-            }
+            using SHA256 sha256 = SHA256.Create();
+            byte[] hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(token));
+            return Convert.ToBase64String(hashedBytes);
         }
     }
 }

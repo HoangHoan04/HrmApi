@@ -1,10 +1,8 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -31,14 +29,14 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
 
         public async Task<MobileTodayDto> Handle(GetMobileTodayQuery request, CancellationToken cancellationToken)
         {
-            var employeeId = await ResolveEmployeeIdAsync(cancellationToken);
-            var employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
+            EmployeeEntity employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
+            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            var onLeave = await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken);
-            var window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
-            var branchId = window.BranchId ?? employee.BranchId;
-            var standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
+            bool onLeave = await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken);
+            WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
+            Guid? branchId = window.BranchId ?? employee.BranchId;
+            AttendanceStandardResult standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
 
             string? branchName = null;
             if (branchId.HasValue)
@@ -49,10 +47,10 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
-            var record = await _context.TimekeepingEntities.AsNoTracking()
+            TimekeepingEntity? record = await _context.TimekeepingEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id && x.WorkDate == today && !x.IsDeleted, cancellationToken);
 
-            if (onLeave && record != null && record.Status != AttendanceStatus.Leave)
+            if (onLeave && record != null && record.Status != AttendanceStatus.LEAVE)
             {
                 // reflect leave in response even if record not yet updated
             }
@@ -63,16 +61,20 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
         {
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 return _currentUser.EmployeeId.Value;
+            }
 
             if (_currentUser.UserId.HasValue)
             {
-                var empId = await _context.UserEntities.AsNoTracking()
+                Guid? empId = await _context.UserEntities.AsNoTracking()
                     .Where(x => x.Id == _currentUser.UserId.Value)
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
@@ -99,30 +101,32 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
         public async Task<MobileMonthDto> Handle(GetMobileMonthQuery request, CancellationToken cancellationToken)
         {
             if (request.Year < 2000 || request.Month < 1 || request.Month > 12)
+            {
                 throw new InvalidOperationException("Năm/tháng không hợp lệ.");
+            }
 
-            var employeeId = await ResolveEmployeeIdAsync(cancellationToken);
-            var from = new DateOnly(request.Year, request.Month, 1);
-            var to = from.AddMonths(1).AddDays(-1);
+            Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
+            DateOnly from = new(request.Year, request.Month, 1);
+            DateOnly to = from.AddMonths(1).AddDays(-1);
 
-            var records = await _context.TimekeepingEntities.AsNoTracking()
+            List<TimekeepingEntity> records = await _context.TimekeepingEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == employeeId && !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                 .OrderBy(x => x.WorkDate)
                 .ToListAsync(cancellationToken);
 
-            var days = records.Select(TimekeepingMapper.ToMonthDayDto).ToList();
+            List<MobileMonthDayDto> days = records.Select(TimekeepingMapper.ToMonthDayDto).ToList();
 
             return new MobileMonthDto
             {
                 Year = request.Year,
                 Month = request.Month,
                 Days = days,
-                OnTimeDays = days.Count(d => d.Status == AttendanceStatus.OnTime),
-                LateDays = days.Count(d => d.Status == AttendanceStatus.Late),
-                EarlyDays = days.Count(d => d.Status == AttendanceStatus.Early),
-                LeaveDays = days.Count(d => d.Status == AttendanceStatus.Leave),
-                AbsentDays = days.Count(d => d.Status == AttendanceStatus.Absent),
-                IncompleteDays = days.Count(d => d.Status == AttendanceStatus.Incomplete),
+                OnTimeDays = days.Count(d => d.Status == AttendanceStatus.ON_TIME.ToString()),
+                LateDays = days.Count(d => d.Status == AttendanceStatus.LATE.ToString()),
+                EarlyDays = days.Count(d => d.Status == AttendanceStatus.EARLY.ToString()),
+                LeaveDays = days.Count(d => d.Status == AttendanceStatus.LEAVE.ToString()),
+                AbsentDays = days.Count(d => d.Status == AttendanceStatus.ABSENT.ToString()),
+                IncompleteDays = days.Count(d => d.Status == AttendanceStatus.INCOMPLETE.ToString()),
                 TotalWorkedMinutes = days.Sum(d => d.WorkedMinutes)
             };
         }
@@ -130,16 +134,20 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
         {
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 return _currentUser.EmployeeId.Value;
+            }
 
             if (_currentUser.UserId.HasValue)
             {
-                var empId = await _context.UserEntities.AsNoTracking()
+                Guid? empId = await _context.UserEntities.AsNoTracking()
                     .Where(x => x.Id == _currentUser.UserId.Value)
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");

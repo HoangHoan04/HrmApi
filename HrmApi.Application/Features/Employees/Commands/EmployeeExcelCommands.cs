@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
@@ -33,7 +27,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<byte[]> Handle(ExportEmployeesExcelQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.EmployeeEntities.AsNoTracking();
+            IQueryable<EmployeeEntity> query = _context.EmployeeEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
@@ -61,10 +55,10 @@ namespace HrmApi.Application.Features.Employees.Commands
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
             }
 
-            var employees = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            List<EmployeeEntity> employees = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("DanhSachNhanVien");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("DanhSachNhanVien");
             EmployeeExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: true);
 
             for (var i = 0; i < employees.Count; i++)
@@ -90,7 +84,7 @@ namespace HrmApi.Application.Features.Employees.Commands
         public Task<byte[]> Handle(DownloadEmployeeExcelTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("MauImport");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("MauImport");
             EmployeeExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
             EmployeeExcelWriter.ApplyColumnWidths(worksheet);
             EmployeeExcelWriter.FreezeHeaderRow(worksheet);
@@ -111,7 +105,7 @@ namespace HrmApi.Application.Features.Employees.Commands
         public int TotalRows { get; set; }
         public int SuccessCount { get; set; }
         public int ErrorCount { get; set; }
-        public List<string> Errors { get; set; } = new();
+        public List<string> Errors { get; set; } = [];
     }
 
     public class ImportEmployeesExcelCommandHandler : IRequestHandler<ImportEmployeesExcelCommand, EmployeeImportResultDto>
@@ -131,17 +125,17 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             using var stream = new MemoryStream(request.FileContent);
             using var workbook = new XLWorkbook(stream);
-            var worksheet = workbook.Worksheet(1);
-            var rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? new List<IXLRangeRow>();
+            IXLWorksheet worksheet = workbook.Worksheet(1);
+            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
 
             result.TotalRows = rows.Count;
 
-            foreach (var row in rows)
+            foreach (IXLRangeRow? row in rows)
             {
                 var rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row);
+                    EmployeeCommandFields command = ReadRow(row);
                     if (string.IsNullOrWhiteSpace(command.Code)
                         && string.IsNullOrWhiteSpace(command.FirstName)
                         && string.IsNullOrWhiteSpace(command.LastName))
@@ -158,8 +152,8 @@ namespace HrmApi.Application.Features.Employees.Commands
                     };
                     EmployeeMapper.ApplyCommandFields(employee, command);
 
-                    _context.EmployeeEntities.Add(employee);
-                    await _context.SaveChangesAsync(cancellationToken);
+                    _ = _context.EmployeeEntities.Add(employee);
+                    _ = await _context.SaveChangesAsync(cancellationToken);
 
                     await _actionLog.LogActionAsync(
                         ActionType.CREATE,
@@ -221,15 +215,24 @@ namespace HrmApi.Application.Features.Employees.Commands
             };
         }
 
-        private static string GetCellString(IXLRangeRow row, int column) =>
-            row.Cell(column).GetString().Trim();
+        private static string GetCellString(IXLRangeRow row, int column)
+        {
+            return row.Cell(column).GetString().Trim();
+        }
 
         private static DateTime? ParseDate(IXLCell cell)
         {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out DateTime dateValue)) return dateValue;
-            if (DateTime.TryParse(cell.GetString(), out var parsed)) return parsed;
-            return null;
+            if (cell.IsEmpty())
+            {
+                return null;
+            }
+
+            if (cell.TryGetValue(out DateTime dateValue))
+            {
+                return dateValue;
+            }
+
+            return DateTime.TryParse(cell.GetString(), out DateTime parsed) ? parsed : null;
         }
     }
 
@@ -280,8 +283,10 @@ namespace HrmApi.Application.Features.Employees.Commands
             new() { Title = "Trạng thái hệ thống", Required = false, ExportOnly = true },
         };
 
-        public static IEnumerable<EmployeeExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns) =>
-            Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        public static IEnumerable<EmployeeExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns)
+        {
+            return Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        }
     }
 
     internal static class EmployeeExcelWriter
@@ -295,8 +300,8 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             for (var col = 0; col < columns.Count; col++)
             {
-                var definition = columns[col];
-                var cell = worksheet.Cell(1, col + 1);
+                EmployeeExcelColumnDefinition definition = columns[col];
+                IXLCell cell = worksheet.Cell(1, col + 1);
                 cell.Value = definition.Required ? $"{definition.Title}*" : definition.Title;
 
                 cell.Style.Font.Bold = true;
@@ -340,7 +345,7 @@ namespace HrmApi.Application.Features.Employees.Commands
                 employee.CurrentCity,
                 employee.CurrentWard,
                 employee.BankAccountNumber,
-                employee.Bankname,
+                employee.BankName,
                 employee.BankBranchName,
                 employee.BankAccountHolder,
                 employee.TaxCode,
@@ -362,7 +367,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             for (var col = 0; col < values.Count; col++)
             {
-                var cell = worksheet.Cell(row, col + 1);
+                IXLCell cell = worksheet.Cell(row, col + 1);
                 cell.Value = values[col] ?? string.Empty;
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -371,10 +376,10 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public static void ApplyColumnWidths(IXLWorksheet worksheet)
         {
-            var usedColumns = worksheet.ColumnsUsed();
-            foreach (var column in usedColumns)
+            IXLColumns usedColumns = worksheet.ColumnsUsed();
+            foreach (IXLColumn? column in usedColumns)
             {
-                column.AdjustToContents(8, 60);
+                _ = column.AdjustToContents(8, 60);
                 column.Width = Math.Max(column.Width + 2, 12);
             }
         }

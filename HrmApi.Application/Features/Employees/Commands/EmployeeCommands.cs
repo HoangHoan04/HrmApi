@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
@@ -36,7 +33,7 @@ namespace HrmApi.Application.Features.Employees.Commands
         {
             await ValidateAsync(request, null, cancellationToken, _context);
 
-            var employee = new EmployeeEntity
+            EmployeeEntity employee = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -44,17 +41,17 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             EmployeeMapper.ApplyCommandFields(employee, request);
 
-            _context.EmployeeEntities.Add(employee);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.EmployeeEntities.Add(employee);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             const string defaultPassword = "123@123@";
-            var usernameNormalized = employee.Code.Trim().ToLower();
-            var userExists = await _context.UserEntities
+            string usernameNormalized = employee.Code.Trim().ToLower();
+            bool userExists = await _context.UserEntities
                 .AnyAsync(x => x.Username.ToLower() == usernameNormalized, cancellationToken);
 
             if (!userExists)
             {
-                var user = new UserEntity
+                UserEntity user = new()
                 {
                     EmployeeId = employee.Id,
                     Username = employee.Code.Trim(),
@@ -66,12 +63,12 @@ namespace HrmApi.Application.Features.Employees.Commands
                     MustChangePassword = true,
                     CreatedAt = DateTime.UtcNow,
                     CompanyId = employee.CompanyId,
-                    BranchId = employee.BranchId
+                    BranchId = employee.BranchId,
                 };
                 user.PasswordHash = _passwordHasher.HashPassword(user, defaultPassword);
 
-                _context.UserEntities.Add(user);
-                await _context.SaveChangesAsync(cancellationToken);
+                _ = _context.UserEntities.Add(user);
+                _ = await _context.SaveChangesAsync(cancellationToken);
             }
 
             await _actionLog.LogActionAsync(
@@ -92,50 +89,74 @@ namespace HrmApi.Application.Features.Employees.Commands
             IApplicationDbContext context)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã nhân viên là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.FirstName))
+            {
                 throw new InvalidOperationException("Họ nhân viên là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.LastName))
+            {
                 throw new InvalidOperationException("Tên nhân viên là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Phone))
+            {
                 throw new InvalidOperationException("Số điện thoại là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Email))
+            {
                 throw new InvalidOperationException("Email là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.IdentityCard))
+            {
                 throw new InvalidOperationException("Số CCCD là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.PlaceOfIsssuance))
+            {
                 throw new InvalidOperationException("Nơi cấp CCCD là bắt buộc.");
+            }
 
             if (request.DayOfBirth == default)
+            {
                 throw new InvalidOperationException("Ngày sinh là bắt buộc.");
+            }
 
             if (request.IssuanceDate == default)
+            {
                 throw new InvalidOperationException("Ngày cấp CCCD là bắt buộc.");
+            }
 
             if (request.JoinDate == default)
+            {
                 throw new InvalidOperationException("Ngày vào làm là bắt buộc.");
+            }
 
-            var code = request.Code.Trim().ToLower();
-            var codeExists = await context.EmployeeEntities
+            string code = request.Code.Trim().ToLower();
+            bool codeExists = await context.EmployeeEntities
                 .AnyAsync(x => x.Code.ToLower() == code
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
             if (codeExists)
+            {
                 throw new InvalidOperationException("Mã nhân viên đã tồn tại trong hệ thống.");
+            }
 
-            var identityCard = request.IdentityCard.Trim().ToLower();
-            var identityExists = await context.EmployeeEntities
+            string identityCard = request.IdentityCard.Trim().ToLower();
+            bool identityExists = await context.EmployeeEntities
                 .AnyAsync(x => x.IdentityCard.ToLower() == identityCard
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
             if (identityExists)
+            {
                 throw new InvalidOperationException("Số CCCD đã tồn tại trong hệ thống.");
+            }
         }
     }
     #endregion
@@ -162,18 +183,32 @@ namespace HrmApi.Application.Features.Employees.Commands
             var employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (employee == null) return false;
+            if (employee == null)
+            {
+                return false;
+            }
 
             await CreateEmployeeCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            var oldValue = EmployeeMapper.ToLogObject(employee);
+            object oldValue = EmployeeMapper.ToLogObject(employee);
 
             EmployeeMapper.ApplyCommandFields(employee, request);
             employee.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            var user = await _context.UserEntities
+                .FirstOrDefaultAsync(u => u.EmployeeId == employee.Id && !u.IsDeleted, cancellationToken);
+            if (user != null)
+            {
+                user.CompanyId = employee.CompanyId;
+                user.BranchId = employee.BranchId;
+                user.Email = employee.Email;
+                user.PhoneNumber = employee.Phone;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
 
-            var newValue = EmployeeMapper.ToLogObject(employee);
+            _ = await _context.SaveChangesAsync(cancellationToken);
+
+            object newValue = EmployeeMapper.ToLogObject(employee);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -210,12 +245,15 @@ namespace HrmApi.Application.Features.Employees.Commands
             var employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (employee == null) return false;
+            if (employee == null)
+            {
+                return false;
+            }
 
             employee.IsDeleted = false;
             employee.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
@@ -252,12 +290,15 @@ namespace HrmApi.Application.Features.Employees.Commands
             var employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (employee == null) return false;
+            if (employee == null)
+            {
+                return false;
+            }
 
             employee.IsDeleted = true;
             employee.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,

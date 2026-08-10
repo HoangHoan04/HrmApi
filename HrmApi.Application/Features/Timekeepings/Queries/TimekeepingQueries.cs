@@ -47,8 +47,8 @@ namespace HrmApi.Application.Features.Timekeepings.Queries
                 query = query.Where(x => x.WorkDate >= request.FromDate.Value);
             if (request.ToDate.HasValue)
                 query = query.Where(x => x.WorkDate <= request.ToDate.Value);
-            if (!string.IsNullOrWhiteSpace(request.Status))
-                query = query.Where(x => x.Status == request.Status.Trim());
+            if (!string.IsNullOrWhiteSpace(request.Status) && System.Enum.TryParse<HrmApi.Domain.Enums.AttendanceStatus>(request.Status, true, out var parsedStatus))
+                query = query.Where(x => x.Status == parsedStatus);
 
             var totalCount = await query.CountAsync(cancellationToken);
             query = string.Equals(request.SortOrder, "ascend", StringComparison.OrdinalIgnoreCase)

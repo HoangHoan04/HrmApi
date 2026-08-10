@@ -1,5 +1,3 @@
-using System;
-
 namespace HrmApi.Application.DTOs.PublicHoliday
 {
     public class PublicHolidayDto : BaseDto

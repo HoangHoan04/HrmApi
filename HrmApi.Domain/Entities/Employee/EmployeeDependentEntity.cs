@@ -1,5 +1,4 @@
-﻿using HrmApi.Domain.Common;
-using System;
+using HrmApi.Domain.Common;
 
 namespace HrmApi.Domain.Entities.Employee
 {
@@ -8,6 +7,7 @@ namespace HrmApi.Domain.Entities.Employee
     /// </summary>
     public class EmployeeDependentEntity : BaseEntity
     {
+
         /// <summary>
         /// Id nhân viên sở hữu người phụ thuộc này (khóa ngoại tới EmployeeEntity)
         /// </summary>
@@ -62,5 +62,7 @@ namespace HrmApi.Domain.Entities.Employee
         /// Ghi chú thêm
         /// </summary>
         public string? Note { get; set; }
+
+        public virtual EmployeeEntity? Employee { get; set; }
     }
 }
