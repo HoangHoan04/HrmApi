@@ -10,10 +10,15 @@ namespace HrmApi.Application.Common.Interfaces
     {
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }
+        public TimeSpan? BreakStartTime { get; set; }
+        public TimeSpan? BreakEndTime { get; set; }
+        public int BreakMinutes { get; set; }
         public Guid? ShiftMasterId { get; set; }
         public Guid? ShiftId { get; set; }
         public Guid? BranchId { get; set; }
         public bool IsOvernight { get; set; }
+        public string Source { get; set; } = "WORK_PATTERN";
+        public bool IsScheduledWorkDay { get; set; } = true;
     }
 
     public class AttendanceStandardResult

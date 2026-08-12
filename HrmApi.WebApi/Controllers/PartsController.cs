@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Part;
 using HrmApi.Application.Features.Parts.Commands;
 using HrmApi.Application.Features.Parts.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
@@ -16,6 +19,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách tổ/nhóm
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/v1/part")]
     public class PartsController : ControllerBase
     {
@@ -30,6 +34,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy danh sách tổ/nhóm phân trang (Phương thức POST)
         /// </summary>
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgPartView)]
         public async Task<ActionResult<PagedResult<PartDto>>> GetPagedList([FromBody] GetPartsPagedQuery query)
         {
             var result = await _mediator.Send(query);
@@ -40,6 +45,7 @@ namespace HrmApi.WebApi.Controllers
         /// Chi tiết tổ/nhóm theo ID (Phương thức POST)
         /// </summary>
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgPartView)]
         public async Task<ActionResult<PartDto>> GetDetail([FromBody] GetPartByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -51,6 +57,7 @@ namespace HrmApi.WebApi.Controllers
         /// Thêm mới tổ/nhóm (Phương thức POST)
         /// </summary>
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgPartCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreatePartCommand command)
         {
             try
@@ -68,6 +75,7 @@ namespace HrmApi.WebApi.Controllers
         /// Cập nhật tổ/nhóm (Phương thức POST)
         /// </summary>
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgPartUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdatePartCommand command)
         {
             try
@@ -86,6 +94,7 @@ namespace HrmApi.WebApi.Controllers
         /// Kích hoạt tổ/nhóm (Phương thức POST, sets IsDeleted = false)
         /// </summary>
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgPartActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivatePartCommand command)
         {
             var result = await _mediator.Send(command);
@@ -97,6 +106,7 @@ namespace HrmApi.WebApi.Controllers
         /// Vô hiệu hóa/Ngừng hoạt động tổ/nhóm (Phương thức POST, sets IsDeleted = true)
         /// </summary>
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgPartDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivatePartCommand command)
         {
             var result = await _mediator.Send(command);
@@ -108,6 +118,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy dữ liệu rút gọn phục vụ chọn lựa SelectBox (Phương thức POST)
         /// </summary>
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgPartView)]
         public async Task<ActionResult<List<PartSelectBoxDto>>> GetSelectBox([FromBody] GetPartSelectBoxQuery? query)
         {
             var result = await _mediator.Send(query ?? new GetPartSelectBoxQuery());
@@ -118,6 +129,7 @@ namespace HrmApi.WebApi.Controllers
         /// Tải file mẫu Excel import tổ/nhóm
         /// </summary>
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgPartImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadPartExcelTemplateQuery());
@@ -128,6 +140,7 @@ namespace HrmApi.WebApi.Controllers
         /// Xuất danh sách tổ/nhóm ra Excel
         /// </summary>
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgPartExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportPartsExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -139,6 +152,7 @@ namespace HrmApi.WebApi.Controllers
         /// Import danh sách tổ/nhóm từ Excel
         /// </summary>
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgPartImportExcel)]
         public async Task<ActionResult<PartImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -159,6 +173,7 @@ namespace HrmApi.WebApi.Controllers
         /// Load bộ phận/tổ theo id phòng ban (dùng cho cascade dropdown).
         /// </summary>
         [HttpPost("load-by-department")]
+        [RequirePermission(PermissionCodes.OrgPartView)]
         public async Task<ActionResult<List<PartSelectBoxDto>>> GetByDepartment(
             [FromBody] GetPartsByDepartmentQuery query)
         {

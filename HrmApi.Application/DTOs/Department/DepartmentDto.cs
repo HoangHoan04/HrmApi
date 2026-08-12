@@ -17,7 +17,9 @@ namespace HrmApi.Application.DTOs.Department
         public int Limit { get; set; }
         public int? CurrentHeadCount { get; set; }
         public Guid? ManagerId { get; set; }
+        public string? ManagerName { get; set; }
         public Guid? DeputyManagerId { get; set; }
+        public string? DeputyManagerName { get; set; }
         public string? Email { get; set; }
         public string? PhoneExtension { get; set; }
         public string? CostCenterCode { get; set; }

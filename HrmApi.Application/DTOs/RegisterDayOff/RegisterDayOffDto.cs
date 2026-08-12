@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.DTOs.RegisterDayOff
@@ -17,22 +15,36 @@ namespace HrmApi.Application.DTOs.RegisterDayOff
         public DayOffType DayOffType { get; set; } = DayOffType.ANNUAL;
         public DateOnly FromDate { get; set; }
         public DateOnly ToDate { get; set; }
+        public LeaveSession Session { get; set; } = LeaveSession.FULL;
         public decimal TotalDays { get; set; }
         public string? Reason { get; set; }
+        public string? AttachmentUrl { get; set; }
         public DayOffStatus Status { get; set; } = DayOffStatus.PENDING;
+        public Guid? RequestedApproverId { get; set; }
+        public string? RequestedApproverName { get; set; }
         public Guid? ApproverId { get; set; }
         public string? ApproverName { get; set; }
         public DateTime? ApprovedAt { get; set; }
         public string? ApproverNote { get; set; }
+        public string? CancelReason { get; set; }
     }
 
-    public class CreateRegisterDayOffRequest
+    public class PreviewLeaveDaysRequest
     {
-        public Guid? DayOffConfigId { get; set; }
-        public DayOffType? DayOffType { get; set; }
+        public Guid? EmployeeId { get; set; }
+        public Guid? CompanyId { get; set; }
         public DateOnly FromDate { get; set; }
         public DateOnly ToDate { get; set; }
-        public string? Reason { get; set; }
+        public LeaveSession Session { get; set; } = LeaveSession.FULL;
+    }
+
+    public class PreviewLeaveDaysDto
+    {
+        public decimal TotalDays { get; set; }
+        public SaturdayPolicy SaturdayPolicy { get; set; }
+        public LeaveSession Session { get; set; }
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
     }
 
     public class MobileLeaveBalanceDto
@@ -55,5 +67,9 @@ namespace HrmApi.Application.DTOs.RegisterDayOff
         public DayOffType DayOffType { get; set; }
         public decimal DefaultDaysPerYear { get; set; }
         public bool IsPaid { get; set; }
+        public bool DeductBalance { get; set; }
+        public bool RequireAttachment { get; set; }
+        public decimal? MaxDaysPerRequest { get; set; }
+        public int MinNoticeDays { get; set; }
     }
 }

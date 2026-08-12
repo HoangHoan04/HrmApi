@@ -16,6 +16,7 @@ namespace HrmApi.Application
 
             services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
             services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();
+            services.AddScoped<IAuthContextService, AuthContextService>();
 
             return services;
         }

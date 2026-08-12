@@ -92,6 +92,8 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             List<Guid> branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
             List<Guid> configIds = entities.Where(x => x.DayOffConfigId.HasValue).Select(x => x.DayOffConfigId!.Value).Distinct().ToList();
             List<Guid> approverIds = entities.Where(x => x.ApproverId.HasValue).Select(x => x.ApproverId!.Value).Distinct().ToList();
+            List<Guid> requestedIds = entities.Where(x => x.RequestedApproverId.HasValue).Select(x => x.RequestedApproverId!.Value).Distinct().ToList();
+            List<Guid> nameIds = approverIds.Union(requestedIds).Distinct().ToList();
 
             Dictionary<Guid, (string? Name, string Code)> employees = employeeIds.Count == 0
                 ? []
@@ -114,19 +116,23 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                     .Where(x => configIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            Dictionary<Guid, string> approvers = approverIds.Count == 0
+            Dictionary<Guid, string> names = nameIds.Count == 0
                 ? []
-                : await _context.UserEntities.AsNoTracking()
-                    .Where(x => approverIds.Contains(x.Id))
-                    .ToDictionaryAsync(x => x.Id, x => x.Username ?? x.Id.ToString(), cancellationToken);
+                : await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => nameIds.Contains(x.Id))
+                    .ToDictionaryAsync(
+                        x => x.Id,
+                        x => x.FullName ?? $"{x.LastName} {x.FirstName}".Trim(),
+                        cancellationToken);
 
             return entities.Select(x =>
             {
                 _ = employees.TryGetValue(x.EmployeeId, out (string? Name, string Code) emp);
                 string? branchName = x.BranchId.HasValue && branches.TryGetValue(x.BranchId.Value, out string? bn) ? bn : null;
                 string? configName = x.DayOffConfigId.HasValue && configs.TryGetValue(x.DayOffConfigId.Value, out string? cn) ? cn : null;
-                string? approverName = x.ApproverId.HasValue && approvers.TryGetValue(x.ApproverId.Value, out string? an) ? an : null;
-                return RegisterDayOffMapper.ToDto(x, emp.Name, emp.Code, branchName, configName, approverName);
+                string? approverName = x.ApproverId.HasValue && names.TryGetValue(x.ApproverId.Value, out string? an) ? an : null;
+                string? requestedName = x.RequestedApproverId.HasValue && names.TryGetValue(x.RequestedApproverId.Value, out string? rn) ? rn : null;
+                return RegisterDayOffMapper.ToDto(x, emp.Name, emp.Code, branchName, configName, approverName, requestedName);
             }).ToList();
         }
     }
@@ -147,7 +153,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
         public async Task<RegisterDayOffDto?> Handle(GetRegisterDayOffByIdQuery request, CancellationToken cancellationToken)
         {
             RegisterDayOffEntity? entity = await _context.RegisterDayOffEntities.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
             if (entity == null)
             {
                 return null;
@@ -179,9 +185,18 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             string? approverName = null;
             if (entity.ApproverId.HasValue)
             {
-                approverName = await _context.UserEntities.AsNoTracking()
+                approverName = await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => x.Id == entity.ApproverId)
-                    .Select(x => x.Username)
+                    .Select(x => x.FullName ?? (x.LastName + " " + x.FirstName).Trim())
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            string? requestedApproverName = null;
+            if (entity.RequestedApproverId.HasValue)
+            {
+                requestedApproverName = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => x.Id == entity.RequestedApproverId)
+                    .Select(x => x.FullName ?? (x.LastName + " " + x.FirstName).Trim())
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
@@ -191,7 +206,8 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 emp?.Code,
                 branchName,
                 configName,
-                approverName);
+                approverName,
+                requestedApproverName);
         }
     }
 
@@ -232,16 +248,31 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             List<RegisterDayOffEntity> entities = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
 
             List<Guid> configIds = entities.Where(x => x.DayOffConfigId.HasValue).Select(x => x.DayOffConfigId!.Value).Distinct().ToList();
+            List<Guid> approverIds = entities.Where(x => x.ApproverId.HasValue).Select(x => x.ApproverId!.Value).Distinct().ToList();
+            List<Guid> requestedIds = entities.Where(x => x.RequestedApproverId.HasValue).Select(x => x.RequestedApproverId!.Value).Distinct().ToList();
+            List<Guid> nameIds = approverIds.Union(requestedIds).Distinct().ToList();
+
             Dictionary<Guid, string> configs = configIds.Count == 0
                 ? []
                 : await _context.DayOffConfigEntities.AsNoTracking()
                     .Where(x => configIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
+            Dictionary<Guid, string> names = nameIds.Count == 0
+                ? []
+                : await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => nameIds.Contains(x.Id))
+                    .ToDictionaryAsync(
+                        x => x.Id,
+                        x => x.FullName ?? $"{x.LastName} {x.FirstName}".Trim(),
+                        cancellationToken);
+
             return entities.Select(x =>
             {
                 string? configName = x.DayOffConfigId.HasValue && configs.TryGetValue(x.DayOffConfigId.Value, out string? cn) ? cn : null;
-                return RegisterDayOffMapper.ToDto(x, null, null, null, configName);
+                string? approverName = x.ApproverId.HasValue && names.TryGetValue(x.ApproverId.Value, out string? an) ? an : null;
+                string? requestedName = x.RequestedApproverId.HasValue && names.TryGetValue(x.RequestedApproverId.Value, out string? rn) ? rn : null;
+                return RegisterDayOffMapper.ToDto(x, null, null, null, configName, approverName, requestedName);
             }).ToList();
         }
 
@@ -340,10 +371,6 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             {
                 annualTotal = empAllocation.AllocatedDays;
             }
-            else if (annualConfig != null)
-            {
-                annualTotal = annualConfig.DefaultDaysPerYear;
-            }
 
             decimal annualRemaining = Math.Max(0, annualTotal - annualUsed - annualPending);
 
@@ -364,6 +391,10 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                     DayOffType = x.DayOffType,
                     DefaultDaysPerYear = x.DefaultDaysPerYear,
                     IsPaid = x.IsPaid,
+                    DeductBalance = x.DeductBalance,
+                    RequireAttachment = x.RequireAttachment,
+                    MaxDaysPerRequest = x.MaxDaysPerRequest,
+                    MinNoticeDays = x.MinNoticeDays,
                 }).ToList(),
             };
         }
@@ -388,6 +419,72 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
+        }
+    }
+
+    public class GetPendingApprovalsQuery : IRequest<List<RegisterDayOffDto>>
+    {
+        public DayOffStatus? Status { get; set; }
+    }
+
+    public class GetPendingApprovalsQueryHandler : IRequestHandler<GetPendingApprovalsQuery, List<RegisterDayOffDto>>
+    {
+        private readonly IApplicationDbContext _context;
+        private readonly ICurrentUserService _currentUser;
+        public GetPendingApprovalsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        {
+            _context = context;
+            _currentUser = currentUser;
+        }
+
+        public async Task<List<RegisterDayOffDto>> Handle(GetPendingApprovalsQuery request, CancellationToken cancellationToken)
+        {
+            Guid managerId = await Features.RegisterDayOffs.Commands.CurrentEmployeeHelper.ResolveAsync(
+                _context, _currentUser, cancellationToken);
+
+            DayOffStatus status = request.Status ?? DayOffStatus.PENDING;
+            List<RegisterDayOffEntity> entities = await _context.RegisterDayOffEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted
+                    && x.Status == status
+                    && x.RequestedApproverId == managerId)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            List<Guid> empIds = entities.Select(x => x.EmployeeId).Distinct().ToList();
+            List<Guid> cfgIds = entities.Where(x => x.DayOffConfigId.HasValue).Select(x => x.DayOffConfigId!.Value).Distinct().ToList();
+            List<Guid> requestedIds = entities.Where(x => x.RequestedApproverId.HasValue).Select(x => x.RequestedApproverId!.Value).Distinct().ToList();
+
+            Dictionary<Guid, (string? Name, string Code)> employees = empIds.Count == 0
+                ? []
+                : await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => empIds.Contains(x.Id))
+                    .ToDictionaryAsync(
+                        x => x.Id,
+                        x => (Name: (string?)(x.FullName ?? $"{x.LastName} {x.FirstName}".Trim()), x.Code),
+                        cancellationToken);
+
+            Dictionary<Guid, string> configs = cfgIds.Count == 0
+                ? []
+                : await _context.DayOffConfigEntities.AsNoTracking()
+                    .Where(x => cfgIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+            Dictionary<Guid, string> requestedNames = requestedIds.Count == 0
+                ? []
+                : await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => requestedIds.Contains(x.Id))
+                    .ToDictionaryAsync(
+                        x => x.Id,
+                        x => x.FullName ?? $"{x.LastName} {x.FirstName}".Trim(),
+                        cancellationToken);
+
+            return entities.Select(x =>
+            {
+                employees.TryGetValue(x.EmployeeId, out var emp);
+                string? configName = x.DayOffConfigId.HasValue && configs.TryGetValue(x.DayOffConfigId.Value, out string? cn) ? cn : null;
+                string? requestedName = x.RequestedApproverId.HasValue && requestedNames.TryGetValue(x.RequestedApproverId.Value, out string? rn) ? rn : null;
+                return RegisterDayOffMapper.ToDto(x, emp.Name, emp.Code, null, configName, null, requestedName);
+            }).ToList();
         }
     }
 }

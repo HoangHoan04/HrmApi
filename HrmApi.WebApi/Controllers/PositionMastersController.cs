@@ -2,17 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.PositionMaster;
 using HrmApi.Application.Features.PositionMasters.Commands;
 using HrmApi.Application.Features.PositionMasters.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/v1/position-master")]
     public class PositionMastersController : ControllerBase
     {
@@ -24,12 +28,14 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterView)]
         public async Task<ActionResult<PagedResult<PositionMasterDto>>> GetPagedList([FromBody] GetPositionMastersPagedQuery query)
         {
             return Ok(await _mediator.Send(query));
         }
 
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterView)]
         public async Task<ActionResult<PositionMasterDto>> GetDetail([FromBody] GetPositionMasterByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -38,6 +44,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreatePositionMasterCommand command)
         {
             try
@@ -51,6 +58,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdatePositionMasterCommand command)
         {
             try
@@ -66,6 +74,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivatePositionMasterCommand command)
         {
             var result = await _mediator.Send(command);
@@ -74,6 +83,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivatePositionMasterCommand command)
         {
             var result = await _mediator.Send(command);
@@ -82,12 +92,14 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterView)]
         public async Task<ActionResult<List<PositionMasterSelectBoxDto>>> GetSelectBox([FromBody] GetPositionMasterSelectBoxQuery? query)
         {
             return Ok(await _mediator.Send(query ?? new GetPositionMasterSelectBoxQuery()));
         }
 
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadPositionMasterExcelTemplateQuery());
@@ -95,6 +107,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportPositionMastersExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -103,6 +116,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterImportExcel)]
         public async Task<ActionResult<PositionMasterImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -121,6 +135,7 @@ namespace HrmApi.WebApi.Controllers
 
         /// <summary>Load mẫu chức danh theo công ty/chi nhánh (dùng cho cascade dropdown).</summary>
         [HttpPost("load-by-scope")]
+        [RequirePermission(PermissionCodes.OrgPositionMasterView)]
         public async Task<ActionResult<List<PositionMasterSelectBoxDto>>> GetByScope(
             [FromBody] GetPositionMastersByScopeQuery query)
         {

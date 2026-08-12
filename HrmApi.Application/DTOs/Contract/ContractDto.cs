@@ -9,14 +9,22 @@
         public string? ContractTypeCode { get; set; }
         public string? ContractTypeName { get; set; }
         public string Code { get; set; } = string.Empty;
+        public string? DecisionNumber { get; set; }
         public DateTime? SignDate { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public DateTime? ProbationEndDate { get; set; }
         public string? JobTitle { get; set; }
+        public string? JobDescription { get; set; }
         public string? WorkingLocation { get; set; }
+        public string? WorkingMode { get; set; }
+        public decimal? WorkingHoursPerWeek { get; set; }
+        public int? AnnualLeaveDays { get; set; }
         public decimal? BasicSalary { get; set; }
+        public decimal? SalaryCoefficient { get; set; }
         public decimal? Allowance { get; set; }
         public decimal? InsuranceSalary { get; set; }
+        public string? Currency { get; set; }
         public string? PaymentMethod { get; set; }
         public Guid? CompanyId { get; set; }
         public string? CompanyName { get; set; }
@@ -24,6 +32,8 @@
         public string? BranchName { get; set; }
         public Guid? DepartmentId { get; set; }
         public string? DepartmentName { get; set; }
+        public Guid? PartId { get; set; }
+        public string? PartName { get; set; }
         public Guid? PositionId { get; set; }
         public string? PositionName { get; set; }
         public string? SignedByCompanyRepresentative { get; set; }

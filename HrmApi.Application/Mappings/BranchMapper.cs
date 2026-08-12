@@ -75,9 +75,17 @@ namespace HrmApi.Application.Mappings
             entity.Email = TrimOrNull(fields.Email) ?? entity.Email;
             entity.Fax = TrimOrNull(fields.Fax) ?? entity.Fax;
             entity.IpAddress = TrimOrNull(fields.IpAddress) ?? entity.IpAddress;
-            if (fields.ManagerId.HasValue) entity.ManagerId = fields.ManagerId;
-            entity.ManagerName = TrimOrNull(fields.ManagerName) ?? entity.ManagerName;
-            entity.ManagerPhone = TrimOrNull(fields.ManagerPhone) ?? entity.ManagerPhone;
+            entity.ManagerId = fields.ManagerId;
+            if (!fields.ManagerId.HasValue)
+            {
+                entity.ManagerName = TrimOrNull(fields.ManagerName);
+                entity.ManagerPhone = TrimOrNull(fields.ManagerPhone);
+            }
+            else
+            {
+                entity.ManagerName = TrimOrNull(fields.ManagerName) ?? entity.ManagerName;
+                entity.ManagerPhone = TrimOrNull(fields.ManagerPhone) ?? entity.ManagerPhone;
+            }
             entity.TaxCode = TrimOrNull(fields.TaxCode) ?? entity.TaxCode;
             entity.BusinessRegistrationCode = TrimOrNull(fields.BusinessRegistrationCode) ?? entity.BusinessRegistrationCode;
             if (fields.OpeningDate.HasValue) entity.OpeningDate = fields.OpeningDate;

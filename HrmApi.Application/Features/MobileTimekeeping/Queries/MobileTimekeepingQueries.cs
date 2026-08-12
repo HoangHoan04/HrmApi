@@ -3,6 +3,7 @@ using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
 using MediatR;
@@ -53,10 +54,10 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
 
             if (onLeave && record != null && record.Status != AttendanceStatus.LEAVE)
             {
-                // reflect leave in response even if record not yet updated
+                //! reflect leave in response even if record not yet updated
             }
 
-            return TimekeepingMapper.ToTodayDto(record, today, onLeave, window.StartTime, window.EndTime, branchName, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, onLeave, window, branchName, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
@@ -116,15 +117,75 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             DateOnly from = new(request.Year, request.Month, 1);
             DateOnly to = from.AddMonths(1).AddDays(-1);
 
-            List<TimekeepingEntity> records = await _context.TimekeepingEntities.AsNoTracking()
+            List<TimekeepingEntity> records = await _context.TimekeepingEntities
                 .Where(x => x.EmployeeId == employeeId && !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                 .OrderBy(x => x.WorkDate)
                 .ToListAsync(cancellationToken);
 
-            List<MobileMonthDayDto> days = records.Select(TimekeepingMapper.ToMonthDayDto).ToList();
+            bool dirty = false;
+            List<MobileMonthDayDto> days = new();
+            foreach (TimekeepingEntity record in records)
+            {
+                if (record.CheckInAt.HasValue && record.CheckOutAt.HasValue)
+                {
+                    WorkWindowResult? dayWindow = null;
+                    try
+                    {
+                        dayWindow = await _rules.ResolveWorkWindowAsync(employee, record.WorkDate, cancellationToken);
+                    }
+                    catch
+                    {
+                        if (record.ShiftMasterId.HasValue)
+                        {
+                            var master = await _context.ShiftMasterEntities.AsNoTracking()
+                                .FirstOrDefaultAsync(x => x.Id == record.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
+                            if (master != null)
+                            {
+                                dayWindow = new WorkWindowResult
+                                {
+                                    StartTime = master.StartTime,
+                                    EndTime = master.EndTime,
+                                    BreakStartTime = master.BreakStartTime,
+                                    BreakEndTime = master.BreakEndTime,
+                                    BreakMinutes = master.BreakMinutes,
+                                    ShiftMasterId = master.Id,
+                                    IsOvernight = master.IsOvernight || master.EndTime < master.StartTime,
+                                };
+                            }
+                        }
+                    }
 
-            WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, from, cancellationToken);
-            int dailyExpectedMinutes = await ResolveDailyExpectedMinutesAsync(window, cancellationToken);
+                    int computed = WorkedMinutesCalculator.Compute(
+                        record.WorkDate,
+                        record.CheckInAt.Value,
+                        record.CheckOutAt.Value,
+                        dayWindow);
+                    if (record.WorkedMinutes != computed)
+                    {
+                        record.WorkedMinutes = computed;
+                        record.UpdatedAt = DateTime.UtcNow;
+                        dirty = true;
+                    }
+                }
+
+                days.Add(TimekeepingMapper.ToMonthDayDto(record));
+            }
+
+            if (dirty)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            WorkWindowResult? window = await ResolveMonthReferenceWindowAsync(
+                employee,
+                employeeId,
+                from,
+                to,
+                cancellationToken);
+
+            int dailyExpectedMinutes = window != null
+                ? await ResolveDailyExpectedMinutesAsync(window, cancellationToken)
+                : 0;
             int expectedWorkingDays = await ResolveExpectedWorkingDaysAsync(employeeId, from, to, cancellationToken);
             int expectedWorkedMinutes = Math.Max(0, dailyExpectedMinutes) * Math.Max(0, expectedWorkingDays);
 
@@ -144,6 +205,63 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
                 DailyExpectedMinutes = dailyExpectedMinutes,
                 ExpectedWorkedMinutes = expectedWorkedMinutes,
             };
+        }
+
+        private async Task<WorkWindowResult?> ResolveMonthReferenceWindowAsync(
+            EmployeeEntity employee,
+            Guid employeeId,
+            DateOnly from,
+            DateOnly to,
+            CancellationToken cancellationToken)
+        {
+            List<DateOnly> candidates = new();
+
+            DateOnly today = BusinessDateHelper.Today();
+            if (today >= from && today <= to)
+            {
+                candidates.Add(today);
+            }
+
+            DateOnly? patternDay = await _context.EmployeeWorkPatternEntities.AsNoTracking()
+                .Where(x => x.EmployeeId == employeeId
+                    && !x.IsDeleted
+                    && x.IsActive
+                    && x.PatternType == WorkPatternType.FIXED_WEEKLY
+                    && x.EffectiveFrom <= to
+                    && (x.EffectiveTo == null || x.EffectiveTo >= from))
+                .OrderByDescending(x => x.EffectiveFrom)
+                .Select(x => (DateOnly?)(x.EffectiveFrom < from ? from : x.EffectiveFrom))
+                .FirstOrDefaultAsync(cancellationToken);
+            if (patternDay.HasValue && patternDay.Value <= to)
+            {
+                candidates.Add(patternDay.Value);
+            }
+
+            DateOnly? scheduledDay = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+                .Where(x => x.EmployeeId == employeeId && !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
+                .OrderBy(x => x.WorkDate)
+                .Select(x => (DateOnly?)x.WorkDate)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (scheduledDay.HasValue)
+            {
+                candidates.Add(scheduledDay.Value);
+            }
+
+            candidates.Add(from);
+
+            foreach (DateOnly day in candidates.Distinct())
+            {
+                try
+                {
+                    return await _rules.ResolveWorkWindowAsync(employee, day, cancellationToken);
+                }
+                catch
+                {
+                    //! try next candidate
+                }
+            }
+
+            return null;
         }
 
         private async Task<int> ResolveDailyExpectedMinutesAsync(
@@ -188,7 +306,17 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
                 ? window.EndTime.Add(TimeSpan.FromDays(1)) - window.StartTime
                 : window.EndTime - window.StartTime;
 
-            return Math.Max(0, (int)Math.Round(span.TotalMinutes) - breakMinutes);
+            if (breakMinutes <= 0)
+            {
+                breakMinutes = window.BreakMinutes;
+            }
+            if (breakMinutes <= 0 && window.BreakStartTime.HasValue && window.BreakEndTime.HasValue)
+            {
+                breakMinutes = (int)(window.BreakEndTime.Value - window.BreakStartTime.Value).TotalMinutes;
+                if (breakMinutes < 0) breakMinutes += 24 * 60;
+            }
+
+            return Math.Max(0, (int)Math.Round(span.TotalMinutes) - Math.Max(0, breakMinutes));
         }
 
         private async Task<int> ResolveExpectedWorkingDaysAsync(
@@ -197,7 +325,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             DateOnly to,
             CancellationToken cancellationToken)
         {
-            int scheduledDays = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+            HashSet<DateOnly> dayOverrides = (await _context.WorkScheduledEmployeeEntities.AsNoTracking()
                 .Where(x =>
                     x.EmployeeId == employeeId
                     && !x.IsDeleted
@@ -205,23 +333,65 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
                     && x.WorkDate <= to)
                 .Select(x => x.WorkDate)
                 .Distinct()
-                .CountAsync(cancellationToken);
+                .ToListAsync(cancellationToken)).ToHashSet();
 
-            if (scheduledDays > 0)
-            {
-                return scheduledDays;
-            }
+            List<EmployeeWorkPatternEntity> patterns = await _context.EmployeeWorkPatternEntities.AsNoTracking()
+                .Where(x => x.EmployeeId == employeeId
+                    && !x.IsDeleted
+                    && x.IsActive
+                    && x.PatternType == WorkPatternType.FIXED_WEEKLY
+                    && x.EffectiveFrom <= to
+                    && (x.EffectiveTo == null || x.EffectiveTo >= from))
+                .ToListAsync(cancellationToken);
 
-            int weekdays = 0;
+            HashSet<DateOnly> holidays = (await _context.PublicHolidayEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted
+                    && x.HolidayDate >= from
+                    && x.HolidayDate <= to)
+                .Select(x => x.HolidayDate)
+                .ToListAsync(cancellationToken)).ToHashSet();
+
+            List<PublicHolidayEntity> recurring = await _context.PublicHolidayEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted && x.IsRecurringYearly)
+                .ToListAsync(cancellationToken);
             for (DateOnly d = from; d <= to; d = d.AddDays(1))
             {
-                DayOfWeek dow = d.DayOfWeek;
-                if (dow != DayOfWeek.Saturday && dow != DayOfWeek.Sunday)
+                if (recurring.Any(h => h.HolidayDate.Month == d.Month && h.HolidayDate.Day == d.Day))
                 {
-                    weekdays++;
+                    holidays.Add(d);
                 }
             }
-            return weekdays;
+
+            int count = 0;
+            bool hasPatternOrSchedule = patterns.Count > 0 || dayOverrides.Count > 0;
+
+            for (DateOnly d = from; d <= to; d = d.AddDays(1))
+            {
+                if (holidays.Contains(d))
+                {
+                    continue;
+                }
+
+                if (dayOverrides.Contains(d))
+                {
+                    count++;
+                    continue;
+                }
+
+                if (patterns.Any(p => WorkPatternHelper.IsWorkDay(p, d)))
+                {
+                    count++;
+                    continue;
+                }
+
+                if (!hasPatternOrSchedule
+                    && d.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)

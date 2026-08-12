@@ -1,5 +1,6 @@
 using HrmApi.Application.DTOs.RegisterDayOff;
 using HrmApi.Domain.Entities.Leave;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Mappings
 {
@@ -11,7 +12,8 @@ namespace HrmApi.Application.Mappings
             string? employeeCode = null,
             string? branchName = null,
             string? dayOffConfigName = null,
-            string? approverName = null)
+            string? approverName = null,
+            string? requestedApproverName = null)
         {
             return new RegisterDayOffDto
             {
@@ -27,13 +29,18 @@ namespace HrmApi.Application.Mappings
                 DayOffType = entity.DayOffType,
                 FromDate = entity.FromDate,
                 ToDate = entity.ToDate,
+                Session = entity.Session,
                 TotalDays = entity.TotalDays,
                 Reason = entity.Reason,
+                AttachmentUrl = entity.AttachmentUrl,
                 Status = entity.Status,
+                RequestedApproverId = entity.RequestedApproverId,
+                RequestedApproverName = requestedApproverName,
                 ApproverId = entity.ApproverId,
                 ApproverName = approverName,
                 ApprovedAt = entity.ApprovedAt,
                 ApproverNote = entity.ApproverNote,
+                CancelReason = entity.CancelReason,
                 CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
                 UpdatedBy = entity.UpdatedBy,
@@ -51,10 +58,13 @@ namespace HrmApi.Application.Mappings
             entity.DayOffType,
             entity.FromDate,
             entity.ToDate,
+            entity.Session,
             entity.TotalDays,
             entity.Status,
+            entity.RequestedApproverId,
             entity.ApproverId,
-            entity.ApproverNote
+            entity.ApproverNote,
+            entity.CancelReason
         };
     }
 }

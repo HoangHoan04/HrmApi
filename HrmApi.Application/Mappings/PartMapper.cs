@@ -10,7 +10,8 @@ namespace HrmApi.Application.Mappings
             string? companyName = null,
             string? branchName = null,
             string? departmentName = null,
-            string? partMasterName = null)
+            string? partMasterName = null,
+            string? managerName = null)
         {
             return new PartDto
             {
@@ -27,6 +28,7 @@ namespace HrmApi.Application.Mappings
                 DepartmentId = entity.DepartmentId,
                 DepartmentName = departmentName,
                 ManagerId = entity.ManagerId,
+                ManagerName = managerName,
                 Limit = entity.Limit,
                 IsActive = entity.IsActive,
                 DisplayOrder = entity.DisplayOrder,

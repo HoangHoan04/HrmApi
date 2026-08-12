@@ -198,6 +198,11 @@ namespace HrmApi.Domain.Entities.Organization
         public Guid? TimeKeepingStandardId { get; set; }
 
         /// <summary>
+        /// Chính sách thứ 7 khi tính ngày công / ngày nghỉ
+        /// </summary>
+        public HrmApi.Domain.Enums.SaturdayPolicy SaturdayPolicy { get; set; } = HrmApi.Domain.Enums.SaturdayPolicy.Work;
+
+        /// <summary>
         /// Danh sách công ty con (cấu trúc cây)
         /// </summary>
         public List<CompanyEntity> ChildCompanies { get; set; } = [];

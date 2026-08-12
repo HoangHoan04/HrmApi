@@ -39,6 +39,20 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
                 IsActive = request.IsActive ?? true,
             };
             ShiftMasterMapper.ApplyCommandFields(entity, request);
+
+            if (!entity.BreakStartTime.HasValue && !entity.BreakEndTime.HasValue)
+            {
+                entity.BreakStartTime = TimeSpan.FromHours(12);
+                entity.BreakEndTime = TimeSpan.FromHours(13);
+            }
+
+            if (entity.BreakStartTime.HasValue && entity.BreakEndTime.HasValue)
+            {
+                int breakMins = (int)(entity.BreakEndTime.Value - entity.BreakStartTime.Value).TotalMinutes;
+                if (breakMins < 0) breakMins += 24 * 60;
+                entity.BreakMinutes = Math.Max(0, breakMins);
+            }
+
             if (entity.WorkingMinutes <= 0)
             {
                 var minutes = (int)(entity.EndTime - entity.StartTime).TotalMinutes;

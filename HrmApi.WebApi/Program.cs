@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using HrmApi.Application;
 using HrmApi.Infrastructure;
 using HrmApi.Infrastructure.Persistence;
+using HrmApi.WebApi.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 string envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
@@ -26,6 +27,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddPermissionAuthorization();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<HrmApi.Application.Common.Interfaces.ICurrentUserService, HrmApi.WebApi.Services.CurrentUserService>();

@@ -11,6 +11,8 @@ namespace HrmApi.Application.DTOs.ShiftMaster
         public string? CompanyName { get; set; }
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }
+        public TimeSpan? BreakStartTime { get; set; }
+        public TimeSpan? BreakEndTime { get; set; }
         public int BreakMinutes { get; set; }
         public int WorkingMinutes { get; set; }
         public bool IsOvernight { get; set; }

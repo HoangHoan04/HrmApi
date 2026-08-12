@@ -95,6 +95,14 @@ namespace HrmApi.Application.Features.Parts.Commands
                 if (!companyExists)
                     throw new InvalidOperationException("Công ty không tồn tại.");
             }
+
+            if (request.ManagerId.HasValue)
+            {
+                var managerExists = await context.EmployeeEntities
+                    .AnyAsync(x => x.Id == request.ManagerId.Value && !x.IsDeleted, cancellationToken);
+                if (!managerExists)
+                    throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
+            }
         }
     }
     #endregion

@@ -37,6 +37,27 @@ namespace HrmApi.Domain.Entities.Leave
         /// Có tính lương hay không
         /// </summary>
         public bool IsPaid { get; set; } = true;
+
+        /// <summary>
+        /// Có trừ quỹ phép khi tạo/duyệt đơn không
+        /// </summary>
+        public bool DeductBalance { get; set; } = true;
+
+        /// <summary>
+        /// Bắt buộc đính kèm giấy tờ khi tạo đơn
+        /// </summary>
+        public bool RequireAttachment { get; set; }
+
+        /// <summary>
+        /// Số ngày tối đa mỗi đơn (null = không giới hạn)
+        /// </summary>
+        public decimal? MaxDaysPerRequest { get; set; }
+
+        /// <summary>
+        /// Số ngày báo trước tối thiểu trước FromDate (0 = không bắt buộc)
+        /// </summary>
+        public int MinNoticeDays { get; set; }
+
         /// <summary>
         /// Có áp dụng cho tất cả nhân viên hay không
         /// </summary>

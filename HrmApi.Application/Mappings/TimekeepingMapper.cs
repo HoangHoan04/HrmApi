@@ -1,3 +1,4 @@
+using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
@@ -89,8 +90,7 @@ namespace HrmApi.Application.Mappings
             TimekeepingEntity? entity,
             DateOnly workDate,
             bool onLeave,
-            TimeSpan? expectedStart,
-            TimeSpan? expectedEnd,
+            WorkWindowResult window,
             string? branchName,
             int allowedRadiusMeters)
         {
@@ -109,10 +109,15 @@ namespace HrmApi.Application.Mappings
                 WorkedMinutes = entity?.WorkedMinutes ?? 0,
                 Note = entity?.Note,
                 OnLeave = onLeave,
-                CanCheckIn = !onLeave && !hasIn,
+                CanCheckIn = !onLeave && !hasIn && window.IsScheduledWorkDay,
                 CanCheckOut = !onLeave && hasIn && !hasOut,
-                ExpectedStart = expectedStart,
-                ExpectedEnd = expectedEnd,
+                ExpectedStart = window.StartTime,
+                ExpectedEnd = window.EndTime,
+                ExpectedBreakStart = window.BreakStartTime,
+                ExpectedBreakEnd = window.BreakEndTime,
+                BreakMinutes = window.BreakMinutes,
+                IsScheduledWorkDay = window.IsScheduledWorkDay,
+                ScheduleSource = window.Source,
                 BranchName = branchName,
                 AllowedRadiusMeters = allowedRadiusMeters
             };

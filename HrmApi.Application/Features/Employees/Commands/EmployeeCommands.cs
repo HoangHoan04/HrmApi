@@ -1,3 +1,4 @@
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
@@ -18,15 +19,18 @@ namespace HrmApi.Application.Features.Employees.Commands
         private readonly IApplicationDbContext _context;
         private readonly IActionLogService _actionLog;
         private readonly IPasswordHasherService _passwordHasher;
+        private readonly ICurrentUserService _currentUser;
 
         public CreateEmployeeCommandHandler(
             IApplicationDbContext context,
             IActionLogService actionLog,
-            IPasswordHasherService passwordHasher)
+            IPasswordHasherService passwordHasher,
+            ICurrentUserService currentUser)
         {
             _context = context;
             _actionLog = actionLog;
             _passwordHasher = passwordHasher;
+            _currentUser = currentUser;
         }
 
         public async Task<Guid> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
@@ -69,6 +73,21 @@ namespace HrmApi.Application.Features.Employees.Commands
 
                 _ = _context.UserEntities.Add(user);
                 _ = await _context.SaveChangesAsync(cancellationToken);
+
+                bool hasEmployeeRole = await _context.RoleEntities.AsNoTracking()
+                    .AnyAsync(x => x.Id == RbacSeedIds.RoleEmployee && !x.IsDeleted && x.IsActive, cancellationToken);
+                if (hasEmployeeRole)
+                {
+                    _ = _context.UserRoleEntities.Add(new UserRoleEntity
+                    {
+                        UserId = user.Id,
+                        RoleId = RbacSeedIds.RoleEmployee,
+                        EffectiveFrom = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = _currentUser.UserId ?? Guid.Empty,
+                    });
+                    _ = await _context.SaveChangesAsync(cancellationToken);
+                }
             }
 
             await _actionLog.LogActionAsync(

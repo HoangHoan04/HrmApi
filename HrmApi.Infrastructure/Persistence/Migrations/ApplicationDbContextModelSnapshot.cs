@@ -102,6 +102,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("Allowance")
                         .HasColumnType("numeric");
 
+                    b.Property<int?>("AnnualLeaveDays")
+                        .HasColumnType("integer");
+
                     b.Property<decimal?>("BasicSalary")
                         .HasColumnType("numeric");
 
@@ -124,6 +127,12 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Currency")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DecisionNumber")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("DepartmentId")
                         .HasColumnType("uuid");
 
@@ -145,11 +154,17 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("JobDescription")
+                        .HasColumnType("text");
+
                     b.Property<string>("JobTitle")
                         .HasColumnType("text");
 
                     b.Property<string>("Note")
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("PartId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("PaymentMethod")
                         .HasColumnType("text");
@@ -160,8 +175,14 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PreviousContractId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ProbationEndDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("RenewalTimes")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("SalaryCoefficient")
+                        .HasColumnType("numeric");
 
                     b.Property<DateTime?>("SignDate")
                         .HasColumnType("timestamp with time zone");
@@ -193,7 +214,13 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Version")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("WorkingHoursPerWeek")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("WorkingLocation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WorkingMode")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -210,6 +237,8 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.HasIndex("EndDate");
+
+                    b.HasIndex("PartId");
 
                     b.HasIndex("PositionId");
 
@@ -1087,6 +1116,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("DeductBalance")
+                        .HasColumnType("boolean");
+
                     b.Property<decimal>("DefaultDaysPerYear")
                         .HasColumnType("numeric");
 
@@ -1102,9 +1134,18 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsPaid")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal?>("MaxDaysPerRequest")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("MinNoticeDays")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("RequireAttachment")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1191,8 +1232,14 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("ApproverNote")
                         .HasColumnType("text");
 
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("BranchId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CancelReason")
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("CompanyId")
                         .HasColumnType("uuid");
@@ -1221,6 +1268,12 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Reason")
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("RequestedApproverId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Session")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1252,6 +1305,8 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.HasIndex("DayOffConfigId");
 
                     b.HasIndex("EmployeeId");
+
+                    b.HasIndex("RequestedApproverId");
 
                     b.ToTable("RegisterDayOffEntities");
                 });
@@ -1509,6 +1564,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("PrefixPartTimeCode")
                         .HasColumnType("text");
+
+                    b.Property<int>("SaturdayPolicy")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SocialInsuranceCode")
                         .HasColumnType("text");
@@ -1948,19 +2006,275 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.ToTable("PositionMasterEntities");
                 });
 
-            modelBuilder.Entity("HrmApi.Domain.Entities.Permission.PermissionEntity", b =>
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.AdvanceEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Action")
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("DeductMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DeductYear")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("RequestDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Status");
+
+                    b.ToTable("AdvanceEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.AllowanceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("DefaultAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsInsurable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTaxable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code");
+
+                    b.HasIndex("CompanyId");
+
+                    b.ToTable("AllowanceEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.CashAdditionSlipEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AdditionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AdditionType")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<int?>("ApplyMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ApplyYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("CashAdditionSlipEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.DeductionSlipEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<int?>("ApplyMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ApplyYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DeductionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeductionType")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("DeductionSlipEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryCoefficientEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Coefficient")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1971,17 +2285,16 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsScopable")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsSystem")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Module")
-                        .IsRequired()
+                    b.Property<string>("Level")
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
@@ -1999,7 +2312,324 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PermissionEntities");
+                    b.HasIndex("Code");
+
+                    b.HasIndex("CompanyId");
+
+                    b.ToTable("SalaryCoefficientEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryConfigEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BhtnEmployeeRate")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("BhxhEmployeeRate")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("BhytEmployeeRate")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("DefaultPayDay")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsComputePrevMonth")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StandardWorkingDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code");
+
+                    b.HasIndex("CompanyId");
+
+                    b.ToTable("SalaryConfigEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ActualWorkingDays")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("BasicSalary")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("GrossSalary")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("InsuranceSalary")
+                        .HasColumnType("numeric");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("NetSalary")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PaidDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PayDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayslipFileUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PeriodCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("PositionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SalaryConfigId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("StandardWorkingDays")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("TotalDeduction")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("PeriodCode");
+
+                    b.HasIndex("PositionId");
+
+                    b.HasIndex("SalaryConfigId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("EmployeeId", "Year", "Month")
+                        .IsUnique();
+
+                    b.ToTable("SalaryEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryIncreaseEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DecisionNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("NewBasicSalary")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("OldBasicSalary")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("SalaryIncreaseEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryLineItemEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SalaryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalaryId", "ItemCode");
+
+                    b.ToTable("SalaryLineItemEntities");
                 });
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Permission.RoleEntity", b =>
@@ -2077,8 +2707,10 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid>("PermissionId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("PermissionCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
@@ -2094,9 +2726,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PermissionId");
-
-                    b.HasIndex("RoleId");
+                    b.HasIndex("RoleId", "PermissionCode")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = FALSE");
 
                     b.ToTable("RolePermissionEntities");
                 });
@@ -2313,6 +2945,168 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.ToTable("UserTokenEntities");
                 });
 
+            modelBuilder.Entity("HrmApi.Domain.Entities.Timekeeping.AttendanceComplaintEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ApproverId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApproverNote")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ComplaintType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<TimeSpan?>("RequestedCheckInTime")
+                        .HasColumnType("interval");
+
+                    b.Property<TimeSpan?>("RequestedCheckOutTime")
+                        .HasColumnType("interval");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("TimekeepingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApproverId");
+
+                    b.HasIndex("TimekeepingId");
+
+                    b.HasIndex("EmployeeId", "WorkDate", "Status");
+
+                    b.ToTable("AttendanceComplaintEntities");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Timekeeping.EmployeeWorkPatternEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PatternType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ShiftMasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("WorkOnFriday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("WorkOnMonday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("WorkOnSaturday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("WorkOnSunday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("WorkOnThursday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("WorkOnTuesday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("WorkOnWednesday")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ShiftMasterId");
+
+                    b.HasIndex("EmployeeId", "EffectiveFrom", "IsActive");
+
+                    b.ToTable("EmployeeWorkPatternEntities");
+                });
+
             modelBuilder.Entity("HrmApi.Domain.Entities.Timekeeping.ShiftEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2370,8 +3164,14 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<TimeSpan?>("BreakEndTime")
+                        .HasColumnType("interval");
+
                     b.Property<int>("BreakMinutes")
                         .HasColumnType("integer");
+
+                    b.Property<TimeSpan?>("BreakStartTime")
+                        .HasColumnType("interval");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -2749,6 +3549,11 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("HrmApi.Domain.Entities.Organization.PartEntity", "Part")
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HrmApi.Domain.Entities.Organization.PositionEntity", "Position")
                         .WithMany()
                         .HasForeignKey("PositionId")
@@ -2768,6 +3573,8 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("Employee");
+
+                    b.Navigation("Part");
 
                     b.Navigation("Position");
 
@@ -3077,6 +3884,10 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "RequestedApprover")
+                        .WithMany()
+                        .HasForeignKey("RequestedApproverId");
+
                     b.Navigation("Approver");
 
                     b.Navigation("Branch");
@@ -3086,6 +3897,8 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Navigation("DayOffConfig");
 
                     b.Navigation("Employee");
+
+                    b.Navigation("RequestedApprover");
                 });
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Organization.BranchEntity", b =>
@@ -3284,6 +4097,137 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Company");
                 });
 
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.AdvanceEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.AllowanceEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.CashAdditionSlipEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.DeductionSlipEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryCoefficientEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryConfigEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Organization.BranchEntity", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrmApi.Domain.Entities.Organization.DepartmentEntity", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HrmApi.Domain.Entities.Organization.PositionEntity", "Position")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrmApi.Domain.Entities.Payroll.SalaryConfigEntity", "SalaryConfig")
+                        .WithMany("Salaries")
+                        .HasForeignKey("SalaryConfigId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Position");
+
+                    b.Navigation("SalaryConfig");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryIncreaseEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryLineItemEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Payroll.SalaryEntity", "Salary")
+                        .WithMany("LineItems")
+                        .HasForeignKey("SalaryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Salary");
+                });
+
             modelBuilder.Entity("HrmApi.Domain.Entities.Permission.RoleEntity", b =>
                 {
                     b.HasOne("HrmApi.Domain.Entities.Organization.BranchEntity", "Branch")
@@ -3303,19 +4247,11 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Permission.RolePermissionEntity", b =>
                 {
-                    b.HasOne("HrmApi.Domain.Entities.Permission.PermissionEntity", "Permission")
-                        .WithMany("RolePermissions")
-                        .HasForeignKey("PermissionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("HrmApi.Domain.Entities.Permission.RoleEntity", "Role")
                         .WithMany("RolePermissions")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Permission");
 
                     b.Navigation("Role");
                 });
@@ -3377,6 +4313,57 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Timekeeping.AttendanceComplaintEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApproverId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrmApi.Domain.Entities.Timekeeping.TimekeepingEntity", "Timekeeping")
+                        .WithMany()
+                        .HasForeignKey("TimekeepingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Approver");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Timekeeping");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Timekeeping.EmployeeWorkPatternEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Organization.BranchEntity", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrmApi.Domain.Entities.Timekeeping.ShiftMasterEntity", "ShiftMaster")
+                        .WithMany()
+                        .HasForeignKey("ShiftMasterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("ShiftMaster");
                 });
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Timekeeping.ShiftEntity", b =>
@@ -3659,9 +4646,14 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Positions");
                 });
 
-            modelBuilder.Entity("HrmApi.Domain.Entities.Permission.PermissionEntity", b =>
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryConfigEntity", b =>
                 {
-                    b.Navigation("RolePermissions");
+                    b.Navigation("Salaries");
+                });
+
+            modelBuilder.Entity("HrmApi.Domain.Entities.Payroll.SalaryEntity", b =>
+                {
+                    b.Navigation("LineItems");
                 });
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Permission.RoleEntity", b =>

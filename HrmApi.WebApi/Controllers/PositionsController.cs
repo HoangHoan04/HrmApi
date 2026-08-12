@@ -2,17 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Position;
 using HrmApi.Application.Features.Positions.Commands;
 using HrmApi.Application.Features.Positions.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/v1/position")]
     public class PositionsController : ControllerBase
     {
@@ -24,12 +28,14 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgPositionView)]
         public async Task<ActionResult<PagedResult<PositionDto>>> GetPagedList([FromBody] GetPositionsPagedQuery query)
         {
             return Ok(await _mediator.Send(query));
         }
 
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgPositionView)]
         public async Task<ActionResult<PositionDto>> GetDetail([FromBody] GetPositionByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -38,6 +44,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgPositionCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreatePositionCommand command)
         {
             try
@@ -51,6 +58,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgPositionUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdatePositionCommand command)
         {
             try
@@ -66,6 +74,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgPositionActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivatePositionCommand command)
         {
             var result = await _mediator.Send(command);
@@ -74,6 +83,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgPositionDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivatePositionCommand command)
         {
             var result = await _mediator.Send(command);
@@ -82,12 +92,14 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgPositionView)]
         public async Task<ActionResult<List<PositionSelectBoxDto>>> GetSelectBox([FromBody] GetPositionSelectBoxQuery? query)
         {
             return Ok(await _mediator.Send(query ?? new GetPositionSelectBoxQuery()));
         }
 
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgPositionImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadPositionExcelTemplateQuery());
@@ -95,6 +107,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgPositionExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportPositionsExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -103,6 +116,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgPositionImportExcel)]
         public async Task<ActionResult<PositionImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)

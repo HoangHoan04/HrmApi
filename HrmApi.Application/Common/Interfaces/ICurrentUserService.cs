@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace HrmApi.Application.Common.Interfaces
 {
@@ -12,5 +13,10 @@ namespace HrmApi.Application.Common.Interfaces
         string? Username { get; }
         string? IpAddress { get; }
         string? UserAgent { get; }
+
+        IReadOnlyList<string> Roles { get; }
+        IReadOnlyList<string> Permissions { get; }
+        bool IsAdmin { get; }
+        bool HasPermission(string code);
     }
 }

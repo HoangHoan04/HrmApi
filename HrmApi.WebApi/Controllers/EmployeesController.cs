@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Employee;
 using HrmApi.Application.Features.Employees.Commands;
 using HrmApi.Application.Features.Employees.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
@@ -16,6 +19,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách nhân viên
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/v1/employee")]
     public class EmployeesController : ControllerBase
     {
@@ -27,6 +31,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
         public async Task<ActionResult<PagedResult<EmployeeDto>>> GetPagedList([FromBody] GetEmployeesPagedQuery query)
         {
             var result = await _mediator.Send(query);
@@ -34,6 +39,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
         public async Task<ActionResult<EmployeeDto>> GetDetail([FromBody] GetEmployeeByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -42,6 +48,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.HrEmployeeCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateEmployeeCommand command)
         {
             try
@@ -56,6 +63,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateEmployeeCommand command)
         {
             try
@@ -71,6 +79,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.HrEmployeeActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivateEmployeeCommand command)
         {
             var result = await _mediator.Send(command);
@@ -79,6 +88,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.HrEmployeeDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivateEmployeeCommand command)
         {
             var result = await _mediator.Send(command);
@@ -87,6 +97,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
         public async Task<ActionResult<List<EmployeeSelectBoxDto>>> GetSelectBox([FromBody] GetEmployeeSelectBoxQuery? query)
         {
             var result = await _mediator.Send(query ?? new GetEmployeeSelectBoxQuery());
@@ -94,6 +105,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.HrEmployeeImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadEmployeeExcelTemplateQuery());
@@ -101,6 +113,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.HrEmployeeExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportEmployeesExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -109,6 +122,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.HrEmployeeImportExcel)]
         public async Task<ActionResult<EmployeeImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -127,6 +141,7 @@ namespace HrmApi.WebApi.Controllers
 
         #region Dependent
         [HttpPost("dependent/create")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<Guid>> CreateDependent([FromBody] CreateEmployeeDependentCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -134,6 +149,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("dependent/update")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<bool>> UpdateDependent([FromBody] UpdateEmployeeDependentCommand command)
         {
             try
@@ -146,6 +162,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("dependent/delete")]
+        [RequirePermission(PermissionCodes.HrEmployeeManage)]
         public async Task<ActionResult<bool>> DeleteDependent([FromBody] DeleteEmployeeDependentCommand command)
         {
             var result = await _mediator.Send(command);
@@ -156,6 +173,7 @@ namespace HrmApi.WebApi.Controllers
 
         #region Education
         [HttpPost("education/create")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<Guid>> CreateEducation([FromBody] CreateEmployeeEducationCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -163,6 +181,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("education/update")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<bool>> UpdateEducation([FromBody] UpdateEmployeeEducationCommand command)
         {
             try
@@ -175,6 +194,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("education/delete")]
+        [RequirePermission(PermissionCodes.HrEmployeeManage)]
         public async Task<ActionResult<bool>> DeleteEducation([FromBody] DeleteEmployeeEducationCommand command)
         {
             var result = await _mediator.Send(command);
@@ -185,6 +205,7 @@ namespace HrmApi.WebApi.Controllers
 
         #region Certificate
         [HttpPost("certificate/create")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<Guid>> CreateCertificate([FromBody] CreateEmployeeCertificateCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -192,6 +213,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("certificate/update")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<bool>> UpdateCertificate([FromBody] UpdateEmployeeCertificateCommand command)
         {
             try
@@ -204,6 +226,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("certificate/delete")]
+        [RequirePermission(PermissionCodes.HrEmployeeManage)]
         public async Task<ActionResult<bool>> DeleteCertificate([FromBody] DeleteEmployeeCertificateCommand command)
         {
             var result = await _mediator.Send(command);
@@ -214,6 +237,7 @@ namespace HrmApi.WebApi.Controllers
 
         #region File
         [HttpPost("file/create")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<Guid>> CreateFile([FromBody] CreateEmployeeFileCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -221,6 +245,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("file/update")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<bool>> UpdateFile([FromBody] UpdateEmployeeFileCommand command)
         {
             try
@@ -233,6 +258,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("file/delete")]
+        [RequirePermission(PermissionCodes.HrEmployeeManage)]
         public async Task<ActionResult<bool>> DeleteFile([FromBody] DeleteEmployeeFileCommand command)
         {
             var result = await _mediator.Send(command);
@@ -243,6 +269,7 @@ namespace HrmApi.WebApi.Controllers
 
         #region Salary History
         [HttpPost("salary-history/create")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<Guid>> CreateSalaryHistory([FromBody] CreateEmployeeSalaryHistoryCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -250,6 +277,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("salary-history/update")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
         public async Task<ActionResult<bool>> UpdateSalaryHistory([FromBody] UpdateEmployeeSalaryHistoryCommand command)
         {
             try
@@ -262,6 +290,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("salary-history/delete")]
+        [RequirePermission(PermissionCodes.HrEmployeeManage)]
         public async Task<ActionResult<bool>> DeleteSalaryHistory([FromBody] DeleteEmployeeSalaryHistoryCommand command)
         {
             var result = await _mediator.Send(command);

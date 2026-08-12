@@ -5,6 +5,7 @@ using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.EmployeeMovement;
 using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Entities.Payroll;
 using HrmApi.Domain.Entities.Permission;
 using HrmApi.Domain.Entities.Timekeeping;
 using Microsoft.EntityFrameworkCore;
@@ -39,12 +40,24 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<ContractEntity> ContractEntities { get; set; }
         public DbSet<ReviewRenewalEntity> ReviewRenewalEntities { get; set; }
 
+        public DbSet<SalaryConfigEntity> SalaryConfigEntities { get; set; }
+        public DbSet<SalaryEntity> SalaryEntities { get; set; }
+        public DbSet<SalaryLineItemEntity> SalaryLineItemEntities { get; set; }
+        public DbSet<AllowanceEntity> AllowanceEntities { get; set; }
+        public DbSet<AdvanceEntity> AdvanceEntities { get; set; }
+        public DbSet<DeductionSlipEntity> DeductionSlipEntities { get; set; }
+        public DbSet<CashAdditionSlipEntity> CashAdditionSlipEntities { get; set; }
+        public DbSet<SalaryCoefficientEntity> SalaryCoefficientEntities { get; set; }
+        public DbSet<SalaryIncreaseEntity> SalaryIncreaseEntities { get; set; }
+
         public DbSet<TimeKeepingStandardEntity> TimeKeepingStandardEntities { get; set; }
         public DbSet<ShiftMasterEntity> ShiftMasterEntities { get; set; }
         public DbSet<ShiftEntity> ShiftEntities { get; set; }
         public DbSet<WorkScheduledEmployeeEntity> WorkScheduledEmployeeEntities { get; set; }
+        public DbSet<EmployeeWorkPatternEntity> EmployeeWorkPatternEntities { get; set; }
         public DbSet<TimekeepingEntity> TimekeepingEntities { get; set; }
         public DbSet<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; set; }
+        public DbSet<AttendanceComplaintEntity> AttendanceComplaintEntities { get; set; }
 
         public DbSet<DayOffConfigEntity> DayOffConfigEntities { get; set; }
         public DbSet<DayOffConfigEmployeeEntity> DayOffConfigEmployeeEntities { get; set; }
@@ -53,7 +66,6 @@ namespace HrmApi.Infrastructure.Persistence
 
         public DbSet<UserEntity> UserEntities { get; set; }
         public DbSet<RoleEntity> RoleEntities { get; set; }
-        public DbSet<PermissionEntity> PermissionEntities { get; set; }
         public DbSet<RolePermissionEntity> RolePermissionEntities { get; set; }
         public DbSet<UserRoleEntity> UserRoleEntities { get; set; }
         public DbSet<UserTokenEntity> UserTokenEntities { get; set; }
@@ -71,6 +83,7 @@ namespace HrmApi.Infrastructure.Persistence
             ConfigureEmployee(modelBuilder);
             ConfigureEmployeeMovement(modelBuilder);
             ConfigureContract(modelBuilder);
+            ConfigurePayroll(modelBuilder);
             ConfigurePermission(modelBuilder);
             ConfigureTimekeeping(modelBuilder);
             ConfigureLeave(modelBuilder);
@@ -414,6 +427,11 @@ namespace HrmApi.Infrastructure.Persistence
                     .HasForeignKey(c => c.DepartmentId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                _ = entity.HasOne(c => c.Part)
+                    .WithMany()
+                    .HasForeignKey(c => c.PartId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 _ = entity.HasOne(c => c.Position)
                     .WithMany()
                     .HasForeignKey(c => c.PositionId)
@@ -503,15 +521,18 @@ namespace HrmApi.Infrastructure.Persistence
 
             _ = modelBuilder.Entity<RolePermissionEntity>(entity =>
             {
+                _ = entity.Property(rp => rp.PermissionCode)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                _ = entity.HasIndex(rp => new { rp.RoleId, rp.PermissionCode })
+                    .IsUnique()
+                    .HasFilter("\"IsDeleted\" = FALSE");
+
                 _ = entity.HasOne(rp => rp.Role)
                     .WithMany(r => r.RolePermissions)
                     .HasForeignKey(rp => rp.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
-
-                _ = entity.HasOne(rp => rp.Permission)
-                    .WithMany(p => p.RolePermissions)
-                    .HasForeignKey(rp => rp.PermissionId)
-                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             _ = modelBuilder.Entity<UserTokenEntity>(entity =>
@@ -584,6 +605,28 @@ namespace HrmApi.Infrastructure.Persistence
                 _ = entity.HasIndex(x => new { x.EmployeeId, x.WorkDate });
             });
 
+            _ = modelBuilder.Entity<EmployeeWorkPatternEntity>(entity =>
+            {
+                _ = entity.Property(e => e.PatternType).HasConversion<string>();
+
+                _ = entity.HasOne(w => w.Employee)
+                    .WithMany()
+                    .HasForeignKey(w => w.EmployeeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasOne(w => w.ShiftMaster)
+                    .WithMany()
+                    .HasForeignKey(w => w.ShiftMasterId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasOne(w => w.Branch)
+                    .WithMany()
+                    .HasForeignKey(w => w.BranchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasIndex(x => new { x.EmployeeId, x.EffectiveFrom, x.IsActive });
+            });
+
             _ = modelBuilder.Entity<TimekeepingEntity>(entity =>
             {
                 _ = entity.Property(e => e.Status).HasConversion<string>();
@@ -634,6 +677,30 @@ namespace HrmApi.Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.Restrict);
 
                 _ = entity.HasIndex(x => new { x.EmployeeId, x.Year, x.Month }).IsUnique();
+            });
+
+            _ = modelBuilder.Entity<AttendanceComplaintEntity>(entity =>
+            {
+                _ = entity.Property(e => e.Status).HasConversion<string>();
+                _ = entity.Property(e => e.ComplaintType).HasConversion<string>();
+                _ = entity.Property(e => e.Reason).HasMaxLength(1000);
+
+                _ = entity.HasOne(e => e.Employee)
+                    .WithMany()
+                    .HasForeignKey(e => e.EmployeeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasOne(e => e.Timekeeping)
+                    .WithMany()
+                    .HasForeignKey(e => e.TimekeepingId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                _ = entity.HasOne(e => e.Approver)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApproverId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.Status });
             });
         }
 
@@ -699,6 +766,109 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany()
                     .HasForeignKey(r => r.ApproverId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private static void ConfigurePayroll(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<SalaryConfigEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Company)
+                    .WithMany()
+                    .HasForeignKey(x => x.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasIndex(x => x.Code);
+            });
+
+            _ = modelBuilder.Entity<SalaryEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.EmployeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.SalaryConfig)
+                    .WithMany(c => c.Salaries)
+                    .HasForeignKey(x => x.SalaryConfigId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Company)
+                    .WithMany()
+                    .HasForeignKey(x => x.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch)
+                    .WithMany()
+                    .HasForeignKey(x => x.BranchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Department)
+                    .WithMany()
+                    .HasForeignKey(x => x.DepartmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Position)
+                    .WithMany()
+                    .HasForeignKey(x => x.PositionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasIndex(x => new { x.EmployeeId, x.Year, x.Month }).IsUnique();
+                _ = entity.HasIndex(x => x.PeriodCode);
+                _ = entity.HasIndex(x => x.Status);
+            });
+
+            _ = modelBuilder.Entity<SalaryLineItemEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Salary)
+                    .WithMany(s => s.LineItems)
+                    .HasForeignKey(x => x.SalaryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasIndex(x => new { x.SalaryId, x.ItemCode });
+            });
+
+            _ = modelBuilder.Entity<AllowanceEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Company)
+                    .WithMany()
+                    .HasForeignKey(x => x.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasIndex(x => x.Code);
+            });
+
+            _ = modelBuilder.Entity<AdvanceEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.EmployeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasIndex(x => new { x.EmployeeId, x.Status });
+            });
+
+            _ = modelBuilder.Entity<DeductionSlipEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.EmployeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            _ = modelBuilder.Entity<CashAdditionSlipEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.EmployeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            _ = modelBuilder.Entity<SalaryCoefficientEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Company)
+                    .WithMany()
+                    .HasForeignKey(x => x.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasIndex(x => x.Code);
+            });
+
+            _ = modelBuilder.Entity<SalaryIncreaseEntity>(entity =>
+            {
+                _ = entity.HasOne(x => x.Employee)
+                    .WithMany()
+                    .HasForeignKey(x => x.EmployeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
 

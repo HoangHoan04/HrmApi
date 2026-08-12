@@ -1,15 +1,19 @@
 using System;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.WorkSchedule;
 using HrmApi.Application.Features.WorkSchedules.Commands;
 using HrmApi.Application.Features.WorkSchedules.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/v1/work-schedule")]
     public class WorkSchedulesController : ControllerBase
     {
@@ -17,10 +21,12 @@ namespace HrmApi.WebApi.Controllers
         public WorkSchedulesController(IMediator mediator) => _mediator = mediator;
 
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleView)]
         public async Task<ActionResult<PagedResult<WorkScheduleDto>>> GetPaged([FromBody] GetWorkSchedulesPagedQuery query)
             => Ok(await _mediator.Send(query));
 
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleView)]
         public async Task<ActionResult<WorkScheduleDto>> GetDetail([FromBody] GetWorkScheduleByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -29,6 +35,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateWorkScheduleCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -36,6 +43,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateWorkScheduleCommand command)
         {
             try
@@ -48,11 +56,28 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivateWorkScheduleCommand command)
         {
             var result = await _mediator.Send(command);
             if (!result) return NotFound("Không tìm thấy lịch làm việc.");
             return Ok(result);
+        }
+
+        [HttpPost("bulk-create")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleCreate)]
+        public async Task<ActionResult<BulkWorkScheduleResult>> BulkCreate([FromBody] BulkCreateWorkScheduleCommand command)
+        {
+            try { return Ok(await _mediator.Send(command)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("copy-week")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleCreate)]
+        public async Task<ActionResult<BulkWorkScheduleResult>> CopyWeek([FromBody] CopyWorkScheduleWeekCommand command)
+        {
+            try { return Ok(await _mediator.Send(command)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
     }
 }

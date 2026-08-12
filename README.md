@@ -33,6 +33,23 @@ Do đó, bạn chỉ cần cấu hình đúng Connection String trong [appsettin
 
 ---
 
+## 1b. Format code
+
+```bash
+cd HrmApi
+npm run format        # áp dụng style (dotnet format, bỏ qua Migrations)
+npm run format:check  # chỉ kiểm tra, không sửa
+```
+
+Hoặc gọi trực tiếp:
+
+```bash
+dotnet format whitespace HrmApi.slnx --exclude **/Persistence/Migrations/**
+dotnet format style HrmApi.slnx --exclude **/Persistence/Migrations/**
+```
+
+---
+
 ## 2. Hướng dẫn chạy lệnh tạo Migration bằng CLI
 
 Nếu bạn thay đổi cấu trúc Entities trong project `HrmApi.Domain` và muốn tạo một file Migration mới, hãy làm theo các bước sau:

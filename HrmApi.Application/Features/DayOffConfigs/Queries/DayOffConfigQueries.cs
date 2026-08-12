@@ -155,7 +155,9 @@ namespace HrmApi.Application.Features.DayOffConfigs.Queries
                     Code = x.Code,
                     Name = x.Name,
                     DayOffType = x.DayOffType,
-                    CompanyId = x.CompanyId
+                    CompanyId = x.CompanyId,
+                    RequireAttachment = x.RequireAttachment,
+                    DeductBalance = x.DeductBalance,
                 }).ToListAsync(cancellationToken);
         }
     }

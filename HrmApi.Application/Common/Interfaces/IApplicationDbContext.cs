@@ -4,6 +4,7 @@ using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.EmployeeMovement;
 using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Entities.Payroll;
 using HrmApi.Domain.Entities.Permission;
 using HrmApi.Domain.Entities.Timekeeping;
 using Microsoft.EntityFrameworkCore;
@@ -29,8 +30,10 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<ShiftMasterEntity> ShiftMasterEntities { get; }
         DbSet<ShiftEntity> ShiftEntities { get; }
         DbSet<WorkScheduledEmployeeEntity> WorkScheduledEmployeeEntities { get; }
+        DbSet<EmployeeWorkPatternEntity> EmployeeWorkPatternEntities { get; }
         DbSet<TimekeepingEntity> TimekeepingEntities { get; }
         DbSet<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; }
+        DbSet<AttendanceComplaintEntity> AttendanceComplaintEntities { get; }
         DbSet<DayOffConfigEntity> DayOffConfigEntities { get; }
         DbSet<DayOffConfigEmployeeEntity> DayOffConfigEmployeeEntities { get; }
         DbSet<PublicHolidayEntity> PublicHolidayEntities { get; }
@@ -39,7 +42,6 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<RoleEntity> RoleEntities { get; }
         DbSet<UserRoleEntity> UserRoleEntities { get; }
         DbSet<UserTokenEntity> UserTokenEntities { get; }
-        DbSet<PermissionEntity> PermissionEntities { get; }
         DbSet<RolePermissionEntity> RolePermissionEntities { get; }
         DbSet<ActionLogEntity> ActionLogEntities { get; }
         DbSet<ContractTypeEntity> ContractTypeEntities { get; }
@@ -47,6 +49,16 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<ReviewRenewalEntity> ReviewRenewalEntities { get; }
         DbSet<TransferEmployeeEntity> TransferEmployeeEntities { get; }
         DbSet<TransferEmployeePositionEntity> TransferEmployeePositionEntities { get; }
+
+        DbSet<SalaryConfigEntity> SalaryConfigEntities { get; }
+        DbSet<SalaryEntity> SalaryEntities { get; }
+        DbSet<SalaryLineItemEntity> SalaryLineItemEntities { get; }
+        DbSet<AllowanceEntity> AllowanceEntities { get; }
+        DbSet<AdvanceEntity> AdvanceEntities { get; }
+        DbSet<DeductionSlipEntity> DeductionSlipEntities { get; }
+        DbSet<CashAdditionSlipEntity> CashAdditionSlipEntities { get; }
+        DbSet<SalaryCoefficientEntity> SalaryCoefficientEntities { get; }
+        DbSet<SalaryIncreaseEntity> SalaryIncreaseEntities { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken);
     }

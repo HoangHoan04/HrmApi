@@ -57,7 +57,7 @@ namespace HrmApi.Application.Features.Contracts.Commands
                 cancellationToken);
             if (hasActive && (request.Status == ContractStatus.Active || request.Status == ContractStatus.ExpiringSoon || string.IsNullOrWhiteSpace(request.Status)))
             {
-                // Cho phép tạo nháp/chờ ký song song; chỉ chặn khi cố tạo ACTIVE khi đã có HĐ hiệu lực
+                //! Cho phép tạo nháp/chờ ký song song; chỉ chặn khi cố tạo ACTIVE khi đã có HĐ hiệu lực
             }
 
             DateTime? endDate = request.EndDate;
@@ -90,19 +90,40 @@ namespace HrmApi.Application.Features.Contracts.Commands
             ContractEntity entity = new()
             {
                 EmployeeId = request.EmployeeId.Value,
-                ContractTypeId = request.ContractTypeId,
+                ContractTypeId = request.ContractTypeId == Guid.Empty ? null : request.ContractTypeId,
                 Code = request.Code.Trim(),
+                DecisionNumber = string.IsNullOrWhiteSpace(request.DecisionNumber) ? null : request.DecisionNumber.Trim(),
                 StartDate = request.StartDate.Value,
                 EndDate = endDate,
-                CompanyId = employee.CompanyId,
-                BranchId = employee.BranchId,
-                DepartmentId = employee.DepartmentId,
-                PositionId = employee.PositionId,
+                ProbationEndDate = request.ClearProbationEndDate == true ? null : request.ProbationEndDate,
+                CompanyId = request.CompanyId.HasValue
+                    ? (request.CompanyId == Guid.Empty ? null : request.CompanyId)
+                    : employee.CompanyId,
+                BranchId = request.BranchId.HasValue
+                    ? (request.BranchId == Guid.Empty ? null : request.BranchId)
+                    : employee.BranchId,
+                DepartmentId = request.DepartmentId.HasValue
+                    ? (request.DepartmentId == Guid.Empty ? null : request.DepartmentId)
+                    : employee.DepartmentId,
+                PartId = request.PartId.HasValue
+                    ? (request.PartId == Guid.Empty ? null : request.PartId)
+                    : employee.PartId,
+                PositionId = request.PositionId.HasValue
+                    ? (request.PositionId == Guid.Empty ? null : request.PositionId)
+                    : employee.PositionId,
                 JobTitle = string.IsNullOrWhiteSpace(request.JobTitle) ? null : request.JobTitle.Trim(),
+                JobDescription = string.IsNullOrWhiteSpace(request.JobDescription) ? null : request.JobDescription.Trim(),
                 WorkingLocation = string.IsNullOrWhiteSpace(request.WorkingLocation) ? null : request.WorkingLocation.Trim(),
+                WorkingMode = string.IsNullOrWhiteSpace(request.WorkingMode)
+                    ? employee.WorkingMode
+                    : request.WorkingMode.Trim(),
+                WorkingHoursPerWeek = request.WorkingHoursPerWeek,
+                AnnualLeaveDays = request.AnnualLeaveDays,
                 BasicSalary = request.BasicSalary,
+                SalaryCoefficient = request.SalaryCoefficient,
                 Allowance = request.Allowance,
                 InsuranceSalary = request.InsuranceSalary,
+                Currency = string.IsNullOrWhiteSpace(request.Currency) ? "VND" : request.Currency.Trim().ToUpperInvariant(),
                 PaymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? null : request.PaymentMethod.Trim(),
                 SignedByCompanyRepresentative = string.IsNullOrWhiteSpace(request.SignedByCompanyRepresentative)
                     ? null
@@ -467,17 +488,26 @@ namespace HrmApi.Application.Features.Contracts.Commands
                 EmployeeId = oldContract.EmployeeId,
                 ContractTypeId = typeId,
                 Code = code,
+                DecisionNumber = oldContract.DecisionNumber,
                 StartDate = startDate,
                 EndDate = endDate,
+                ProbationEndDate = null,
                 JobTitle = oldContract.JobTitle,
+                JobDescription = oldContract.JobDescription,
                 WorkingLocation = oldContract.WorkingLocation,
+                WorkingMode = oldContract.WorkingMode,
+                WorkingHoursPerWeek = oldContract.WorkingHoursPerWeek,
+                AnnualLeaveDays = oldContract.AnnualLeaveDays,
                 BasicSalary = request.BasicSalary ?? oldContract.BasicSalary,
+                SalaryCoefficient = oldContract.SalaryCoefficient,
                 Allowance = request.Allowance ?? oldContract.Allowance,
                 InsuranceSalary = request.InsuranceSalary ?? oldContract.InsuranceSalary,
+                Currency = oldContract.Currency ?? "VND",
                 PaymentMethod = oldContract.PaymentMethod,
                 CompanyId = oldContract.CompanyId,
                 BranchId = oldContract.BranchId,
                 DepartmentId = oldContract.DepartmentId,
+                PartId = oldContract.PartId,
                 PositionId = oldContract.PositionId,
                 SignedByCompanyRepresentative = oldContract.SignedByCompanyRepresentative,
                 SignedByEmployeeName = oldContract.SignedByEmployeeName,

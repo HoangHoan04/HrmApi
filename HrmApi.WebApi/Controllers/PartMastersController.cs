@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.PartMaster;
 using HrmApi.Application.Features.PartMasters.Commands;
 using HrmApi.Application.Features.PartMasters.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
@@ -16,6 +19,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh mục mẫu tổ/nhóm (Part Master)
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/v1/part-master")]
     public class PartMastersController : ControllerBase
     {
@@ -30,6 +34,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy danh sách mẫu tổ/nhóm phân trang (Phương thức POST)
         /// </summary>
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgPartMasterView)]
         public async Task<ActionResult<PagedResult<PartMasterDto>>> GetPagedList([FromBody] GetPartMastersPagedQuery query)
         {
             var result = await _mediator.Send(query);
@@ -40,6 +45,7 @@ namespace HrmApi.WebApi.Controllers
         /// Chi tiết mẫu tổ/nhóm theo ID (Phương thức POST)
         /// </summary>
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgPartMasterView)]
         public async Task<ActionResult<PartMasterDto>> GetDetail([FromBody] GetPartMasterByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -51,6 +57,7 @@ namespace HrmApi.WebApi.Controllers
         /// Thêm mới mẫu tổ/nhóm (Phương thức POST)
         /// </summary>
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgPartMasterCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreatePartMasterCommand command)
         {
             try
@@ -68,6 +75,7 @@ namespace HrmApi.WebApi.Controllers
         /// Cập nhật mẫu tổ/nhóm (Phương thức POST)
         /// </summary>
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgPartMasterUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdatePartMasterCommand command)
         {
             try
@@ -86,6 +94,7 @@ namespace HrmApi.WebApi.Controllers
         /// Kích hoạt mẫu tổ/nhóm (Phương thức POST, sets IsDeleted = false)
         /// </summary>
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgPartMasterActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivatePartMasterCommand command)
         {
             var result = await _mediator.Send(command);
@@ -97,6 +106,7 @@ namespace HrmApi.WebApi.Controllers
         /// Vô hiệu hóa/Ngừng hoạt động mẫu tổ/nhóm (Phương thức POST, sets IsDeleted = true)
         /// </summary>
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgPartMasterDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivatePartMasterCommand command)
         {
             var result = await _mediator.Send(command);
@@ -108,6 +118,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy dữ liệu rút gọn phục vụ chọn lựa SelectBox (Phương thức POST)
         /// </summary>
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgPartMasterView)]
         public async Task<ActionResult<List<PartMasterSelectBoxDto>>> GetSelectBox([FromBody] GetPartMasterSelectBoxQuery? query)
         {
             var result = await _mediator.Send(query ?? new GetPartMasterSelectBoxQuery());
@@ -118,6 +129,7 @@ namespace HrmApi.WebApi.Controllers
         /// Tải file mẫu Excel import mẫu tổ/nhóm
         /// </summary>
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgPartMasterImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadPartMasterExcelTemplateQuery());
@@ -128,6 +140,7 @@ namespace HrmApi.WebApi.Controllers
         /// Xuất danh sách mẫu tổ/nhóm ra Excel
         /// </summary>
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgPartMasterExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportPartMastersExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -139,6 +152,7 @@ namespace HrmApi.WebApi.Controllers
         /// Import danh sách mẫu tổ/nhóm từ Excel
         /// </summary>
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgPartMasterImportExcel)]
         public async Task<ActionResult<PartMasterImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -159,6 +173,7 @@ namespace HrmApi.WebApi.Controllers
         /// Load mẫu bộ phận theo công ty/chi nhánh (dùng cho cascade dropdown).
         /// </summary>
         [HttpPost("load-by-scope")]
+        [RequirePermission(PermissionCodes.OrgPartMasterView)]
         public async Task<ActionResult<List<PartMasterSelectBoxDto>>> GetByScope(
             [FromBody] GetPartMastersByScopeQuery query)
         {

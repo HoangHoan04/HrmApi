@@ -28,8 +28,9 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
-                DefaultDaysPerYear = request.DefaultDaysPerYear ?? 12,
+                DefaultDaysPerYear = request.DefaultDaysPerYear ?? 0,
                 IsPaid = request.IsPaid ?? true,
+                DeductBalance = request.DeductBalance ?? true,
                 IsActive = request.IsActive ?? true,
             };
             DayOffConfigMapper.ApplyCommandFields(entity, request);
@@ -58,6 +59,11 @@ namespace HrmApi.Application.Features.DayOffConfigs.Commands
             if (string.IsNullOrWhiteSpace(request.Name))
             {
                 throw new InvalidOperationException("Tên cấu hình nghỉ phép là bắt buộc.");
+            }
+
+            if (request.DefaultDaysPerYear.HasValue && request.DefaultDaysPerYear.Value < 0)
+            {
+                throw new InvalidOperationException("Số ngày mặc định/năm phải >= 0.");
             }
 
             bool exists = await _context.DayOffConfigEntities

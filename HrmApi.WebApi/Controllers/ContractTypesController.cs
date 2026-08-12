@@ -1,16 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.ContractType;
 using HrmApi.Application.Features.ContractType.Commands;
 using HrmApi.Application.Features.ContractType.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/v1/contract-type")]
     public class ContractTypesController : ControllerBase
     {
@@ -18,10 +22,12 @@ namespace HrmApi.WebApi.Controllers
         public ContractTypesController(IMediator mediator) => _mediator = mediator;
 
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.HrContractTypeView)]
         public async Task<ActionResult<PagedResult<ContractTypeDto>>> GetPaged([FromBody] GetContractTypesPagedQuery query)
             => Ok(await _mediator.Send(query));
 
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.HrContractTypeView)]
         public async Task<ActionResult<ContractTypeDto>> GetDetail([FromBody] GetContractTypeByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -30,6 +36,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.HrContractTypeCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateContractTypeCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -37,6 +44,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.HrContractTypeUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateContractTypeCommand command)
         {
             try
@@ -49,6 +57,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.HrContractTypeActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivateContractTypeCommand command)
         {
             var result = await _mediator.Send(command);
@@ -57,6 +66,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.HrContractTypeDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivateContractTypeCommand command)
         {
             var result = await _mediator.Send(command);
@@ -65,6 +75,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.HrContractTypeView)]
         public async Task<ActionResult<List<ContractTypeSelectBoxDto>>> GetSelectBox([FromBody] GetContractTypeSelectBoxQuery query)
             => Ok(await _mediator.Send(query));
     }

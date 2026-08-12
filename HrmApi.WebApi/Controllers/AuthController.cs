@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Auth;
@@ -23,17 +24,20 @@ namespace HrmApi.WebApi.Controllers
         private readonly IPasswordHasher<UserEntity> _passwordHasher;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly IAuthContextService _authContext;
 
         public AuthController(
             IApplicationDbContext context,
             IPasswordHasher<UserEntity> passwordHasher,
             IConfiguration configuration,
-            IEmailService emailService)
+            IEmailService emailService,
+            IAuthContextService authContext)
         {
             _context = context;
             _passwordHasher = passwordHasher;
             _configuration = configuration;
             _emailService = emailService;
+            _authContext = authContext;
         }
 
         [Authorize]
@@ -160,6 +164,8 @@ namespace HrmApi.WebApi.Controllers
                 }
             }
 
+            var authContext = await _authContext.LoadAuthContextAsync(user.Id);
+
             var profile = new MobileProfileDto
             {
                 Id = user.Id,
@@ -203,6 +209,8 @@ namespace HrmApi.WebApi.Controllers
                 ContractType = employee?.ContractType,
                 BankAccountNumber = employee?.BankAccountNumber,
                 BankName = employee?.BankName,
+                Roles = authContext.Roles,
+                Permissions = authContext.Permissions,
                 Stats = new MobileProfileStatsDto
                 {
                     WorkDaysThisMonth = workDaysThisMonth,
@@ -275,7 +283,8 @@ namespace HrmApi.WebApi.Controllers
             user.IsLocked = false;
             user.LockedUntil = null;
 
-            string tokenString = GenerateJwtToken(user);
+            AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
+            string tokenString = GenerateJwtToken(user, authContext);
             string refreshToken = GenerateRefreshToken();
 
             string refreshTokenHash = HashToken(refreshToken);
@@ -310,7 +319,9 @@ namespace HrmApi.WebApi.Controllers
                 EmployeeId = user.EmployeeId,
                 CompanyId = user.CompanyId,
                 BranchId = user.BranchId,
-                MustChangePassword = user.MustChangePassword
+                MustChangePassword = user.MustChangePassword,
+                Roles = authContext.Roles,
+                Permissions = authContext.Permissions,
             });
         }
 
@@ -338,7 +349,8 @@ namespace HrmApi.WebApi.Controllers
                 return Unauthorized("Tài khoản đang bị khóa hoặc ngưng hoạt động.");
             }
 
-            string newAccessToken = GenerateJwtToken(user);
+            AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
+            string newAccessToken = GenerateJwtToken(user, authContext);
             string newRefreshToken = GenerateRefreshToken();
 
             tokenEntity.RevokedAt = DateTime.UtcNow;
@@ -372,7 +384,9 @@ namespace HrmApi.WebApi.Controllers
                 EmployeeId = user.EmployeeId,
                 CompanyId = user.CompanyId,
                 BranchId = user.BranchId,
-                MustChangePassword = user.MustChangePassword
+                MustChangePassword = user.MustChangePassword,
+                Roles = authContext.Roles,
+                Permissions = authContext.Permissions,
             });
         }
 
@@ -535,22 +549,39 @@ namespace HrmApi.WebApi.Controllers
             return Ok(new { message = "Cập nhật thông tin thành công." });
         }
 
-        private string GenerateJwtToken(UserEntity user)
+        private string GenerateJwtToken(UserEntity user, AuthContextDto authContext)
         {
             JwtSecurityTokenHandler tokenHandler = new();
             string jwtSecret = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
             byte[] key = Encoding.ASCII.GetBytes(jwtSecret);
 
-            Claim[] claims = new[]
-            {
+            List<Claim> claims =
+            [
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, user.Type),
+                new Claim(ClaimTypesEx.UserType, user.Type ?? string.Empty),
                 new Claim("UserCode", user.Username),
                 new Claim("CompanyId", user.CompanyId?.ToString() ?? string.Empty),
                 new Claim("BranchId", user.BranchId?.ToString() ?? string.Empty),
                 new Claim("EmployeeId", user.EmployeeId?.ToString() ?? string.Empty)
-            };
+            ];
+
+            foreach (string role in authContext.Roles.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            // Backward-compatible: keep Type as a role claim if not already present as a role code
+            if (!string.IsNullOrWhiteSpace(user.Type)
+                && !authContext.Roles.Any(r => string.Equals(r, user.Type, StringComparison.OrdinalIgnoreCase)))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, user.Type));
+            }
+
+            foreach (string permission in authContext.Permissions.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                claims.Add(new Claim(ClaimTypesEx.Permission, permission));
+            }
 
             double expiryInMinutes = double.Parse(_configuration["JwtSettings:ExpiryInMinutes"] ?? "720");
             SecurityTokenDescriptor tokenDescriptor = new()

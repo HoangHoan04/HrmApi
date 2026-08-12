@@ -25,6 +25,11 @@ namespace HrmApi.Application.DTOs.Timekeeping
         public bool OnLeave { get; set; }
         public TimeSpan? ExpectedStart { get; set; }
         public TimeSpan? ExpectedEnd { get; set; }
+        public TimeSpan? ExpectedBreakStart { get; set; }
+        public TimeSpan? ExpectedBreakEnd { get; set; }
+        public int BreakMinutes { get; set; }
+        public bool IsScheduledWorkDay { get; set; } = true;
+        public string? ScheduleSource { get; set; }
         public string? BranchName { get; set; }
         public int AllowedRadiusMeters { get; set; }
     }

@@ -27,6 +27,11 @@ namespace HrmApi.Domain.Entities.Contract
         public string Code { get; set; } = string.Empty;
 
         /// <summary>
+        /// Số quyết định/văn bản kèm theo hợp đồng (nếu có)
+        /// </summary>
+        public string? DecisionNumber { get; set; }
+
+        /// <summary>
         /// Ngày ký hợp đồng
         /// </summary>
         public DateTime? SignDate { get; set; }
@@ -42,9 +47,19 @@ namespace HrmApi.Domain.Entities.Contract
         public DateTime? EndDate { get; set; }
 
         /// <summary>
+        /// Ngày kết thúc thử việc (áp dụng khi loại hợp đồng là thử việc hoặc có giai đoạn thử việc)
+        /// </summary>
+        public DateTime? ProbationEndDate { get; set; }
+
+        /// <summary>
         /// Chức danh công việc theo hợp đồng (Snapshot tại thời điểm ký, có thể khác chức vụ hiện tại của nhân viên)
         /// </summary>
         public string? JobTitle { get; set; }
+
+        /// <summary>
+        /// Mô tả công việc / nội dung công việc theo hợp đồng
+        /// </summary>
+        public string? JobDescription { get; set; }
 
         /// <summary>
         /// Địa điểm làm việc theo hợp đồng
@@ -52,9 +67,29 @@ namespace HrmApi.Domain.Entities.Contract
         public string? WorkingLocation { get; set; }
 
         /// <summary>
+        /// Hình thức làm việc theo hợp đồng (On-site, Remote, Hybrid, Flexible,...)
+        /// </summary>
+        public string? WorkingMode { get; set; }
+
+        /// <summary>
+        /// Số giờ làm việc tiêu chuẩn mỗi tuần theo hợp đồng
+        /// </summary>
+        public decimal? WorkingHoursPerWeek { get; set; }
+
+        /// <summary>
+        /// Số ngày phép năm được hưởng theo hợp đồng
+        /// </summary>
+        public int? AnnualLeaveDays { get; set; }
+
+        /// <summary>
         /// Mức lương cơ bản theo hợp đồng
         /// </summary>
         public decimal? BasicSalary { get; set; }
+
+        /// <summary>
+        /// Hệ số lương theo hợp đồng (nếu áp dụng thang bảng lương)
+        /// </summary>
+        public decimal? SalaryCoefficient { get; set; }
 
         /// <summary>
         /// Tổng phụ cấp theo hợp đồng (ăn trưa, xăng xe, điện thoại,...)
@@ -65,6 +100,11 @@ namespace HrmApi.Domain.Entities.Contract
         /// Mức lương đóng bảo hiểm xã hội theo hợp đồng
         /// </summary>
         public decimal? InsuranceSalary { get; set; }
+
+        /// <summary>
+        /// Đơn vị tiền tệ của các khoản lương/phụ cấp (mặc định VND)
+        /// </summary>
+        public string? Currency { get; set; } = "VND";
 
         /// <summary>
         /// Hình thức trả lương (Tiền mặt, Chuyển khoản,...)
@@ -85,6 +125,11 @@ namespace HrmApi.Domain.Entities.Contract
         /// Id phòng ban làm việc theo hợp đồng (Snapshot tại thời điểm ký)
         /// </summary>
         public Guid? DepartmentId { get; set; }
+
+        /// <summary>
+        /// Id tổ/nhóm làm việc theo hợp đồng (Snapshot tại thời điểm ký)
+        /// </summary>
+        public Guid? PartId { get; set; }
 
         /// <summary>
         /// Id chức vụ theo hợp đồng (Snapshot tại thời điểm ký)
@@ -166,6 +211,11 @@ namespace HrmApi.Domain.Entities.Contract
         /// Navigation property tới phòng ban làm việc theo hợp đồng
         /// </summary>
         public virtual DepartmentEntity? Department { get; set; }
+
+        /// <summary>
+        /// Navigation property tới tổ/nhóm làm việc theo hợp đồng
+        /// </summary>
+        public virtual PartEntity? Part { get; set; }
 
         /// <summary>
         /// Navigation property tới chức vụ theo hợp đồng

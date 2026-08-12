@@ -26,6 +26,7 @@ namespace HrmApi.Application.Features.Contracts.Queries
             List<Guid> companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
             List<Guid> branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
             List<Guid> departmentIds = entities.Where(x => x.DepartmentId.HasValue).Select(x => x.DepartmentId!.Value).Distinct().ToList();
+            List<Guid> partIds = entities.Where(x => x.PartId.HasValue).Select(x => x.PartId!.Value).Distinct().ToList();
             List<Guid> positionIds = entities.Where(x => x.PositionId.HasValue).Select(x => x.PositionId!.Value).Distinct().ToList();
             List<Guid> previousIds = entities.Where(x => x.PreviousContractId.HasValue).Select(x => x.PreviousContractId!.Value).Distinct().ToList();
 
@@ -56,6 +57,37 @@ namespace HrmApi.Application.Features.Contracts.Queries
                 : await context.DepartmentEntities.AsNoTracking()
                     .Where(x => departmentIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+            Dictionary<Guid, string> parts = [];
+            if (partIds.Count > 0)
+            {
+                var partRows = await context.PartEntities.AsNoTracking()
+                    .Where(x => partIds.Contains(x.Id))
+                    .Select(x => new { x.Id, x.Name, x.PartMasterId })
+                    .ToListAsync(cancellationToken);
+                List<Guid> partMasterIds = partRows
+                    .Where(x => x.PartMasterId.HasValue)
+                    .Select(x => x.PartMasterId!.Value)
+                    .Distinct()
+                    .ToList();
+                Dictionary<Guid, string> partMasters = partMasterIds.Count == 0
+                    ? []
+                    : await context.PartMasterEntities.AsNoTracking()
+                        .Where(x => partMasterIds.Contains(x.Id))
+                        .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+                foreach (var row in partRows)
+                {
+                    if (!string.IsNullOrWhiteSpace(row.Name))
+                    {
+                        parts[row.Id] = row.Name;
+                    }
+                    else if (row.PartMasterId.HasValue
+                        && partMasters.TryGetValue(row.PartMasterId.Value, out string? masterName))
+                    {
+                        parts[row.Id] = masterName;
+                    }
+                }
+            }
 
             Dictionary<Guid, string> positions = [];
             if (positionIds.Count > 0)
@@ -107,6 +139,7 @@ namespace HrmApi.Application.Features.Contracts.Queries
                     x.CompanyId.HasValue && companies.TryGetValue(x.CompanyId.Value, out string? cn) ? cn : null,
                     x.BranchId.HasValue && branches.TryGetValue(x.BranchId.Value, out string? bn) ? bn : null,
                     x.DepartmentId.HasValue && departments.TryGetValue(x.DepartmentId.Value, out string? dn) ? dn : null,
+                    x.PartId.HasValue && parts.TryGetValue(x.PartId.Value, out string? partName) ? partName : null,
                     x.PositionId.HasValue && positions.TryGetValue(x.PositionId.Value, out string? pn) ? pn : null,
                     x.PreviousContractId.HasValue && previousCodes.TryGetValue(x.PreviousContractId.Value, out string? pc) ? pc : null,
                     type?.Notify);

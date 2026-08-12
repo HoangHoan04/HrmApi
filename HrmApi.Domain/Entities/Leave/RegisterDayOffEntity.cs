@@ -38,6 +38,12 @@ namespace HrmApi.Domain.Entities.Leave
         /// Ngày kết thúc nghỉ phép
         /// </summary>
         public DateOnly ToDate { get; set; }
+
+        /// <summary>
+        /// Buổi nghỉ: cả ngày / sáng / chiều
+        /// </summary>
+        public HrmApi.Domain.Enums.LeaveSession Session { get; set; } = HrmApi.Domain.Enums.LeaveSession.FULL;
+
         /// <summary>
         /// Tổng số ngày nghỉ phép (có thể là số nguyên hoặc số thập phân)
         /// </summary>
@@ -48,9 +54,20 @@ namespace HrmApi.Domain.Entities.Leave
         public string? Reason { get; set; }
 
         /// <summary>
+        /// URL file đính kèm (đơn giấy / giấy tờ liên quan)
+        /// </summary>
+        public string? AttachmentUrl { get; set; }
+
+        /// <summary>
         /// Trạng thái đơn đăng ký nghỉ phép
         /// </summary>
         public HrmApi.Domain.Enums.DayOffStatus Status { get; set; } = HrmApi.Domain.Enums.DayOffStatus.PENDING;
+
+        /// <summary>
+        /// Người được đề xuất duyệt (Part/Dept/Branch Manager) tại thời điểm tạo đơn
+        /// </summary>
+        public Guid? RequestedApproverId { get; set; }
+
         /// <summary>
         /// Id người phê duyệt đơn đăng ký nghỉ phép (khóa ngoại tới EmployeeEntity)
         /// </summary>
@@ -63,6 +80,11 @@ namespace HrmApi.Domain.Entities.Leave
         /// Ghi chú của người phê duyệt (nếu có)
         /// </summary>
         public string? ApproverNote { get; set; }
+
+        /// <summary>
+        /// Lý do hủy đơn (nếu có)
+        /// </summary>
+        public string? CancelReason { get; set; }
 
         /// <summary>
         /// Navigation property tới nhân viên sở hữu đơn đăng ký nghỉ phép
@@ -80,6 +102,10 @@ namespace HrmApi.Domain.Entities.Leave
         /// Navigation property tới cấu hình loại nghỉ phép
         /// </summary>
         public virtual DayOffConfigEntity? DayOffConfig { get; set; }
+        /// <summary>
+        /// Navigation property tới người được đề xuất duyệt
+        /// </summary>
+        public virtual EmployeeEntity? RequestedApprover { get; set; }
         /// <summary>
         /// Navigation property tới người phê duyệt (Employee)
         /// </summary>

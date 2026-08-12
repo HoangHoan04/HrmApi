@@ -47,6 +47,7 @@ namespace HrmApi.Application.Mappings
                 IsActive = entity.IsActive,
                 SocialInsuranceCode = entity.SocialInsuranceCode,
                 TimeKeepingStandardId = entity.TimeKeepingStandardId,
+                SaturdayPolicy = entity.SaturdayPolicy,
                 IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
                 CreatedBy = entity.CreatedBy,
@@ -93,6 +94,10 @@ namespace HrmApi.Application.Mappings
             entity.IsActive = fields.IsActive;
             entity.SocialInsuranceCode = TrimOrNull(fields.SocialInsuranceCode);
             entity.TimeKeepingStandardId = fields.TimeKeepingStandardId;
+            if (fields.SaturdayPolicy.HasValue)
+            {
+                entity.SaturdayPolicy = fields.SaturdayPolicy.Value;
+            }
         }
 
         public static object ToLogObject(CompanyEntity entity)
@@ -180,5 +185,6 @@ namespace HrmApi.Application.Mappings
         public bool IsActive { get; set; } = true;
         public string? SocialInsuranceCode { get; set; }
         public Guid? TimeKeepingStandardId { get; set; }
+        public HrmApi.Domain.Enums.SaturdayPolicy? SaturdayPolicy { get; set; }
     }
 }

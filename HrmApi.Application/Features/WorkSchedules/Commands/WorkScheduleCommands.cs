@@ -177,4 +177,163 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
             return true;
         }
     }
+
+    public class BulkCreateWorkScheduleCommand : IRequest<BulkWorkScheduleResult>
+    {
+        public List<Guid> EmployeeIds { get; set; } = [];
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+        public Guid? ShiftMasterId { get; set; }
+        public Guid? ShiftId { get; set; }
+        public Guid? BranchId { get; set; }
+        public string? Note { get; set; }
+        public bool SkipWeekends { get; set; } = true;
+        public bool OverwriteExisting { get; set; }
+    }
+
+    public class CopyWorkScheduleWeekCommand : IRequest<BulkWorkScheduleResult>
+    {
+        public List<Guid> EmployeeIds { get; set; } = [];
+        public DateOnly SourceWeekStart { get; set; }
+        public DateOnly TargetWeekStart { get; set; }
+        public bool OverwriteExisting { get; set; }
+    }
+
+    public class BulkWorkScheduleResult
+    {
+        public int Created { get; set; }
+        public int Updated { get; set; }
+        public int Skipped { get; set; }
+    }
+
+    public class BulkCreateWorkScheduleCommandHandler : IRequestHandler<BulkCreateWorkScheduleCommand, BulkWorkScheduleResult>
+    {
+        private readonly IApplicationDbContext _context;
+        public BulkCreateWorkScheduleCommandHandler(IApplicationDbContext context) => _context = context;
+
+        public async Task<BulkWorkScheduleResult> Handle(BulkCreateWorkScheduleCommand request, CancellationToken cancellationToken)
+        {
+            if (request.EmployeeIds.Count == 0)
+                throw new InvalidOperationException("Chọn ít nhất 1 nhân viên.");
+            if (request.ToDate < request.FromDate)
+                throw new InvalidOperationException("Đến ngày phải >= Từ ngày.");
+            if (!request.ShiftMasterId.HasValue && !request.ShiftId.HasValue)
+                throw new InvalidOperationException("Cần chọn ca làm việc.");
+
+            BulkWorkScheduleResult result = new();
+            foreach (Guid employeeId in request.EmployeeIds.Distinct())
+            {
+                for (DateOnly d = request.FromDate; d <= request.ToDate; d = d.AddDays(1))
+                {
+                    if (request.SkipWeekends && (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+
+                    WorkScheduledEmployeeEntity? existing = await _context.WorkScheduledEmployeeEntities
+                        .FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.WorkDate == d && !x.IsDeleted, cancellationToken);
+
+                    if (existing != null)
+                    {
+                        if (!request.OverwriteExisting)
+                        {
+                            result.Skipped++;
+                            continue;
+                        }
+                        existing.ShiftMasterId = request.ShiftMasterId;
+                        existing.ShiftId = request.ShiftId;
+                        existing.BranchId = request.BranchId;
+                        existing.Note = request.Note;
+                        existing.UpdatedAt = DateTime.UtcNow;
+                        result.Updated++;
+                    }
+                    else
+                    {
+                        _ = _context.WorkScheduledEmployeeEntities.Add(new WorkScheduledEmployeeEntity
+                        {
+                            EmployeeId = employeeId,
+                            WorkDate = d,
+                            ShiftMasterId = request.ShiftMasterId,
+                            ShiftId = request.ShiftId,
+                            BranchId = request.BranchId,
+                            Note = request.Note,
+                            CreatedAt = DateTime.UtcNow,
+                            IsDeleted = false,
+                        });
+                        result.Created++;
+                    }
+                }
+            }
+
+            _ = await _context.SaveChangesAsync(cancellationToken);
+            return result;
+        }
+    }
+
+    public class CopyWorkScheduleWeekCommandHandler : IRequestHandler<CopyWorkScheduleWeekCommand, BulkWorkScheduleResult>
+    {
+        private readonly IApplicationDbContext _context;
+        public CopyWorkScheduleWeekCommandHandler(IApplicationDbContext context) => _context = context;
+
+        public async Task<BulkWorkScheduleResult> Handle(CopyWorkScheduleWeekCommand request, CancellationToken cancellationToken)
+        {
+            if (request.EmployeeIds.Count == 0)
+                throw new InvalidOperationException("Chọn ít nhất 1 nhân viên.");
+
+            DateOnly sourceEnd = request.SourceWeekStart.AddDays(6);
+            DateOnly targetEnd = request.TargetWeekStart.AddDays(6);
+            int offsetDays = request.TargetWeekStart.DayNumber - request.SourceWeekStart.DayNumber;
+
+            List<WorkScheduledEmployeeEntity> source = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+                .Where(x => request.EmployeeIds.Contains(x.EmployeeId)
+                    && x.WorkDate >= request.SourceWeekStart
+                    && x.WorkDate <= sourceEnd
+                    && !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            BulkWorkScheduleResult result = new();
+            foreach (WorkScheduledEmployeeEntity src in source)
+            {
+                DateOnly targetDate = src.WorkDate.AddDays(offsetDays);
+                if (targetDate < request.TargetWeekStart || targetDate > targetEnd) continue;
+
+                WorkScheduledEmployeeEntity? existing = await _context.WorkScheduledEmployeeEntities
+                    .FirstOrDefaultAsync(x => x.EmployeeId == src.EmployeeId && x.WorkDate == targetDate && !x.IsDeleted, cancellationToken);
+
+                if (existing != null)
+                {
+                    if (!request.OverwriteExisting)
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+                    existing.ShiftMasterId = src.ShiftMasterId;
+                    existing.ShiftId = src.ShiftId;
+                    existing.BranchId = src.BranchId;
+                    existing.Note = src.Note;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    result.Updated++;
+                }
+                else
+                {
+                    _ = _context.WorkScheduledEmployeeEntities.Add(new WorkScheduledEmployeeEntity
+                    {
+                        EmployeeId = src.EmployeeId,
+                        WorkDate = targetDate,
+                        ShiftMasterId = src.ShiftMasterId,
+                        ShiftId = src.ShiftId,
+                        BranchId = src.BranchId,
+                        Note = src.Note,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false,
+                    });
+                    result.Created++;
+                }
+            }
+
+            _ = await _context.SaveChangesAsync(cancellationToken);
+            return result;
+        }
+    }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace HrmApi.Application.DTOs.Auth
 {
@@ -18,6 +19,8 @@ namespace HrmApi.Application.DTOs.Auth
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
         public bool MustChangePassword { get; set; }
+        public List<string> Roles { get; set; } = [];
+        public List<string> Permissions { get; set; } = [];
     }
 
     public class RefreshRequest
@@ -94,6 +97,9 @@ namespace HrmApi.Application.DTOs.Auth
 
         public string? BankAccountNumber { get; set; }
         public string? BankName { get; set; }
+
+        public List<string> Roles { get; set; } = [];
+        public List<string> Permissions { get; set; } = [];
 
         public MobileProfileStatsDto Stats { get; set; } = new();
     }

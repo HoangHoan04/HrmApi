@@ -37,6 +37,7 @@ namespace HrmApi.Application.Features.Branches.Commands
             };
 
             BranchMapper.ApplyCommandFields(branch, request);
+            await SyncManagerInfoAsync(branch, request, _context, cancellationToken);
 
             _context.BranchEntities.Add(branch);
             await _context.SaveChangesAsync(cancellationToken);
@@ -82,6 +83,47 @@ namespace HrmApi.Application.Features.Branches.Commands
                 if (!parentExists)
                     throw new InvalidOperationException("Chi nhánh mẹ không tồn tại.");
             }
+
+            if (request.ManagerId.HasValue)
+            {
+                var managerExists = await context.EmployeeEntities
+                    .AnyAsync(x => x.Id == request.ManagerId.Value && !x.IsDeleted, cancellationToken);
+                if (!managerExists)
+                    throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
+            }
+        }
+
+        internal static async Task SyncManagerInfoAsync(
+            BranchEntity branch,
+            BranchCommandFields request,
+            IApplicationDbContext context,
+            CancellationToken cancellationToken)
+        {
+            if (!request.ManagerId.HasValue)
+            {
+                if (string.IsNullOrWhiteSpace(request.ManagerName))
+                    branch.ManagerName = null;
+                if (string.IsNullOrWhiteSpace(request.ManagerPhone))
+                    branch.ManagerPhone = null;
+                return;
+            }
+
+            var employee = await context.EmployeeEntities
+                .AsNoTracking()
+                .Where(x => x.Id == request.ManagerId.Value)
+                .Select(x => new
+                {
+                    Name = x.FullName ?? ((x.FirstName ?? string.Empty) + " " + (x.LastName ?? string.Empty)).Trim(),
+                    x.Phone
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (employee == null) return;
+
+            if (string.IsNullOrWhiteSpace(request.ManagerName))
+                branch.ManagerName = string.IsNullOrWhiteSpace(employee.Name) ? null : employee.Name;
+            if (string.IsNullOrWhiteSpace(request.ManagerPhone))
+                branch.ManagerPhone = string.IsNullOrWhiteSpace(employee.Phone) ? null : employee.Phone;
         }
     }
     #endregion
@@ -115,6 +157,7 @@ namespace HrmApi.Application.Features.Branches.Commands
             var oldValue = BranchMapper.ToLogObject(branch);
 
             BranchMapper.ApplyCommandFields(branch, request);
+            await CreateBranchCommandHandler.SyncManagerInfoAsync(branch, request, _context, cancellationToken);
             branch.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);

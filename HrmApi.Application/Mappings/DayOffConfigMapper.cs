@@ -19,6 +19,10 @@ namespace HrmApi.Application.Mappings
                 DayOffType = entity.DayOffType,
                 DefaultDaysPerYear = entity.DefaultDaysPerYear,
                 IsPaid = entity.IsPaid,
+                DeductBalance = entity.DeductBalance,
+                RequireAttachment = entity.RequireAttachment,
+                MaxDaysPerRequest = entity.MaxDaysPerRequest,
+                MinNoticeDays = entity.MinNoticeDays,
                 IsActive = entity.IsActive,
                 CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
@@ -53,6 +57,26 @@ namespace HrmApi.Application.Mappings
                 entity.IsPaid = fields.IsPaid.Value;
             }
 
+            if (fields.DeductBalance.HasValue)
+            {
+                entity.DeductBalance = fields.DeductBalance.Value;
+            }
+
+            if (fields.RequireAttachment.HasValue)
+            {
+                entity.RequireAttachment = fields.RequireAttachment.Value;
+            }
+
+            if (fields.MaxDaysPerRequest.HasValue)
+            {
+                entity.MaxDaysPerRequest = fields.MaxDaysPerRequest;
+            }
+
+            if (fields.MinNoticeDays.HasValue)
+            {
+                entity.MinNoticeDays = fields.MinNoticeDays.Value;
+            }
+
             if (fields.IsActive.HasValue)
             {
                 entity.IsActive = fields.IsActive.Value;
@@ -70,6 +94,10 @@ namespace HrmApi.Application.Mappings
                 entity.DayOffType,
                 entity.DefaultDaysPerYear,
                 entity.IsPaid,
+                entity.DeductBalance,
+                entity.RequireAttachment,
+                entity.MaxDaysPerRequest,
+                entity.MinNoticeDays,
                 entity.IsActive
             };
         }
@@ -84,6 +112,10 @@ namespace HrmApi.Application.Mappings
         public DayOffType? DayOffType { get; set; }
         public decimal? DefaultDaysPerYear { get; set; }
         public bool? IsPaid { get; set; }
+        public bool? DeductBalance { get; set; }
+        public bool? RequireAttachment { get; set; }
+        public decimal? MaxDaysPerRequest { get; set; }
+        public int? MinNoticeDays { get; set; }
         public bool? IsActive { get; set; }
     }
 }

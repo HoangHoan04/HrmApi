@@ -6,7 +6,13 @@ namespace HrmApi.Application.Mappings
 {
     internal static class DepartmentMapper
     {
-        public static DepartmentDto ToDto(DepartmentEntity entity, string? companyName = null, string? branchName = null, string? parentDepartmentName = null)
+        public static DepartmentDto ToDto(
+            DepartmentEntity entity,
+            string? companyName = null,
+            string? branchName = null,
+            string? parentDepartmentName = null,
+            string? managerName = null,
+            string? deputyManagerName = null)
         {
             return new DepartmentDto
             {
@@ -26,7 +32,9 @@ namespace HrmApi.Application.Mappings
                 Limit = entity.Limit,
                 CurrentHeadCount = entity.CurrentHeadCount,
                 ManagerId = entity.ManagerId,
+                ManagerName = managerName,
                 DeputyManagerId = entity.DeputyManagerId,
+                DeputyManagerName = deputyManagerName,
                 Email = entity.Email,
                 PhoneExtension = entity.PhoneExtension,
                 CostCenterCode = entity.CostCenterCode,

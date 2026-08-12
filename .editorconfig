@@ -1,0 +1,21 @@
+# EditorConfig for HrmApi (dotnet format)
+root = true
+
+[*]
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{cs,csproj,props,targets,slnx}]
+indent_size = 4
+
+[*.{json,yml,yaml,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# EF migrations: do not reformat / rewrite encoding
+[**/Persistence/Migrations/**]
+generated_code = true

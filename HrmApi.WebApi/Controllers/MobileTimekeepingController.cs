@@ -1,8 +1,10 @@
 using System;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Features.MobileTimekeeping.Commands;
 using HrmApi.Application.Features.MobileTimekeeping.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +13,7 @@ namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
     [Authorize]
+    [RequirePermission(PermissionCodes.MobileAccess)]
     [Route("api/v1/mobile/timekeeping")]
     public class MobileTimekeepingController : ControllerBase
     {

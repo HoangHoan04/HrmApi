@@ -40,7 +40,17 @@ namespace HrmApi.Domain.Entities.Timekeeping
         public TimeSpan EndTime { get; set; }
 
         /// <summary>
-        /// Số phút nghỉ giữa ca
+        /// Giờ bắt đầu nghỉ trưa (vd 12:00)
+        /// </summary>
+        public TimeSpan? BreakStartTime { get; set; }
+
+        /// <summary>
+        /// Giờ kết thúc nghỉ trưa (vd 13:00)
+        /// </summary>
+        public TimeSpan? BreakEndTime { get; set; }
+
+        /// <summary>
+        /// Số phút nghỉ giữa ca (ưu tiên tính từ BreakStart/BreakEnd nếu có)
         /// </summary>
         public int BreakMinutes { get; set; }
 

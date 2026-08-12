@@ -39,6 +39,7 @@ namespace HrmApi.Application.DTOs.Company
         public bool IsActive { get; set; } = true;
         public string? SocialInsuranceCode { get; set; }
         public Guid? TimeKeepingStandardId { get; set; }
+        public HrmApi.Domain.Enums.SaturdayPolicy SaturdayPolicy { get; set; } = HrmApi.Domain.Enums.SaturdayPolicy.Work;
     }
     public class CompanySelectBoxDto
     {

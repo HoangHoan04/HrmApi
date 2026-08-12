@@ -86,6 +86,12 @@ namespace HrmApi.Application.Features.Departments.Queries
             var companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
             var branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
             var parentIds = entities.Where(x => x.ParentDepartmentId.HasValue).Select(x => x.ParentDepartmentId!.Value).Distinct().ToList();
+            var managerIds = entities
+                .SelectMany(x => new Guid?[] { x.ManagerId, x.DeputyManagerId })
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .Distinct()
+                .ToList();
 
             var companyMap = companyIds.Count == 0
                 ? new Dictionary<Guid, string>()
@@ -108,12 +114,24 @@ namespace HrmApi.Application.Features.Departments.Queries
                     .Where(x => parentIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
+            var managerMap = managerIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await _context.EmployeeEntities
+                    .AsNoTracking()
+                    .Where(x => managerIds.Contains(x.Id))
+                    .ToDictionaryAsync(
+                        x => x.Id,
+                        x => x.FullName ?? ((x.FirstName ?? string.Empty) + " " + (x.LastName ?? string.Empty)).Trim(),
+                        cancellationToken);
+
             var items = entities.Select(x =>
             {
                 string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cName) ? cName : null;
                 string? branchName = x.BranchId.HasValue && branchMap.TryGetValue(x.BranchId.Value, out var bName) ? bName : null;
                 string? parentName = x.ParentDepartmentId.HasValue && parentMap.TryGetValue(x.ParentDepartmentId.Value, out var pName) ? pName : null;
-                return DepartmentMapper.ToDto(x, companyName, branchName, parentName);
+                string? managerName = x.ManagerId.HasValue && managerMap.TryGetValue(x.ManagerId.Value, out var mName) ? mName : null;
+                string? deputyManagerName = x.DeputyManagerId.HasValue && managerMap.TryGetValue(x.DeputyManagerId.Value, out var dmName) ? dmName : null;
+                return DepartmentMapper.ToDto(x, companyName, branchName, parentName, managerName, deputyManagerName);
             }).ToList();
 
             return new PagedResult<DepartmentDto>(items, totalCount, request.PageIndex, request.PageSize);
@@ -198,7 +216,27 @@ namespace HrmApi.Application.Features.Departments.Queries
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
-            return DepartmentMapper.ToDto(department, companyName, branchName, parentName);
+            string? managerName = null;
+            if (department.ManagerId.HasValue)
+            {
+                managerName = await _context.EmployeeEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == department.ManagerId.Value)
+                    .Select(x => x.FullName ?? ((x.FirstName ?? string.Empty) + " " + (x.LastName ?? string.Empty)).Trim())
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            string? deputyManagerName = null;
+            if (department.DeputyManagerId.HasValue)
+            {
+                deputyManagerName = await _context.EmployeeEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == department.DeputyManagerId.Value)
+                    .Select(x => x.FullName ?? ((x.FirstName ?? string.Empty) + " " + (x.LastName ?? string.Empty)).Trim())
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            return DepartmentMapper.ToDto(department, companyName, branchName, parentName, managerName, deputyManagerName);
         }
     }
     #endregion

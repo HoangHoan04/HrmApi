@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Company;
 using HrmApi.Application.Features.Companies.Commands;
 using HrmApi.Application.Features.Companies.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
@@ -16,6 +19,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách công ty
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/v1/company")]
     public class CompaniesController : ControllerBase
     {
@@ -30,6 +34,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy danh sách công ty phân trang (Phương thức POST)
         /// </summary>
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgCompanyView)]
         public async Task<ActionResult<PagedResult<CompanyDto>>> GetPagedList([FromBody] GetCompaniesPagedQuery query)
         {
             var result = await _mediator.Send(query);
@@ -40,6 +45,7 @@ namespace HrmApi.WebApi.Controllers
         /// Chi tiết công ty theo ID (Phương thức POST)
         /// </summary>
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgCompanyView)]
         public async Task<ActionResult<CompanyDto>> GetDetail([FromBody] GetCompanyByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -51,6 +57,7 @@ namespace HrmApi.WebApi.Controllers
         /// Thêm mới công ty (Phương thức POST)
         /// </summary>
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgCompanyCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateCompanyCommand command)
         {
             try
@@ -68,6 +75,7 @@ namespace HrmApi.WebApi.Controllers
         /// Cập nhật công ty (Phương thức POST)
         /// </summary>
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgCompanyUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateCompanyCommand command)
         {
             try
@@ -86,6 +94,7 @@ namespace HrmApi.WebApi.Controllers
         /// Kích hoạt công ty (Phương thức POST, sets IsDeleted = false)
         /// </summary>
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgCompanyActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivateCompanyCommand command)
         {
             var result = await _mediator.Send(command);
@@ -97,6 +106,7 @@ namespace HrmApi.WebApi.Controllers
         /// Vô hiệu hóa/Ngừng hoạt động công ty (Phương thức POST, sets IsDeleted = true)
         /// </summary>
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgCompanyDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivateCompanyCommand command)
         {
             var result = await _mediator.Send(command);
@@ -108,6 +118,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy dữ liệu rút gọn phục vụ chọn lựa SelectBox (Phương thức POST)
         /// </summary>
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgCompanyView)]
         public async Task<ActionResult<List<CompanySelectBoxDto>>> GetSelectBox([FromBody] GetCompanySelectBoxQuery? query)
         {
             var result = await _mediator.Send(query ?? new GetCompanySelectBoxQuery());
@@ -118,6 +129,7 @@ namespace HrmApi.WebApi.Controllers
         /// Tải file mẫu Excel import công ty
         /// </summary>
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgCompanyImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadCompanyExcelTemplateQuery());
@@ -128,6 +140,7 @@ namespace HrmApi.WebApi.Controllers
         /// Xuất danh sách công ty ra Excel
         /// </summary>
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgCompanyExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportCompaniesExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -139,6 +152,7 @@ namespace HrmApi.WebApi.Controllers
         /// Import danh sách công ty từ Excel
         /// </summary>
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgCompanyImportExcel)]
         public async Task<ActionResult<CompanyImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)

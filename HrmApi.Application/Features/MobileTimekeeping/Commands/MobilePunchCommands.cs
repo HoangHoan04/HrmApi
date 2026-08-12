@@ -49,6 +49,10 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 throw new InvalidOperationException("Bạn đã chấm vào ca hôm nay.");
 
             var window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
+            if (!window.IsScheduledWorkDay)
+                throw new InvalidOperationException(
+                    "Hôm nay không phải ngày làm theo ca mặc định. Cần lịch ngày (ngoại lệ/OT) nếu muốn chấm công.");
+
             var branchId = window.BranchId ?? employee.BranchId;
             var standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
 
@@ -81,7 +85,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 TimekeepingMapper.ToLogObject(record),
                 "Mobile check-in");
 
-            return TimekeepingMapper.ToTodayDto(record, today, false, window.StartTime, window.EndTime, branch.Name, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, false, window, branch.Name, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
@@ -169,7 +173,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 TimekeepingMapper.ToLogObject(record),
                 "Mobile check-out");
 
-            return TimekeepingMapper.ToTodayDto(record, today, false, window.StartTime, window.EndTime, branch.Name, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, false, window, branch.Name, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)

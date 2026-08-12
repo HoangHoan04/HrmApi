@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Department;
 using HrmApi.Application.Features.Departments.Commands;
 using HrmApi.Application.Features.Departments.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
@@ -16,6 +19,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách phòng ban
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/v1/department")]
     public class DepartmentsController : ControllerBase
     {
@@ -30,6 +34,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy danh sách phòng ban phân trang (Phương thức POST)
         /// </summary>
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgDepartmentView)]
         public async Task<ActionResult<PagedResult<DepartmentDto>>> GetPagedList([FromBody] GetDepartmentsPagedQuery query)
         {
             var result = await _mediator.Send(query);
@@ -40,6 +45,7 @@ namespace HrmApi.WebApi.Controllers
         /// Chi tiết phòng ban theo ID (Phương thức POST)
         /// </summary>
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgDepartmentView)]
         public async Task<ActionResult<DepartmentDto>> GetDetail([FromBody] GetDepartmentByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -51,6 +57,7 @@ namespace HrmApi.WebApi.Controllers
         /// Thêm mới phòng ban (Phương thức POST)
         /// </summary>
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgDepartmentCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateDepartmentCommand command)
         {
             try
@@ -68,6 +75,7 @@ namespace HrmApi.WebApi.Controllers
         /// Cập nhật phòng ban (Phương thức POST)
         /// </summary>
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgDepartmentUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateDepartmentCommand command)
         {
             try
@@ -86,6 +94,7 @@ namespace HrmApi.WebApi.Controllers
         /// Kích hoạt phòng ban (Phương thức POST, sets IsDeleted = false)
         /// </summary>
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgDepartmentActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivateDepartmentCommand command)
         {
             var result = await _mediator.Send(command);
@@ -97,6 +106,7 @@ namespace HrmApi.WebApi.Controllers
         /// Vô hiệu hóa/Ngừng hoạt động phòng ban (Phương thức POST, sets IsDeleted = true)
         /// </summary>
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgDepartmentDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivateDepartmentCommand command)
         {
             var result = await _mediator.Send(command);
@@ -108,6 +118,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy dữ liệu rút gọn phục vụ chọn lựa SelectBox (Phương thức POST)
         /// </summary>
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgDepartmentView)]
         public async Task<ActionResult<List<DepartmentSelectBoxDto>>> GetSelectBox([FromBody] GetDepartmentSelectBoxQuery? query)
         {
             var result = await _mediator.Send(query ?? new GetDepartmentSelectBoxQuery());
@@ -118,6 +129,7 @@ namespace HrmApi.WebApi.Controllers
         /// Tải file mẫu Excel import phòng ban
         /// </summary>
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgDepartmentImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadDepartmentExcelTemplateQuery());
@@ -128,6 +140,7 @@ namespace HrmApi.WebApi.Controllers
         /// Xuất danh sách phòng ban ra Excel
         /// </summary>
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgDepartmentExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportDepartmentsExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -139,6 +152,7 @@ namespace HrmApi.WebApi.Controllers
         /// Import danh sách phòng ban từ Excel
         /// </summary>
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgDepartmentImportExcel)]
         public async Task<ActionResult<DepartmentImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -159,6 +173,7 @@ namespace HrmApi.WebApi.Controllers
         /// Load phòng ban theo id chi nhánh (dùng cho cascade dropdown).
         /// </summary>
         [HttpPost("load-by-branch")]
+        [RequirePermission(PermissionCodes.OrgDepartmentView)]
         public async Task<ActionResult<List<DepartmentSelectBoxDto>>> GetByBranch(
             [FromBody] GetDepartmentsByBranchQuery query)
         {

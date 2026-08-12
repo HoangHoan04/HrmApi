@@ -1,0 +1,8 @@
+{
+  "name": "hrm-api",
+  "private": true,
+  "scripts": {
+    "format": "dotnet format whitespace HrmApi.slnx --exclude **/Persistence/Migrations/** && dotnet format style HrmApi.slnx --exclude **/Persistence/Migrations/**",
+    "format:check": "dotnet format whitespace HrmApi.slnx --exclude **/Persistence/Migrations/** --verify-no-changes && dotnet format style HrmApi.slnx --exclude **/Persistence/Migrations/** --verify-no-changes"
+  }
+}

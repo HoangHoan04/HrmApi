@@ -32,50 +32,46 @@ namespace HrmApi.Application.Common.Services
 
             if (schedule != null)
             {
-                if (schedule.ShiftId.HasValue)
+                WorkWindowResult dayWindow = await ResolveFromDayScheduleAsync(schedule, employee, cancellationToken);
+                dayWindow.Source = "DAY_OVERRIDE";
+                dayWindow.IsScheduledWorkDay = true;
+                return dayWindow;
+            }
+
+            EmployeeWorkPatternEntity? pattern = await _context.EmployeeWorkPatternEntities.AsNoTracking()
+                .Where(x => x.EmployeeId == employee.Id
+                    && !x.IsDeleted
+                    && x.IsActive
+                    && x.PatternType == WorkPatternType.FIXED_WEEKLY
+                    && x.EffectiveFrom <= workDate
+                    && (x.EffectiveTo == null || x.EffectiveTo >= workDate))
+                .OrderByDescending(x => x.EffectiveFrom)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (pattern != null)
+            {
+                ShiftMasterEntity master = await _context.ShiftMasterEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == pattern.ShiftMasterId && !x.IsDeleted, cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "Ca mặc định đang trỏ tới ShiftMaster không tồn tại. Kiểm tra Admin → Ca mặc định.");
+
+                WorkWindowResult patternWindow = WithBreak(new WorkWindowResult
                 {
-                    ShiftEntity? shift = await _context.ShiftEntities.AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.Id == schedule.ShiftId.Value && !x.IsDeleted, cancellationToken);
-                    if (shift != null)
-                    {
-                        return new WorkWindowResult
-                        {
-                            StartTime = shift.StartTime,
-                            EndTime = shift.EndTime,
-                            ShiftId = shift.Id,
-                            ShiftMasterId = shift.ShiftMasterId,
-                            BranchId = schedule.BranchId ?? shift.BranchId ?? employee.BranchId,
-                            IsOvernight = shift.EndTime < shift.StartTime
-                        };
-                    }
+                    StartTime = master.StartTime,
+                    EndTime = master.EndTime,
+                    ShiftMasterId = master.Id,
+                    BranchId = pattern.BranchId ?? employee.BranchId,
+                    IsOvernight = master.IsOvernight || master.EndTime < master.StartTime,
+                    Source = "WORK_PATTERN",
+                    IsScheduledWorkDay = WorkPatternHelper.IsWorkDay(pattern, workDate),
+                }, master);
+
+                if (!patternWindow.IsScheduledWorkDay)
+                {
+                    return patternWindow;
                 }
 
-                if (schedule.ShiftMasterId.HasValue)
-                {
-                    ShiftMasterEntity? master = await _context.ShiftMasterEntities.AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.Id == schedule.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
-                    if (master != null)
-                    {
-                        return new WorkWindowResult
-                        {
-                            StartTime = master.StartTime,
-                            EndTime = master.EndTime,
-                            ShiftMasterId = master.Id,
-                            ShiftId = schedule.ShiftId,
-                            BranchId = schedule.BranchId ?? employee.BranchId,
-                            IsOvernight = master.IsOvernight || master.EndTime < master.StartTime
-                        };
-                    }
-                }
-
-                return new WorkWindowResult
-                {
-                    StartTime = TimeSpan.FromHours(8),
-                    EndTime = TimeSpan.FromHours(17),
-                    ShiftMasterId = schedule.ShiftMasterId,
-                    ShiftId = schedule.ShiftId,
-                    BranchId = schedule.BranchId ?? employee.BranchId
-                };
+                return patternWindow;
             }
 
             if (employee.PositionId.HasValue)
@@ -91,23 +87,94 @@ namespace HrmApi.Application.Common.Services
                         .FirstOrDefaultAsync(x => x.Id == positionMasterId.Value && !x.IsDeleted, cancellationToken);
                     if (pm != null && pm.HourWorkingStart.HasValue && pm.HourWorkingEnd.HasValue)
                     {
+                        DayOfWeek dow = workDate.DayOfWeek;
+                        bool weekday = dow is not DayOfWeek.Saturday and not DayOfWeek.Sunday;
                         return new WorkWindowResult
                         {
                             StartTime = pm.HourWorkingStart.Value,
                             EndTime = pm.HourWorkingEnd.Value,
                             BranchId = employee.BranchId,
-                            IsOvernight = pm.HourWorkingEnd.Value < pm.HourWorkingStart.Value
+                            IsOvernight = pm.HourWorkingEnd.Value < pm.HourWorkingStart.Value,
+                            Source = "POSITION",
+                            IsScheduledWorkDay = weekday,
                         };
                     }
                 }
             }
 
-            return new WorkWindowResult
+            throw new InvalidOperationException(
+                "Chưa gán ca mặc định (Work Pattern) hoặc lịch ngày cho nhân viên. Admin → Ca/lịch → Ca mặc định.");
+        }
+
+        private async Task<WorkWindowResult> ResolveFromDayScheduleAsync(
+            WorkScheduledEmployeeEntity schedule,
+            EmployeeEntity employee,
+            CancellationToken cancellationToken)
+        {
+            if (schedule.ShiftId.HasValue)
             {
-                StartTime = TimeSpan.FromHours(8),
-                EndTime = TimeSpan.FromHours(17),
-                BranchId = employee.BranchId
-            };
+                ShiftEntity? shift = await _context.ShiftEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == schedule.ShiftId.Value && !x.IsDeleted, cancellationToken);
+                if (shift != null)
+                {
+                    ShiftMasterEntity? shiftMaster = await _context.ShiftMasterEntities.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.Id == shift.ShiftMasterId && !x.IsDeleted, cancellationToken);
+                    return WithBreak(new WorkWindowResult
+                    {
+                        StartTime = shift.StartTime,
+                        EndTime = shift.EndTime,
+                        ShiftId = shift.Id,
+                        ShiftMasterId = shift.ShiftMasterId,
+                        BranchId = schedule.BranchId ?? shift.BranchId ?? employee.BranchId,
+                        IsOvernight = shift.EndTime < shift.StartTime,
+                    }, shiftMaster);
+                }
+            }
+
+            if (schedule.ShiftMasterId.HasValue)
+            {
+                ShiftMasterEntity? master = await _context.ShiftMasterEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == schedule.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
+                if (master != null)
+                {
+                    return WithBreak(new WorkWindowResult
+                    {
+                        StartTime = master.StartTime,
+                        EndTime = master.EndTime,
+                        ShiftMasterId = master.Id,
+                        ShiftId = schedule.ShiftId,
+                        BranchId = schedule.BranchId ?? employee.BranchId,
+                        IsOvernight = master.IsOvernight || master.EndTime < master.StartTime,
+                    }, master);
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Lịch ngày chưa gắn ca (ShiftMaster). Vào Admin → Ca/lịch → Lịch theo ngày.");
+        }
+
+        private static WorkWindowResult WithBreak(WorkWindowResult window, ShiftMasterEntity? master)
+        {
+            if (master == null)
+            {
+                return window;
+            }
+
+            window.BreakStartTime = master.BreakStartTime;
+            window.BreakEndTime = master.BreakEndTime;
+            window.BreakMinutes = master.BreakMinutes;
+            if (window.BreakMinutes <= 0 && master.BreakStartTime.HasValue && master.BreakEndTime.HasValue)
+            {
+                int mins = (int)(master.BreakEndTime.Value - master.BreakStartTime.Value).TotalMinutes;
+                if (mins < 0)
+                {
+                    mins += 24 * 60;
+                }
+
+                window.BreakMinutes = Math.Max(0, mins);
+            }
+
+            return window;
         }
 
         public async Task<AttendanceStandardResult> ResolveStandardAsync(Guid? branchId, Guid? companyId, CancellationToken cancellationToken = default)
@@ -246,8 +313,16 @@ namespace HrmApi.Application.Common.Services
 
             if (record.CheckInAt.HasValue && record.CheckOutAt.HasValue)
             {
-                record.WorkedMinutes = Math.Max(0, (int)Math.Round((record.CheckOutAt.Value - record.CheckInAt.Value).TotalMinutes));
-                record.Status = record.LateMinutes > 0 ? AttendanceStatus.LATE : record.EarlyMinutes > 0 ? AttendanceStatus.EARLY : AttendanceStatus.ON_TIME;
+                record.WorkedMinutes = WorkedMinutesCalculator.Compute(
+                    record.WorkDate,
+                    record.CheckInAt.Value,
+                    record.CheckOutAt.Value,
+                    window);
+                record.Status = record.LateMinutes > 0
+                    ? AttendanceStatus.LATE
+                    : record.EarlyMinutes > 0
+                        ? AttendanceStatus.EARLY
+                        : AttendanceStatus.ON_TIME;
             }
             else
             {

@@ -1,5 +1,7 @@
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.Features.ActionLogs.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +11,7 @@ using System.Threading.Tasks;
 namespace HrmApi.WebApi.Controllers
 {
     [Authorize]
+    [RequirePermission(PermissionCodes.ActionLogView)]
     [ApiController]
     [Route("api/v1/action-logs")]
     public class ActionLogsController : ControllerBase

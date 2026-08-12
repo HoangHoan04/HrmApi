@@ -1,16 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.TransferEmployee;
 using HrmApi.Application.Features.TransferEmployees.Commands;
 using HrmApi.Application.Features.TransferEmployees.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/v1/transfer-employee")]
     public class TransferEmployeesController : ControllerBase
     {
@@ -18,10 +22,12 @@ namespace HrmApi.WebApi.Controllers
         public TransferEmployeesController(IMediator mediator) => _mediator = mediator;
 
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.HrTransferView)]
         public async Task<ActionResult<PagedResult<TransferEmployeeDto>>> GetPaged([FromBody] GetTransferEmployeesPagedQuery query)
             => Ok(await _mediator.Send(query));
 
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.HrTransferView)]
         public async Task<ActionResult<TransferEmployeeDto>> GetDetail([FromBody] GetTransferEmployeeByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -30,6 +36,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.HrTransferCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateTransferEmployeeCommand command)
         {
             try { return Ok(await _mediator.Send(command)); }
@@ -37,6 +44,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.HrTransferUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateTransferEmployeeCommand command)
         {
             try
@@ -49,6 +57,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("approve")]
+        [RequirePermission(PermissionCodes.HrTransferApprove)]
         public async Task<ActionResult<bool>> Approve([FromBody] ApproveTransferEmployeeCommand command)
         {
             try
@@ -61,6 +70,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("reject")]
+        [RequirePermission(PermissionCodes.HrTransferReject)]
         public async Task<ActionResult<bool>> Reject([FromBody] RejectTransferEmployeeCommand command)
         {
             try
@@ -73,6 +83,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("apply")]
+        [RequirePermission(PermissionCodes.HrTransferApply)]
         public async Task<ActionResult<bool>> Apply([FromBody] ApplyTransferEmployeeCommand command)
         {
             try
@@ -85,6 +96,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("cancel")]
+        [RequirePermission(PermissionCodes.HrTransferCancel)]
         public async Task<ActionResult<bool>> Cancel([FromBody] CancelTransferEmployeeCommand command)
         {
             try
@@ -97,10 +109,12 @@ namespace HrmApi.WebApi.Controllers
         }
 
         [HttpPost("history")]
+        [RequirePermission(PermissionCodes.HrTransferView)]
         public async Task<ActionResult<List<TransferEmployeeDto>>> History([FromBody] GetTransferEmployeeHistoryQuery query)
             => Ok(await _mediator.Send(query));
 
         [HttpPost("employee-org-snapshot")]
+        [RequirePermission(PermissionCodes.HrTransferView)]
         public async Task<ActionResult<TransferEmployeePositionDto>> EmployeeOrgSnapshot([FromBody] GetEmployeeOrgSnapshotQuery query)
         {
             var result = await _mediator.Send(query);

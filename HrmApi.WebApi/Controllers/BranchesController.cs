@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Branch;
 using HrmApi.Application.Features.Branches.Commands;
 using HrmApi.Application.Features.Branches.Queries;
+using HrmApi.WebApi.Authorization;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
@@ -14,6 +17,7 @@ namespace HrmApi.WebApi.Controllers
     /// API quản lý danh sách chi nhánh
     /// </summary>
     [ApiController]
+    [Authorize]
     [Route("api/v1/branch")]
     public class BranchesController : ControllerBase
     {
@@ -28,6 +32,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy danh sách chi nhánh phân trang (Phương thức POST)
         /// </summary>
         [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.OrgBranchView)]
         public async Task<ActionResult<PagedResult<BranchDto>>> GetPagedList([FromBody] GetBranchesPagedQuery query)
         {
             var result = await _mediator.Send(query);
@@ -38,6 +43,7 @@ namespace HrmApi.WebApi.Controllers
         /// Chi tiết chi nhánh theo ID (Phương thức POST)
         /// </summary>
         [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.OrgBranchView)]
         public async Task<ActionResult<BranchDto>> GetDetail([FromBody] GetBranchByIdQuery query)
         {
             var result = await _mediator.Send(query);
@@ -49,6 +55,7 @@ namespace HrmApi.WebApi.Controllers
         /// Thêm mới chi nhánh (Phương thức POST)
         /// </summary>
         [HttpPost("create")]
+        [RequirePermission(PermissionCodes.OrgBranchCreate)]
         public async Task<ActionResult<Guid>> Create([FromBody] CreateBranchCommand command)
         {
             try
@@ -66,6 +73,7 @@ namespace HrmApi.WebApi.Controllers
         /// Cập nhật chi nhánh (Phương thức POST)
         /// </summary>
         [HttpPost("update")]
+        [RequirePermission(PermissionCodes.OrgBranchUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateBranchCommand command)
         {
             try
@@ -84,6 +92,7 @@ namespace HrmApi.WebApi.Controllers
         /// Kích hoạt chi nhánh (Phương thức POST, sets IsDeleted = false)
         /// </summary>
         [HttpPost("activate")]
+        [RequirePermission(PermissionCodes.OrgBranchActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivateBranchCommand command)
         {
             var result = await _mediator.Send(command);
@@ -95,6 +104,7 @@ namespace HrmApi.WebApi.Controllers
         /// Vô hiệu hóa/Ngừng hoạt động chi nhánh (Phương thức POST, sets IsDeleted = true)
         /// </summary>
         [HttpPost("deactivate")]
+        [RequirePermission(PermissionCodes.OrgBranchDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivateBranchCommand command)
         {
             var result = await _mediator.Send(command);
@@ -106,6 +116,7 @@ namespace HrmApi.WebApi.Controllers
         /// Lấy dữ liệu rút gọn phục vụ chọn lựa SelectBox (Phương thức POST)
         /// </summary>
         [HttpPost("select-box")]
+        [RequirePermission(PermissionCodes.OrgBranchView)]
         public async Task<ActionResult<List<BranchSelectBoxDto>>> GetSelectBox([FromBody] GetBranchSelectBoxQuery query)
         {
             var result = await _mediator.Send(query);
@@ -117,6 +128,7 @@ namespace HrmApi.WebApi.Controllers
         /// Tải file mẫu Excel import chi nhánh
         /// </summary>
         [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OrgBranchImportExcel)]
         public async Task<IActionResult> DownloadExcelTemplate()
         {
             var content = await _mediator.Send(new DownloadBranchExcelTemplateQuery());
@@ -127,6 +139,7 @@ namespace HrmApi.WebApi.Controllers
         /// Xuất danh sách chi nhánh ra Excel
         /// </summary>
         [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OrgBranchExportExcel)]
         public async Task<IActionResult> ExportExcel([FromBody] ExportBranchesExcelQuery query)
         {
             var content = await _mediator.Send(query);
@@ -138,6 +151,7 @@ namespace HrmApi.WebApi.Controllers
         /// Import danh sách chi nhánh từ Excel
         /// </summary>
         [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OrgBranchImportExcel)]
         public async Task<ActionResult<BranchImportResultDto>> ImportExcel(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -158,6 +172,7 @@ namespace HrmApi.WebApi.Controllers
         /// Load chi nhánh theo id công ty (dùng cho cascade dropdown).
         /// </summary>
         [HttpPost("load-by-company")]
+        [RequirePermission(PermissionCodes.OrgBranchView)]
         public async Task<ActionResult<List<BranchSelectBoxDto>>> GetByCompany(
             [FromBody] GetBranchesByCompanyQuery query)
         {

@@ -14,8 +14,9 @@ namespace HrmApi.WebApi.Controllers
             IApplicationDbContext context,
             IPasswordHasher<UserEntity> passwordHasher,
             IConfiguration configuration,
-            IEmailService emailService)
-            : base(context, passwordHasher, configuration, emailService)
+            IEmailService emailService,
+            IAuthContextService authContext)
+            : base(context, passwordHasher, configuration, emailService, authContext)
         {
         }
     }

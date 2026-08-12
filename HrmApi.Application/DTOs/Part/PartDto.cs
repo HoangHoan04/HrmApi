@@ -14,6 +14,7 @@
         public Guid? DepartmentId { get; set; }
         public string? DepartmentName { get; set; }
         public Guid? ManagerId { get; set; }
+        public string? ManagerName { get; set; }
         public int? Limit { get; set; }
         public bool IsActive { get; set; } = true;
         public int DisplayOrder { get; set; }
