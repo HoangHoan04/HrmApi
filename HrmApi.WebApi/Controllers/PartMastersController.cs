@@ -158,7 +158,7 @@ namespace HrmApi.WebApi.Controllers
         /// <summary>
         /// Load mẫu bộ phận theo công ty/chi nhánh (dùng cho cascade dropdown).
         /// </summary>
-        [HttpPost("by-scope")]
+        [HttpPost("load-by-scope")]
         public async Task<ActionResult<List<PartMasterSelectBoxDto>>> GetByScope(
             [FromBody] GetPartMastersByScopeQuery query)
         {

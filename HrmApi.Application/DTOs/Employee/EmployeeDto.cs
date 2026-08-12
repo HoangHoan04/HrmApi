@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-
-namespace HrmApi.Application.DTOs
+namespace HrmApi.Application.DTOs.Employee
 {
     public class EmployeeDto : BaseDto
     {
@@ -9,6 +6,8 @@ namespace HrmApi.Application.DTOs
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? FullName { get; set; }
+        public string? Gender { get; set; }
+        public string? AvatarUrl { get; set; }
         public string Phone { get; set; } = string.Empty;
         public string? SecondaryPhone { get; set; }
         public string Email { get; set; } = string.Empty;
@@ -113,5 +112,12 @@ namespace HrmApi.Application.DTOs
         public string? DecisionNumber { get; set; }
         public string? ApprovedBy { get; set; }
         public string? Note { get; set; }
+    }
+
+    public class EmployeeSelectBoxDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
     }
 }

@@ -17,7 +17,6 @@ namespace HrmApi.Infrastructure.Persistence
         {
         }
 
-        /* Organization */
         public DbSet<CompanyEntity> CompanyEntities { get; set; }
         public DbSet<BranchEntity> BranchEntities { get; set; }
         public DbSet<DepartmentEntity> DepartmentEntities { get; set; }
@@ -26,7 +25,6 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<PositionEntity> PositionEntities { get; set; }
         public DbSet<PositionMasterEntity> PositionMasterEntities { get; set; }
 
-        /* Employee */
         public DbSet<EmployeeEntity> EmployeeEntities { get; set; }
         public DbSet<EmployeeDependentEntity> EmployeeDependentEntities { get; set; }
         public DbSet<EmployeeEducationEntity> EmployeeEducationEntities { get; set; }
@@ -34,16 +32,13 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<EmployeeFileEntity> EmployeeFileEntities { get; set; }
         public DbSet<EmployeeSalaryHistoryEntity> EmployeeSalaryHistoryEntities { get; set; }
 
-        /* Employee Movement */
         public DbSet<TransferEmployeeEntity> TransferEmployeeEntities { get; set; }
         public DbSet<TransferEmployeePositionEntity> TransferEmployeePositionEntities { get; set; }
 
-        /* Contract */
         public DbSet<ContractTypeEntity> ContractTypeEntities { get; set; }
         public DbSet<ContractEntity> ContractEntities { get; set; }
         public DbSet<ReviewRenewalEntity> ReviewRenewalEntities { get; set; }
 
-        /* Timekeeping */
         public DbSet<TimeKeepingStandardEntity> TimeKeepingStandardEntities { get; set; }
         public DbSet<ShiftMasterEntity> ShiftMasterEntities { get; set; }
         public DbSet<ShiftEntity> ShiftEntities { get; set; }
@@ -51,13 +46,11 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<TimekeepingEntity> TimekeepingEntities { get; set; }
         public DbSet<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; set; }
 
-        /* Leave */
         public DbSet<DayOffConfigEntity> DayOffConfigEntities { get; set; }
         public DbSet<DayOffConfigEmployeeEntity> DayOffConfigEmployeeEntities { get; set; }
         public DbSet<PublicHolidayEntity> PublicHolidayEntities { get; set; }
         public DbSet<RegisterDayOffEntity> RegisterDayOffEntities { get; set; }
 
-        /* User - Permission - Role */
         public DbSet<UserEntity> UserEntities { get; set; }
         public DbSet<RoleEntity> RoleEntities { get; set; }
         public DbSet<PermissionEntity> PermissionEntities { get; set; }
@@ -93,7 +86,6 @@ namespace HrmApi.Infrastructure.Persistence
                     .HasForeignKey(c => c.ParentId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Chuẩn mặc định của công ty (FK trên Company)
                 _ = entity.HasOne(c => c.TimeKeepingStandard)
                     .WithMany()
                     .HasForeignKey(c => c.TimeKeepingStandardId)
@@ -309,7 +301,6 @@ namespace HrmApi.Infrastructure.Persistence
         {
             _ = modelBuilder.Entity<TransferEmployeeEntity>(entity =>
             {
-                // Đơn/quyết định điều chuyển thuộc về 1 nhân viên — xóa nhân viên thì xóa luôn lịch sử điều chuyển.
                 _ = entity.HasOne(t => t.Employee)
                     .WithMany(e => e.TransferEmployees)
                     .HasForeignKey(t => t.EmployeeId)
@@ -320,13 +311,11 @@ namespace HrmApi.Infrastructure.Persistence
 
             _ = modelBuilder.Entity<TransferEmployeePositionEntity>(entity =>
             {
-                // Chi tiết thay đổi là con của đơn điều chuyển — xóa đơn thì xóa luôn chi tiết.
                 _ = entity.HasOne(d => d.TransferEmployee)
                     .WithMany(t => t.TransferDetails)
                     .HasForeignKey(d => d.TransferEmployeeId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Denormalize EmployeeId để truy vấn nhanh, không cascade theo Employee (đã cascade qua TransferEmployee).
                 _ = entity.HasOne(d => d.Employee)
                     .WithMany(e => e.TransferEmployeePositions)
                     .HasForeignKey(d => d.EmployeeId)
@@ -390,7 +379,6 @@ namespace HrmApi.Infrastructure.Persistence
         {
             _ = modelBuilder.Entity<ContractTypeEntity>(entity =>
             {
-                // CompanyEntity chưa có collection riêng cho ContractType nên dùng WithMany() ẩn danh.
                 _ = entity.HasOne(t => t.Company)
                     .WithMany()
                     .HasForeignKey(t => t.CompanyId)
@@ -401,7 +389,6 @@ namespace HrmApi.Infrastructure.Persistence
 
             _ = modelBuilder.Entity<ContractEntity>(entity =>
             {
-                // Hợp đồng thuộc về 1 nhân viên — xóa nhân viên thì xóa luôn hồ sơ hợp đồng.
                 _ = entity.HasOne(c => c.Employee)
                     .WithMany(e => e.Contracts)
                     .HasForeignKey(c => c.EmployeeId)
@@ -432,7 +419,6 @@ namespace HrmApi.Infrastructure.Persistence
                     .HasForeignKey(c => c.PositionId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Self-reference: hợp đồng tái ký/gia hạn trỏ về hợp đồng trước đó.
                 _ = entity.HasOne(c => c.PreviousContract)
                     .WithMany(c => c.RenewedContracts)
                     .HasForeignKey(c => c.PreviousContractId)
@@ -445,13 +431,11 @@ namespace HrmApi.Infrastructure.Persistence
 
             _ = modelBuilder.Entity<ReviewRenewalEntity>(entity =>
             {
-                // Đợt đánh giá/gia hạn là con của hợp đồng — xóa hợp đồng thì xóa luôn lịch sử đánh giá.
                 _ = entity.HasOne(r => r.Contract)
                     .WithMany(c => c.ReviewRenewals)
                     .HasForeignKey(r => r.ContractId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // Denormalize EmployeeId để truy vấn nhanh, không cascade theo Employee (đã cascade qua Contract).
                 _ = entity.HasOne(r => r.Employee)
                     .WithMany()
                     .HasForeignKey(r => r.EmployeeId)
@@ -462,7 +446,6 @@ namespace HrmApi.Infrastructure.Persistence
                     .HasForeignKey(r => r.ProposedContractTypeId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Hợp đồng mới sinh ra sau khi đề xuất được duyệt — không cascade để tránh xóa hợp đồng khi xóa đánh giá.
                 _ = entity.HasOne(r => r.NewContract)
                     .WithMany()
                     .HasForeignKey(r => r.NewContractId)
@@ -549,7 +532,6 @@ namespace HrmApi.Infrastructure.Persistence
         {
             _ = modelBuilder.Entity<TimeKeepingStandardEntity>(entity =>
             {
-                // Danh sách chuẩn thuộc công ty (FK trên TimeKeepingStandard)
                 _ = entity.HasOne(t => t.Company)
                     .WithMany(c => c.TimeKeepingStandardEntities)
                     .HasForeignKey(t => t.CompanyId)
@@ -722,7 +704,6 @@ namespace HrmApi.Infrastructure.Persistence
 
         private static void ConfigureAudit(ModelBuilder modelBuilder)
         {
-            // ActionLog lưu snapshot CreatedById/Code/Name — không tạo FK tới User để tránh ràng buộc cứng.
             _ = modelBuilder.Entity<ActionLogEntity>(entity =>
             {
                 _ = entity.HasIndex(x => x.CreatedById);

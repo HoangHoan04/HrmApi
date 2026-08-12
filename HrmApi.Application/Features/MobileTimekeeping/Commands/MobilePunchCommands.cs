@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Mappings;
@@ -36,7 +37,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
         {
             var employeeId = await ResolveEmployeeIdAsync(cancellationToken);
             var employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = BusinessDateHelper.Today();
 
             if (await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken))
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");
@@ -127,7 +128,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
         {
             var employeeId = await ResolveEmployeeIdAsync(cancellationToken);
             var employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = BusinessDateHelper.Today();
 
             if (await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken))
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");

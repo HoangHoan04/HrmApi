@@ -213,8 +213,8 @@ namespace HrmApi.Application.Common.Services
                 return;
             }
 
-            DateTime expectedStart = record.WorkDate.ToDateTime(TimeOnly.FromTimeSpan(window.StartTime), DateTimeKind.Utc);
-            DateTime expectedEnd = record.WorkDate.ToDateTime(TimeOnly.FromTimeSpan(window.EndTime), DateTimeKind.Utc);
+            DateTime expectedStart = BusinessDateHelper.ToUtc(record.WorkDate, window.StartTime);
+            DateTime expectedEnd = BusinessDateHelper.ToUtc(record.WorkDate, window.EndTime);
             if (window.IsOvernight || window.EndTime < window.StartTime)
             {
                 expectedEnd = expectedEnd.AddDays(1);
@@ -252,7 +252,6 @@ namespace HrmApi.Application.Common.Services
             else
             {
                 record.WorkedMinutes = 0;
-                // Có check-in nhưng chưa check-out: đánh LATE nếu trễ, còn lại INCOMPLETE
                 record.Status = record.LateMinutes > 0 ? AttendanceStatus.LATE : AttendanceStatus.INCOMPLETE;
             }
         }

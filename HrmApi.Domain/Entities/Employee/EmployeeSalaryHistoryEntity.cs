@@ -58,7 +58,6 @@ namespace HrmApi.Domain.Entities.Employee
         /// </summary>
         public string? Note { get; set; }
 
-        /* Navigation Relations */
         /// <summary>
         /// Navigation property tới nhân viên sở hữu lịch sử lương này
         /// </summary>

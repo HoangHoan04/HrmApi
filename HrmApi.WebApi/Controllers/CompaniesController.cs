@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
 using HrmApi.Application.DTOs.Company;
 using HrmApi.Application.Features.Companies.Commands;
 using HrmApi.Application.Features.Companies.Queries;

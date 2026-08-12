@@ -48,5 +48,12 @@ namespace HrmApi.WebApi.Controllers
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
+
+        [HttpPost("balance")]
+        public async Task<ActionResult<MobileLeaveBalanceDto>> Balance([FromBody] GetMyLeaveBalanceQuery? query)
+        {
+            try { return Ok(await _mediator.Send(query ?? new GetMyLeaveBalanceQuery())); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
     }
 }

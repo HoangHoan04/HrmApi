@@ -7,7 +7,6 @@ namespace HrmApi.Domain.Entities.Contract
     /// <summary>
     /// Hợp đồng lao động của nhân viên (thử việc, chính thức, thời vụ,...).
     /// Mỗi lần ký mới/tái ký/gia hạn hợp đồng sẽ tạo một bản ghi riêng, liên kết tới hợp đồng trước đó
-    /// qua <see cref="PreviousContractId"/> để truy vết toàn bộ lịch sử hợp đồng của nhân viên.
     /// </summary>
     public class ContractEntity : BaseEntity
     {
@@ -142,7 +141,6 @@ namespace HrmApi.Domain.Entities.Contract
         /// </summary>
         public string? Note { get; set; }
 
-        /* Navigation Relations */
 
         /// <summary>
         /// Navigation property tới nhân viên sở hữu hợp đồng này

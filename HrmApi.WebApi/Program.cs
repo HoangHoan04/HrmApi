@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using HrmApi.Application;
 using HrmApi.Infrastructure;
 using HrmApi.Infrastructure.Persistence;
@@ -38,7 +39,12 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 104857600;
 });
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

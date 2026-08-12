@@ -96,7 +96,6 @@ namespace HrmApi.Domain.Entities.Contract
         /// </summary>
         public string? Note { get; set; }
 
-        /* Navigation Relations */
 
         /// <summary>
         /// Navigation property tới hợp đồng đang được đánh giá/gia hạn

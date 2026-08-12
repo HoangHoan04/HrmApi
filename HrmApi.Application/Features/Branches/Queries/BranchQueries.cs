@@ -236,9 +236,6 @@ namespace HrmApi.Application.Features.Branches.Queries
     #endregion
 
     #region Cascade Query
-    /// <summary>
-    /// Load chi nhánh theo công ty (bắt buộc companyId).
-    /// </summary>
     public class GetBranchesByCompanyQuery : IRequest<List<BranchSelectBoxDto>>
     {
         public Guid CompanyId { get; set; }

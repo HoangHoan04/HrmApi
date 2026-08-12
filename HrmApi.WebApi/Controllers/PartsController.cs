@@ -158,7 +158,7 @@ namespace HrmApi.WebApi.Controllers
         /// <summary>
         /// Load bộ phận/tổ theo id phòng ban (dùng cho cascade dropdown).
         /// </summary>
-        [HttpPost("by-department")]
+        [HttpPost("load-by-department")]
         public async Task<ActionResult<List<PartSelectBoxDto>>> GetByDepartment(
             [FromBody] GetPartsByDepartmentQuery query)
         {

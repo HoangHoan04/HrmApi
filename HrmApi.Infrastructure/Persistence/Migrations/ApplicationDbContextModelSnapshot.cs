@@ -555,6 +555,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("BankAccountHolder")
                         .HasColumnType("text");
 

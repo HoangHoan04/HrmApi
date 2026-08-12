@@ -42,9 +42,9 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
             if (request.CheckOutAt.HasValue) entity.CheckOutAt = request.CheckOutAt;
             if (request.Note != null) entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
-            if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<HrmApi.Domain.Enums.AttendanceStatus>(request.Status, true, out var parsedStatus))
+            if (request.Status.HasValue)
             {
-                entity.Status = parsedStatus;
+                entity.Status = request.Status.Value;
             }
             else
             {
@@ -102,7 +102,6 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
             var from = new DateOnly(request.Year, request.Month, 1);
             var to = from.AddMonths(1).AddDays(-1);
 
-            // Employees with schedule or timekeeping in month (heuristic)
             var scheduleEmpIds = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                 .Select(x => x.EmployeeId)
@@ -155,7 +154,6 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                     .FirstOrDefaultAsync(x => x.Id == employeeId && !x.IsDeleted, cancellationToken);
                 if (employee == null) continue;
 
-                // Mark missing scheduled workdays as ABSENT
                 var scheduleDates = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
                     .Where(x => x.EmployeeId == employeeId && !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                     .Select(x => x.WorkDate)

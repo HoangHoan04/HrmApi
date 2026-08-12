@@ -1,3 +1,4 @@
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Mappings;
@@ -31,7 +32,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
         {
             Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
             EmployeeEntity employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
-            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+            DateOnly today = BusinessDateHelper.Today();
 
             bool onLeave = await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken);
             WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
@@ -91,11 +92,16 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly IAttendanceRuleService _rules;
 
-        public GetMobileMonthQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        public GetMobileMonthQueryHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IAttendanceRuleService rules)
         {
             _context = context;
             _currentUser = currentUser;
+            _rules = rules;
         }
 
         public async Task<MobileMonthDto> Handle(GetMobileMonthQuery request, CancellationToken cancellationToken)
@@ -106,6 +112,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             }
 
             Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
+            EmployeeEntity employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
             DateOnly from = new(request.Year, request.Month, 1);
             DateOnly to = from.AddMonths(1).AddDays(-1);
 
@@ -116,19 +123,105 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
 
             List<MobileMonthDayDto> days = records.Select(TimekeepingMapper.ToMonthDayDto).ToList();
 
+            WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, from, cancellationToken);
+            int dailyExpectedMinutes = await ResolveDailyExpectedMinutesAsync(window, cancellationToken);
+            int expectedWorkingDays = await ResolveExpectedWorkingDaysAsync(employeeId, from, to, cancellationToken);
+            int expectedWorkedMinutes = Math.Max(0, dailyExpectedMinutes) * Math.Max(0, expectedWorkingDays);
+
             return new MobileMonthDto
             {
                 Year = request.Year,
                 Month = request.Month,
                 Days = days,
-                OnTimeDays = days.Count(d => d.Status == AttendanceStatus.ON_TIME.ToString()),
-                LateDays = days.Count(d => d.Status == AttendanceStatus.LATE.ToString()),
-                EarlyDays = days.Count(d => d.Status == AttendanceStatus.EARLY.ToString()),
-                LeaveDays = days.Count(d => d.Status == AttendanceStatus.LEAVE.ToString()),
-                AbsentDays = days.Count(d => d.Status == AttendanceStatus.ABSENT.ToString()),
-                IncompleteDays = days.Count(d => d.Status == AttendanceStatus.INCOMPLETE.ToString()),
-                TotalWorkedMinutes = days.Sum(d => d.WorkedMinutes)
+                OnTimeDays = days.Count(d => d.Status == AttendanceStatus.ON_TIME),
+                LateDays = days.Count(d => d.Status == AttendanceStatus.LATE),
+                EarlyDays = days.Count(d => d.Status == AttendanceStatus.EARLY),
+                LeaveDays = days.Count(d => d.Status == AttendanceStatus.LEAVE),
+                AbsentDays = days.Count(d => d.Status == AttendanceStatus.ABSENT),
+                IncompleteDays = days.Count(d => d.Status == AttendanceStatus.INCOMPLETE),
+                TotalWorkedMinutes = days.Sum(d => d.WorkedMinutes),
+                ExpectedWorkingDays = expectedWorkingDays,
+                DailyExpectedMinutes = dailyExpectedMinutes,
+                ExpectedWorkedMinutes = expectedWorkedMinutes,
             };
+        }
+
+        private async Task<int> ResolveDailyExpectedMinutesAsync(
+            WorkWindowResult window,
+            CancellationToken cancellationToken)
+        {
+            int breakMinutes = 0;
+            int configuredWorkingMinutes = 0;
+
+            if (window.ShiftMasterId.HasValue)
+            {
+                var master = await _context.ShiftMasterEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == window.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
+                if (master != null)
+                {
+                    breakMinutes = Math.Max(0, master.BreakMinutes);
+                    configuredWorkingMinutes = Math.Max(0, master.WorkingMinutes);
+                }
+            }
+            else if (window.ShiftId.HasValue)
+            {
+                var shift = await _context.ShiftEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == window.ShiftId.Value && !x.IsDeleted, cancellationToken);
+                if (shift?.ShiftMasterId is Guid masterId)
+                {
+                    var master = await _context.ShiftMasterEntities.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.Id == masterId && !x.IsDeleted, cancellationToken);
+                    if (master != null)
+                    {
+                        breakMinutes = Math.Max(0, master.BreakMinutes);
+                        configuredWorkingMinutes = Math.Max(0, master.WorkingMinutes);
+                    }
+                }
+            }
+
+            if (configuredWorkingMinutes > 0)
+            {
+                return configuredWorkingMinutes;
+            }
+
+            TimeSpan span = window.IsOvernight || window.EndTime < window.StartTime
+                ? window.EndTime.Add(TimeSpan.FromDays(1)) - window.StartTime
+                : window.EndTime - window.StartTime;
+
+            return Math.Max(0, (int)Math.Round(span.TotalMinutes) - breakMinutes);
+        }
+
+        private async Task<int> ResolveExpectedWorkingDaysAsync(
+            Guid employeeId,
+            DateOnly from,
+            DateOnly to,
+            CancellationToken cancellationToken)
+        {
+            int scheduledDays = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+                .Where(x =>
+                    x.EmployeeId == employeeId
+                    && !x.IsDeleted
+                    && x.WorkDate >= from
+                    && x.WorkDate <= to)
+                .Select(x => x.WorkDate)
+                .Distinct()
+                .CountAsync(cancellationToken);
+
+            if (scheduledDays > 0)
+            {
+                return scheduledDays;
+            }
+
+            int weekdays = 0;
+            for (DateOnly d = from; d <= to; d = d.AddDays(1))
+            {
+                DayOfWeek dow = d.DayOfWeek;
+                if (dow != DayOfWeek.Saturday && dow != DayOfWeek.Sunday)
+                {
+                    weekdays++;
+                }
+            }
+            return weekdays;
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)

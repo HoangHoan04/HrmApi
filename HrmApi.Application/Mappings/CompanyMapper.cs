@@ -1,4 +1,4 @@
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Company;
 using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Application.Mappings

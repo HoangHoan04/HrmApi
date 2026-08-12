@@ -12,9 +12,6 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
 {
     public class CreateRegisterDayOffCommand : CreateRegisterDayOffRequest, IRequest<Guid>
     {
-        /// <summary>
-        /// Admin có thể chỉ định EmployeeId; Mobile bỏ trống để lấy từ JWT.
-        /// </summary>
         public Guid? EmployeeId { get; set; }
     }
 
@@ -59,14 +56,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 throw new InvalidOperationException("Không tìm thấy nhân viên.");
             }
 
-            HrmApi.Domain.Enums.DayOffType dayOffType = HrmApi.Domain.Enums.DayOffType.ANNUAL;
-            if (!string.IsNullOrWhiteSpace(request.DayOffType))
-            {
-                if (Enum.TryParse<HrmApi.Domain.Enums.DayOffType>(request.DayOffType, true, out DayOffType parsedType))
-                {
-                    dayOffType = parsedType;
-                }
-            }
+            DayOffType dayOffType = request.DayOffType ?? DayOffType.ANNUAL;
 
             if (request.DayOffConfigId.HasValue)
             {
@@ -187,18 +177,24 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
 
             object oldValue = RegisterDayOffMapper.ToLogObject(entity);
             entity.Status = DayOffStatus.APPROVED;
-            entity.ApproverId = _currentUser.UserId;
+            entity.ApproverId = await ResolveApproverEmployeeIdAsync(cancellationToken);
             entity.ApprovedAt = DateTime.UtcNow;
             entity.ApproverNote = string.IsNullOrWhiteSpace(request.ApproverNote) ? null : request.ApproverNote.Trim();
             entity.UpdatedAt = DateTime.UtcNow;
 
-            // Mark overlapping timekeeping days as LEAVE
+            EmployeeEntity employee = await _rules.ResolveEmployeeAsync(entity.EmployeeId, cancellationToken);
+
             for (DateOnly d = entity.FromDate; d <= entity.ToDate; d = d.AddDays(1))
             {
+                // Include soft-deleted to avoid unique (EmployeeId, WorkDate) violation
                 TimekeepingEntity? tk = await _context.TimekeepingEntities
-                    .FirstOrDefaultAsync(x => x.EmployeeId == entity.EmployeeId && x.WorkDate == d && !x.IsDeleted, cancellationToken);
+                    .FirstOrDefaultAsync(
+                        x => x.EmployeeId == entity.EmployeeId && x.WorkDate == d,
+                        cancellationToken);
+
                 if (tk != null)
                 {
+                    tk.IsDeleted = false;
                     if (!tk.CheckInAt.HasValue || tk.IsManualAdjusted == false)
                     {
                         tk.Status = AttendanceStatus.LEAVE;
@@ -207,9 +203,8 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 }
                 else
                 {
-                    EmployeeEntity employee = await _rules.ResolveEmployeeAsync(entity.EmployeeId, cancellationToken);
                     WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, d, cancellationToken);
-                    _ = _context.TimekeepingEntities.Add(new Domain.Entities.Timekeeping.TimekeepingEntity
+                    _ = _context.TimekeepingEntities.Add(new TimekeepingEntity
                     {
                         EmployeeId = entity.EmployeeId,
                         CompanyId = entity.CompanyId ?? employee.CompanyId,
@@ -235,6 +230,34 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 "Duyệt đơn nghỉ phép");
 
             return true;
+        }
+
+        private async Task<Guid?> ResolveApproverEmployeeIdAsync(CancellationToken cancellationToken)
+        {
+            // ApproverId FK → EmployeeEntity (không phải UserId)
+            if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
+                bool exists = await _context.EmployeeEntities.AsNoTracking()
+                    .AnyAsync(x => x.Id == _currentUser.EmployeeId.Value && !x.IsDeleted, cancellationToken);
+                if (exists)
+                {
+                    return _currentUser.EmployeeId.Value;
+                }
+            }
+
+            if (_currentUser.UserId.HasValue)
+            {
+                Guid? empId = await _context.UserEntities.AsNoTracking()
+                    .Where(x => x.Id == _currentUser.UserId.Value)
+                    .Select(x => x.EmployeeId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId;
+                }
+            }
+
+            return null;
         }
     }
 
@@ -276,7 +299,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
 
             object oldValue = RegisterDayOffMapper.ToLogObject(entity);
             entity.Status = DayOffStatus.REJECTED;
-            entity.ApproverId = _currentUser.UserId;
+            entity.ApproverId = await ResolveApproverEmployeeIdAsync(cancellationToken);
             entity.ApprovedAt = DateTime.UtcNow;
             entity.ApproverNote = string.IsNullOrWhiteSpace(request.ApproverNote) ? null : request.ApproverNote.Trim();
             entity.UpdatedAt = DateTime.UtcNow;
@@ -291,6 +314,33 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 "Từ chối đơn nghỉ phép");
 
             return true;
+        }
+
+        private async Task<Guid?> ResolveApproverEmployeeIdAsync(CancellationToken cancellationToken)
+        {
+            if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
+                bool exists = await _context.EmployeeEntities.AsNoTracking()
+                    .AnyAsync(x => x.Id == _currentUser.EmployeeId.Value && !x.IsDeleted, cancellationToken);
+                if (exists)
+                {
+                    return _currentUser.EmployeeId.Value;
+                }
+            }
+
+            if (_currentUser.UserId.HasValue)
+            {
+                Guid? empId = await _context.UserEntities.AsNoTracking()
+                    .Where(x => x.Id == _currentUser.UserId.Value)
+                    .Select(x => x.EmployeeId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId;
+                }
+            }
+
+            return null;
         }
     }
 

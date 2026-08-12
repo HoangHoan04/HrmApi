@@ -1,4 +1,4 @@
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Employee;
 using HrmApi.Domain.Entities.Employee;
 
 namespace HrmApi.Application.Mappings
@@ -14,6 +14,8 @@ namespace HrmApi.Application.Mappings
                 FirstName = entity.FirstName,
                 LastName = entity.LastName,
                 FullName = entity.FullName,
+                Gender = entity.Gender,
+                AvatarUrl = entity.AvatarUrl,
                 Phone = entity.Phone,
                 SecondaryPhone = entity.SecondaryPhone,
                 Email = entity.Email,
@@ -97,6 +99,8 @@ namespace HrmApi.Application.Mappings
             entity.FirstName = fields.FirstName.Trim();
             entity.LastName = fields.LastName.Trim();
             entity.FullName = BuildFullName(fields.FirstName, fields.LastName, fields.FullName);
+            entity.Gender = TrimOrNull(fields.Gender);
+            entity.AvatarUrl = TrimOrNull(fields.AvatarUrl);
             entity.Phone = fields.Phone.Trim();
             entity.SecondaryPhone = TrimOrNull(fields.SecondaryPhone);
             entity.Email = fields.Email.Trim();
@@ -141,6 +145,8 @@ namespace HrmApi.Application.Mappings
                 entity.FirstName,
                 entity.LastName,
                 entity.FullName,
+                entity.Gender,
+                entity.AvatarUrl,
                 entity.Phone,
                 entity.SecondaryPhone,
                 entity.Email,
@@ -298,6 +304,8 @@ namespace HrmApi.Application.Mappings
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? FullName { get; set; }
+        public string? Gender { get; set; }
+        public string? AvatarUrl { get; set; }
         public string Phone { get; set; } = string.Empty;
         public string? SecondaryPhone { get; set; }
         public string Email { get; set; } = string.Empty;

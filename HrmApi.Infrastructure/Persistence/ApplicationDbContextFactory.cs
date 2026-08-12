@@ -5,9 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HrmApi.Infrastructure.Persistence
 {
-    /// <summary>
-    /// Used by `dotnet ef` commands. Ensures the target database exists (UTF8) before migrations run.
-    /// </summary>
+
     public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
     {
         public ApplicationDbContext CreateDbContext(string[] args)

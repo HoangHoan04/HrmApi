@@ -1,16 +1,18 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Auth;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Permission;
+using HrmApi.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace HrmApi.WebApi.Controllers
 {
@@ -45,41 +47,174 @@ namespace HrmApi.WebApi.Controllers
             }
 
             UserEntity? user = await _context.UserEntities
-                .Include(u => u.Employee)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
             if (user == null)
             {
                 return NotFound("Người dùng không tồn tại.");
             }
 
-            EmployeeEntity? employee = user.Employee;
-
-            return Ok(new
+            EmployeeEntity? employee = null;
+            if (user.EmployeeId.HasValue && user.EmployeeId != Guid.Empty)
             {
-                user.Id,
-                user.Username,
-                Email = user.Email ?? $"{user.Username}@hrm.com",
-                user.PhoneNumber,
-                user.Type,
-                user.CompanyId,
-                user.BranchId,
-                user.EmployeeId,
-                Employee = employee != null && !employee.IsDeleted ? new
+                employee = await _context.EmployeeEntities
+                    .AsNoTracking()
+                    .Include(e => e.Company)
+                    .Include(e => e.Branch)
+                    .Include(e => e.Department)
+                    .Include(e => e.Part)
+                    .Include(e => e.Position)
+                        .ThenInclude(p => p!.PositionMaster)
+                    .FirstOrDefaultAsync(e => e.Id == user.EmployeeId.Value && !e.IsDeleted);
+            }
+
+            Guid? companyId = employee?.CompanyId ?? user.CompanyId;
+            Guid? branchId = employee?.BranchId ?? user.BranchId;
+
+            string? companyName = employee?.Company?.Name;
+            if (string.IsNullOrWhiteSpace(companyName) && companyId.HasValue)
+            {
+                companyName = await _context.CompanyEntities.AsNoTracking()
+                    .Where(x => x.Id == companyId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync();
+            }
+
+            string? branchName = employee?.Branch?.Name;
+            if (string.IsNullOrWhiteSpace(branchName) && branchId.HasValue)
+            {
+                branchName = await _context.BranchEntities.AsNoTracking()
+                    .Where(x => x.Id == branchId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync();
+            }
+
+            string? departmentName = employee?.Department?.Name;
+            string? partName = employee?.Part?.Name;
+            string? positionName = employee?.Position?.PositionMaster?.Name;
+
+            string? fullName = employee?.FullName;
+            if (string.IsNullOrWhiteSpace(fullName) && employee != null)
+            {
+                fullName = $"{employee.LastName} {employee.FirstName}".Trim();
+            }
+
+            string? address = employee?.NowAddress;
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                address = employee?.PermanentAddress;
+            }
+
+            var businessToday = BusinessDateHelper.Today();
+            int year = businessToday.Year;
+            int month = businessToday.Month;
+
+            int? workDaysThisMonth = null;
+            int? onTimeDays = null;
+            int? lateDays = null;
+            int? absentDays = null;
+            int? leaveDaysThisMonth = null;
+            if (employee != null)
+            {
+                var summary = await _context.TimekeepingSummaryEntities.AsNoTracking()
+                    .Where(x => x.EmployeeId == employee.Id && !x.IsDeleted && x.Year == year && x.Month == month)
+                    .Select(x => new
+                    {
+                        x.OnTimeDays,
+                        x.LateDays,
+                        x.EarlyDays,
+                        x.AbsentDays,
+                        x.LeaveDays
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (summary != null)
                 {
-                    employee.Id,
-                    employee.Code,
-                    employee.FirstName,
-                    employee.LastName,
-                    employee.FullName,
-                    employee.Gender,
-                    employee.Phone,
-                    employee.Email,
-                    employee.CompanyEmail,
-                    employee.DayOfBirth,
-                    employee.BankAccountNumber,
-                    employee.BankName
-                } : null
-            });
+                    workDaysThisMonth = summary.OnTimeDays + summary.LateDays + summary.EarlyDays;
+                    onTimeDays = summary.OnTimeDays;
+                    lateDays = summary.LateDays;
+                    absentDays = summary.AbsentDays;
+                    leaveDaysThisMonth = summary.LeaveDays;
+                }
+                else
+                {
+                    DateOnly from = new(year, month, 1);
+                    DateOnly to = from.AddMonths(1).AddDays(-1);
+                    List<AttendanceStatus> statuses = await _context.TimekeepingEntities.AsNoTracking()
+                        .Where(x =>
+                            x.EmployeeId == employee.Id
+                            && !x.IsDeleted
+                            && x.WorkDate >= from
+                            && x.WorkDate <= to)
+                        .Select(x => x.Status)
+                        .ToListAsync();
+
+                    onTimeDays = statuses.Count(s => s == AttendanceStatus.ON_TIME);
+                    lateDays = statuses.Count(s => s == AttendanceStatus.LATE);
+                    absentDays = statuses.Count(s => s == AttendanceStatus.ABSENT);
+                    leaveDaysThisMonth = statuses.Count(s => s == AttendanceStatus.LEAVE);
+                    workDaysThisMonth = statuses.Count(s =>
+                        s == AttendanceStatus.ON_TIME
+                        || s == AttendanceStatus.LATE
+                        || s == AttendanceStatus.EARLY);
+                }
+            }
+
+            var profile = new MobileProfileDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = employee?.Email ?? user.Email ?? $"{user.Username}@hrm.com",
+                Phone = employee?.Phone ?? user.PhoneNumber,
+                PhoneNumber = user.PhoneNumber ?? employee?.Phone,
+                Type = user.Type ?? string.Empty,
+                EmployeeId = employee?.Id ?? user.EmployeeId,
+                EmployeeCode = employee?.Code,
+                FullName = fullName,
+                FirstName = employee?.FirstName,
+                LastName = employee?.LastName,
+                Gender = employee?.Gender,
+                AvatarUrl = employee?.AvatarUrl,
+                DateOfBirth = employee?.DayOfBirth == default ? null : employee!.DayOfBirth.ToString("dd/MM/yyyy"),
+                Address = address,
+                PermanentAddress = employee?.PermanentAddress,
+                CompanyEmail = employee?.CompanyEmail,
+                CompanyId = companyId,
+                CompanyName = companyName,
+                Company = companyName,
+                BranchId = branchId,
+                BranchName = branchName,
+                Branch = branchName,
+                DepartmentId = employee?.DepartmentId,
+                DepartmentName = departmentName,
+                Department = departmentName,
+                PartId = employee?.PartId,
+                PartName = partName,
+                Part = partName,
+                PositionId = employee?.PositionId,
+                PositionName = positionName,
+                Position = positionName,
+                JoinDate = employee == null || employee.JoinDate == default
+                    ? null
+                    : employee.JoinDate.ToString("dd/MM/yyyy"),
+                Status = employee?.Status,
+                Level = employee?.Level,
+                WorkingMode = employee?.WorkingMode,
+                ContractType = employee?.ContractType,
+                BankAccountNumber = employee?.BankAccountNumber,
+                BankName = employee?.BankName,
+                Stats = new MobileProfileStatsDto
+                {
+                    WorkDaysThisMonth = workDaysThisMonth,
+                    LeaveDaysRemaining = null,
+                    LeaveDaysThisMonth = leaveDaysThisMonth,
+                    OnTimeDays = onTimeDays,
+                    LateDays = lateDays,
+                    AbsentDays = absentDays,
+                }
+            };
+
+            return Ok(profile);
         }
 
         [HttpPost("login")]
@@ -370,6 +505,30 @@ namespace HrmApi.WebApi.Controllers
 
             user.Email = request.Email;
             user.PhoneNumber = request.PhoneNumber;
+
+            if (user.EmployeeId.HasValue && user.EmployeeId != Guid.Empty)
+            {
+                EmployeeEntity? employee = await _context.EmployeeEntities
+                    .FirstOrDefaultAsync(e => e.Id == user.EmployeeId.Value && !e.IsDeleted);
+                if (employee != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(request.Email))
+                    {
+                        employee.Email = request.Email.Trim();
+                    }
+                    if (!string.IsNullOrWhiteSpace(request.PhoneNumber))
+                    {
+                        employee.Phone = request.PhoneNumber.Trim();
+                    }
+                    if (request.AvatarUrl != null)
+                    {
+                        employee.AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl)
+                            ? null
+                            : request.AvatarUrl.Trim();
+                    }
+                    employee.UpdatedAt = DateTime.UtcNow;
+                }
+            }
 
             _ = await _context.SaveChangesAsync(default);
 

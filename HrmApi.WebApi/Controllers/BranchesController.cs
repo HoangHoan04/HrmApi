@@ -157,7 +157,7 @@ namespace HrmApi.WebApi.Controllers
         /// <summary>
         /// Load chi nhánh theo id công ty (dùng cho cascade dropdown).
         /// </summary>
-        [HttpPost("by-company")]
+        [HttpPost("load-by-company")]
         public async Task<ActionResult<List<BranchSelectBoxDto>>> GetByCompany(
             [FromBody] GetBranchesByCompanyQuery query)
         {

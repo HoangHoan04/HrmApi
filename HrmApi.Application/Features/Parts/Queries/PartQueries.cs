@@ -291,9 +291,6 @@ namespace HrmApi.Application.Features.Parts.Queries
     #endregion
 
     #region Cascade Query
-    /// <summary>
-    /// Load bộ phận (Part) theo phòng ban (bắt buộc departmentId).
-    /// </summary>
     public class GetPartsByDepartmentQuery : IRequest<List<PartSelectBoxDto>>
     {
         public Guid DepartmentId { get; set; }

@@ -213,9 +213,6 @@ namespace HrmApi.Application.Features.PartMasters.Queries
     #endregion
 
     #region Cascade Query
-    /// <summary>
-    /// Load mẫu bộ phận theo công ty/chi nhánh.
-    /// </summary>
     public class GetPartMastersByScopeQuery : IRequest<List<PartMasterSelectBoxDto>>
     {
         public Guid? CompanyId { get; set; }

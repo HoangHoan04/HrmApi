@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace HrmApi.Application.DTOs.Part
+﻿namespace HrmApi.Application.DTOs.Part
 {
     public class PartDto : BaseDto
     {
@@ -19,5 +17,14 @@ namespace HrmApi.Application.DTOs.Part
         public int? Limit { get; set; }
         public bool IsActive { get; set; } = true;
         public int DisplayOrder { get; set; }
+    }
+
+    public class PartSelectBoxDto
+    {
+        public Guid Id { get; set; }
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public Guid? PartMasterId { get; set; }
     }
 }

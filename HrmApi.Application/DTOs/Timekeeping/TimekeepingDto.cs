@@ -1,4 +1,5 @@
 using System;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.DTOs.Timekeeping
 {
@@ -22,7 +23,7 @@ namespace HrmApi.Application.DTOs.Timekeeping
         public double? CheckOutLongitude { get; set; }
         public double? CheckInDistanceM { get; set; }
         public double? CheckOutDistanceM { get; set; }
-        public string Status { get; set; } = "INCOMPLETE";
+        public AttendanceStatus Status { get; set; } = AttendanceStatus.INCOMPLETE;
         public int LateMinutes { get; set; }
         public int EarlyMinutes { get; set; }
         public int WorkedMinutes { get; set; }

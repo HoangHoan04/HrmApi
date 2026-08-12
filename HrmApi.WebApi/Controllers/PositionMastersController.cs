@@ -120,7 +120,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>Load mẫu chức danh theo công ty/chi nhánh (dùng cho cascade dropdown).</summary>
-        [HttpPost("by-scope")]
+        [HttpPost("load-by-scope")]
         public async Task<ActionResult<List<PositionMasterSelectBoxDto>>> GetByScope(
             [FromBody] GetPositionMastersByScopeQuery query)
         {

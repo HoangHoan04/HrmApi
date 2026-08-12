@@ -16,7 +16,7 @@ namespace HrmApi.Application.Mappings
                 Description = entity.Description,
                 CompanyId = entity.CompanyId,
                 CompanyName = companyName,
-                DayOffType = entity.DayOffType.ToString(),
+                DayOffType = entity.DayOffType,
                 DefaultDaysPerYear = entity.DefaultDaysPerYear,
                 IsPaid = entity.IsPaid,
                 IsActive = entity.IsActive,
@@ -39,12 +39,9 @@ namespace HrmApi.Application.Mappings
                 entity.CompanyId = fields.CompanyId;
             }
 
-            if (!string.IsNullOrWhiteSpace(fields.DayOffType))
+            if (fields.DayOffType.HasValue)
             {
-                if (System.Enum.TryParse<HrmApi.Domain.Enums.DayOffType>(fields.DayOffType, true, out DayOffType parsedType))
-                {
-                    entity.DayOffType = parsedType;
-                }
+                entity.DayOffType = fields.DayOffType.Value;
             }
             if (fields.DefaultDaysPerYear.HasValue)
             {
@@ -84,7 +81,7 @@ namespace HrmApi.Application.Mappings
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public Guid? CompanyId { get; set; }
-        public string? DayOffType { get; set; }
+        public DayOffType? DayOffType { get; set; }
         public decimal? DefaultDaysPerYear { get; set; }
         public bool? IsPaid { get; set; }
         public bool? IsActive { get; set; }

@@ -32,9 +32,6 @@ namespace HrmApi.Application.Common.Interfaces
 
         Task<AttendanceStandardResult> ResolveStandardAsync(Guid? branchId, Guid? companyId, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Validate geofence; trả về khoảng cách (mét). Ném InvalidOperationException nếu không hợp lệ.
-        /// </summary>
         double ValidateGeofence(double? branchLat, double? branchLng, double punchLat, double punchLng, int allowedRadiusMeters);
 
         Task<bool> HasApprovedLeaveAsync(Guid employeeId, DateOnly workDate, CancellationToken cancellationToken = default);

@@ -9,7 +9,7 @@ namespace HrmApi.Application.DTOs.DayOffConfig
         public string? Description { get; set; }
         public Guid? CompanyId { get; set; }
         public string? CompanyName { get; set; }
-        public string DayOffType { get; set; } = "ANNUAL";
+        public DayOffType DayOffType { get; set; } = DayOffType.ANNUAL;
         public decimal DefaultDaysPerYear { get; set; }
         public bool IsPaid { get; set; }
         public bool IsActive { get; set; }

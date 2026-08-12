@@ -188,9 +188,6 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
     }
 
     #region Cascade Query
-    /// <summary>
-    /// Load mẫu chức danh theo công ty/chi nhánh.
-    /// </summary>
     public class GetPositionMastersByScopeQuery : IRequest<List<PositionMasterSelectBoxDto>>
     {
         public Guid? CompanyId { get; set; }

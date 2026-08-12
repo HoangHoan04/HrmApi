@@ -257,9 +257,6 @@ namespace HrmApi.Application.Features.Departments.Queries
     #endregion
 
     #region Cascade Query
-    /// <summary>
-    /// Load phòng ban theo chi nhánh (bắt buộc branchId).
-    /// </summary>
     public class GetDepartmentsByBranchQuery : IRequest<List<DepartmentSelectBoxDto>>
     {
         public Guid BranchId { get; set; }

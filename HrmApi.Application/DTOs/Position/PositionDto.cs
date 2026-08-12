@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace HrmApi.Application.DTOs.Position
+﻿namespace HrmApi.Application.DTOs.Position
 {
     public class PositionDto : BaseDto
     {
@@ -17,5 +15,14 @@ namespace HrmApi.Application.DTOs.Position
         public int? QuantityStandard { get; set; }
         public bool IsActive { get; set; } = true;
         public int DisplayOrder { get; set; }
+    }
+
+    public class PositionSelectBoxDto
+    {
+        public Guid Id { get; set; }
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public Guid? PositionMasterId { get; set; }
+        public Guid? DepartmentId { get; set; }
     }
 }

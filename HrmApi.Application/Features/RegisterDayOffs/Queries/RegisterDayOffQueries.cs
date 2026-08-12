@@ -1,7 +1,9 @@
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.RegisterDayOff;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Enums;
 using MediatR;
@@ -14,8 +16,8 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
         public Guid? EmployeeId { get; set; }
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
-        public string? Status { get; set; }
-        public string? DayOffType { get; set; }
+        public DayOffStatus? Status { get; set; }
+        public DayOffType? DayOffType { get; set; }
         public DateOnly? FromDate { get; set; }
         public DateOnly? ToDate { get; set; }
         public bool? IsDeleted { get; set; }
@@ -50,14 +52,14 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 query = query.Where(x => x.BranchId == request.BranchId);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.Status) && System.Enum.TryParse<HrmApi.Domain.Enums.DayOffStatus>(request.Status, true, out DayOffStatus parsedStatus))
+            if (request.Status.HasValue)
             {
-                query = query.Where(x => x.Status == parsedStatus);
+                query = query.Where(x => x.Status == request.Status.Value);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.DayOffType) && System.Enum.TryParse<HrmApi.Domain.Enums.DayOffType>(request.DayOffType, true, out DayOffType parsedType))
+            if (request.DayOffType.HasValue)
             {
-                query = query.Where(x => x.DayOffType == parsedType);
+                query = query.Where(x => x.DayOffType == request.DayOffType.Value);
             }
 
             if (request.FromDate.HasValue)
@@ -195,7 +197,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
 
     public class GetMyRegisterDayOffsQuery : IRequest<List<RegisterDayOffDto>>
     {
-        public string? Status { get; set; }
+        public DayOffStatus? Status { get; set; }
         public int? Year { get; set; }
     }
 
@@ -217,10 +219,9 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             IQueryable<RegisterDayOffEntity> query = _context.RegisterDayOffEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == employeeId && !x.IsDeleted);
 
-            if (!string.IsNullOrWhiteSpace(request.Status)
-            && Enum.TryParse<HrmApi.Domain.Enums.DayOffStatus>(request.Status.Trim(), true, out DayOffStatus status))
+            if (request.Status.HasValue)
             {
-                query = query.Where(x => x.Status == status);
+                query = query.Where(x => x.Status == request.Status.Value);
             }
 
             if (request.Year.HasValue)
@@ -242,6 +243,129 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 string? configName = x.DayOffConfigId.HasValue && configs.TryGetValue(x.DayOffConfigId.Value, out string? cn) ? cn : null;
                 return RegisterDayOffMapper.ToDto(x, null, null, null, configName);
             }).ToList();
+        }
+
+        private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
+        {
+            if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
+                return _currentUser.EmployeeId.Value;
+            }
+
+            if (_currentUser.UserId.HasValue)
+            {
+                Guid? empId = await _context.UserEntities.AsNoTracking()
+                    .Where(x => x.Id == _currentUser.UserId.Value)
+                    .Select(x => x.EmployeeId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId.Value;
+                }
+            }
+
+            throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
+        }
+    }
+
+    public class GetMyLeaveBalanceQuery : IRequest<MobileLeaveBalanceDto>
+    {
+        public int? Year { get; set; }
+    }
+
+    public class GetMyLeaveBalanceQueryHandler : IRequestHandler<GetMyLeaveBalanceQuery, MobileLeaveBalanceDto>
+    {
+        private readonly IApplicationDbContext _context;
+        private readonly ICurrentUserService _currentUser;
+
+        public GetMyLeaveBalanceQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        {
+            _context = context;
+            _currentUser = currentUser;
+        }
+
+        public async Task<MobileLeaveBalanceDto> Handle(GetMyLeaveBalanceQuery request, CancellationToken cancellationToken)
+        {
+            Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
+            int year = request.Year ?? BusinessDateHelper.Today().Year;
+
+            EmployeeEntity? employee = await _context.EmployeeEntities.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == employeeId && !x.IsDeleted, cancellationToken);
+            Guid? companyId = employee?.CompanyId;
+
+            List<DayOffConfigEntity> configs = await _context.DayOffConfigEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted && x.IsActive
+                    && (x.CompanyId == null || (companyId.HasValue && x.CompanyId == companyId)))
+                .OrderBy(x => x.Name)
+                .ToListAsync(cancellationToken);
+
+            DateOnly yearStart = new(year, 1, 1);
+            DateOnly yearEnd = new(year, 12, 31);
+
+            List<RegisterDayOffEntity> yearLeaves = await _context.RegisterDayOffEntities.AsNoTracking()
+                .Where(x => x.EmployeeId == employeeId
+                    && !x.IsDeleted
+                    && x.FromDate <= yearEnd
+                    && x.ToDate >= yearStart
+                    && (x.Status == DayOffStatus.PENDING || x.Status == DayOffStatus.APPROVED))
+                .ToListAsync(cancellationToken);
+
+            decimal SumDays(DayOffType type, DayOffStatus status) =>
+                yearLeaves
+                    .Where(x => x.DayOffType == type && x.Status == status)
+                    .Sum(x => x.TotalDays);
+
+            decimal annualUsed = SumDays(DayOffType.ANNUAL, DayOffStatus.APPROVED);
+            decimal annualPending = SumDays(DayOffType.ANNUAL, DayOffStatus.PENDING);
+            decimal sickUsed = SumDays(DayOffType.SICK, DayOffStatus.APPROVED)
+                + SumDays(DayOffType.SICK, DayOffStatus.PENDING);
+            decimal unpaidUsed = SumDays(DayOffType.UNPAID, DayOffStatus.APPROVED)
+                + SumDays(DayOffType.UNPAID, DayOffStatus.PENDING);
+
+            DayOffConfigEntity? annualConfig = configs.FirstOrDefault(x => x.DayOffType == DayOffType.ANNUAL);
+
+            decimal annualTotal = 0;
+            DayOffConfigEmployeeEntity? empAllocation = null;
+            if (annualConfig != null)
+            {
+                empAllocation = await _context.DayOffConfigEmployeeEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.EmployeeId == employeeId
+                        && x.DayOffConfigId == annualConfig.Id
+                        && x.Year == year
+                        && !x.IsDeleted, cancellationToken);
+            }
+
+            if (empAllocation != null)
+            {
+                annualTotal = empAllocation.AllocatedDays;
+            }
+            else if (annualConfig != null)
+            {
+                annualTotal = annualConfig.DefaultDaysPerYear;
+            }
+
+            decimal annualRemaining = Math.Max(0, annualTotal - annualUsed - annualPending);
+
+            return new MobileLeaveBalanceDto
+            {
+                Year = year,
+                AnnualTotal = annualTotal,
+                AnnualUsed = annualUsed,
+                AnnualPending = annualPending,
+                AnnualRemaining = annualRemaining,
+                SickUsed = sickUsed,
+                UnpaidUsed = unpaidUsed,
+                Configs = configs.Select(x => new MobileLeaveConfigDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
+                    DayOffType = x.DayOffType,
+                    DefaultDaysPerYear = x.DefaultDaysPerYear,
+                    IsPaid = x.IsPaid,
+                }).ToList(),
+            };
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)

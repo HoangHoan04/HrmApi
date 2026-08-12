@@ -7,6 +7,7 @@ using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ namespace HrmApi.Application.Features.Timekeepings.Queries
         public Guid? BranchId { get; set; }
         public DateOnly? FromDate { get; set; }
         public DateOnly? ToDate { get; set; }
-        public string? Status { get; set; }
+        public AttendanceStatus? Status { get; set; }
         public bool? IsDeleted { get; set; }
     }
 
@@ -47,8 +48,8 @@ namespace HrmApi.Application.Features.Timekeepings.Queries
                 query = query.Where(x => x.WorkDate >= request.FromDate.Value);
             if (request.ToDate.HasValue)
                 query = query.Where(x => x.WorkDate <= request.ToDate.Value);
-            if (!string.IsNullOrWhiteSpace(request.Status) && System.Enum.TryParse<HrmApi.Domain.Enums.AttendanceStatus>(request.Status, true, out var parsedStatus))
-                query = query.Where(x => x.Status == parsedStatus);
+            if (request.Status.HasValue)
+                query = query.Where(x => x.Status == request.Status.Value);
 
             var totalCount = await query.CountAsync(cancellationToken);
             query = string.Equals(request.SortOrder, "ascend", StringComparison.OrdinalIgnoreCase)

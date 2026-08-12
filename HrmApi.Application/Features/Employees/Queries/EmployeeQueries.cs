@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
 using HrmApi.Application.DTOs.Employee;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
