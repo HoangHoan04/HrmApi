@@ -14,6 +14,9 @@ namespace HrmApi.Application
                 cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
             });
 
+            services.AddMemoryCache();
+            services.AddSingleton<IPermissionCache, MemoryPermissionCache>();
+
             services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
             services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();
             services.AddScoped<IAuthContextService, AuthContextService>();

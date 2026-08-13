@@ -391,15 +391,18 @@ namespace HrmApi.Application.Features.Roles
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IActionLogService _actionLog;
+        private readonly IPermissionCache _permissionCache;
 
         public SetRolePermissionsCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
-            IActionLogService actionLog)
+            IActionLogService actionLog,
+            IPermissionCache permissionCache)
         {
             _context = context;
             _currentUser = currentUser;
             _actionLog = actionLog;
+            _permissionCache = permissionCache;
         }
 
         public async Task<bool> Handle(SetRolePermissionsCommand request, CancellationToken cancellationToken)
@@ -477,6 +480,7 @@ namespace HrmApi.Application.Features.Roles
             }
 
             await _context.SaveChangesAsync(cancellationToken);
+            await _permissionCache.InvalidateByRoleAsync(role.Id, cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,

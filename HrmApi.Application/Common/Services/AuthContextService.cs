@@ -13,15 +13,35 @@ namespace HrmApi.Application.Common.Services
     public class AuthContextService : IAuthContextService
     {
         private readonly IApplicationDbContext _context;
+        private readonly IPermissionCache _permissionCache;
 
-        public AuthContextService(IApplicationDbContext context)
+        public AuthContextService(IApplicationDbContext context, IPermissionCache permissionCache)
         {
             _context = context;
+            _permissionCache = permissionCache;
         }
 
         public async Task<AuthContextDto> LoadAuthContextAsync(Guid userId, CancellationToken cancellationToken = default)
         {
+            if (_permissionCache.TryGet(userId, out AuthContextDto? cached) && cached != null)
+            {
+                return cached;
+            }
+
+            AuthContextDto loaded = await LoadFromDatabaseAsync(userId, cancellationToken);
+            _permissionCache.Set(userId, loaded);
+            return loaded;
+        }
+
+        private async Task<AuthContextDto> LoadFromDatabaseAsync(Guid userId, CancellationToken cancellationToken)
+        {
             var now = DateTime.UtcNow;
+
+            // B2: một round-trip lấy Type + roles (tránh parallel cùng DbContext)
+            var userType = await _context.UserEntities.AsNoTracking()
+                .Where(x => x.Id == userId && !x.IsDeleted)
+                .Select(x => x.Type)
+                .FirstOrDefaultAsync(cancellationToken);
 
             var roleRows = await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
@@ -44,11 +64,6 @@ namespace HrmApi.Application.Common.Services
             var roleIds = roleRows.Select(x => x.Id).Distinct().ToList();
             List<string> permissions = [];
 
-            var userType = await _context.UserEntities.AsNoTracking()
-                .Where(x => x.Id == userId && !x.IsDeleted)
-                .Select(x => x.Type)
-                .FirstOrDefaultAsync(cancellationToken);
-
             var isAdmin =
                 string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
                 || roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
@@ -60,6 +75,7 @@ namespace HrmApi.Application.Common.Services
                     roles = [RoleCodes.Admin, .. roles];
                 }
 
+                // Admin: body/cache giữ full catalog; JWT không nhồi (GenerateJwtToken slim)
                 permissions = PermissionCodes.All.OrderBy(x => x).ToList();
             }
             else if (roleIds.Count > 0)

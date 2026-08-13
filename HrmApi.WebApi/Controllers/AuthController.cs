@@ -1056,10 +1056,10 @@ namespace HrmApi.WebApi.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, user.Type));
             }
 
-            foreach (string permission in authContext.Permissions.Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                claims.Add(new Claim(ClaimTypesEx.Permission, permission));
-            }
+            // Wave B5: slim JWT — không nhồi permission claims (AuthZ dùng IPermissionCache).
+            // Giữ perm_ver để client/cache biết khi quyền đổi.
+            string permVer = ComputePermissionVersion(authContext);
+            claims.Add(new Claim("perm_ver", permVer));
 
             double expiryInMinutes = double.Parse(_configuration["JwtSettings:ExpiryInMinutes"] ?? "720");
             SecurityTokenDescriptor tokenDescriptor = new()
@@ -1073,6 +1073,18 @@ namespace HrmApi.WebApi.Controllers
 
             SecurityToken token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+        }
+
+        private static string ComputePermissionVersion(AuthContextDto authContext)
+        {
+            string payload = string.Join('|',
+                authContext.Roles.Concat(authContext.Permissions)
+                    .Select(x => x.Trim().ToUpperInvariant())
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(x => x, StringComparer.Ordinal));
+            using SHA256 sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(payload));
+            return Convert.ToHexString(hash.AsSpan(0, 8));
         }
 
         private string GenerateRefreshToken()

@@ -568,6 +568,11 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithOne(e => e.User)
                     .HasForeignKey<UserEntity>(u => u.EmployeeId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // Wave B5: login lookup
+                _ = entity.HasIndex(u => u.Username)
+                    .IsUnique()
+                    .HasDatabaseName("IX_UserEntities_Username");
             });
 
             _ = modelBuilder.Entity<RoleEntity>(entity =>
@@ -623,6 +628,10 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany()
                     .HasForeignKey(t => t.ReplacedByTokenId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // Wave B5: lookup refresh token nhanh
+                _ = entity.HasIndex(t => t.RefreshTokenHash)
+                    .HasDatabaseName("IX_UserTokenEntities_RefreshTokenHash");
             });
         }
 

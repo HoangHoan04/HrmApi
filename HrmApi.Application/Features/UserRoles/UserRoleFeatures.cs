@@ -60,15 +60,18 @@ namespace HrmApi.Application.Features.UserRoles
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IActionLogService _actionLog;
+        private readonly IPermissionCache _permissionCache;
 
         public SetUserRolesCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
-            IActionLogService actionLog)
+            IActionLogService actionLog,
+            IPermissionCache permissionCache)
         {
             _context = context;
             _currentUser = currentUser;
             _actionLog = actionLog;
+            _permissionCache = permissionCache;
         }
 
         public async Task<bool> Handle(SetUserRolesCommand request, CancellationToken cancellationToken)
@@ -125,6 +128,7 @@ namespace HrmApi.Application.Features.UserRoles
             }
 
             await _context.SaveChangesAsync(cancellationToken);
+            _permissionCache.InvalidateUser(request.UserId);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -321,17 +325,12 @@ namespace HrmApi.Application.Features.UserRoles
     public class SetUserRolesByEmployeeCommandHandler : IRequestHandler<SetUserRolesByEmployeeCommand, bool>
     {
         private readonly IApplicationDbContext _context;
-        private readonly ICurrentUserService _currentUser;
-        private readonly IActionLogService _actionLog;
+        private readonly IMediator _mediator;
 
-        public SetUserRolesByEmployeeCommandHandler(
-            IApplicationDbContext context,
-            ICurrentUserService currentUser,
-            IActionLogService actionLog)
+        public SetUserRolesByEmployeeCommandHandler(IApplicationDbContext context, IMediator mediator)
         {
             _context = context;
-            _currentUser = currentUser;
-            _actionLog = actionLog;
+            _mediator = mediator;
         }
 
         public async Task<bool> Handle(SetUserRolesByEmployeeCommand request, CancellationToken cancellationToken)
@@ -342,8 +341,9 @@ namespace HrmApi.Application.Features.UserRoles
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new InvalidOperationException("Nhân viên chưa có tài khoản đăng nhập.");
 
-            return await new SetUserRolesCommandHandler(_context, _currentUser, _actionLog)
-                .Handle(new SetUserRolesCommand { UserId = user.Id, RoleIds = request.RoleIds }, cancellationToken);
+            return await _mediator.Send(
+                new SetUserRolesCommand { UserId = user.Id, RoleIds = request.RoleIds },
+                cancellationToken);
         }
     }
 }
