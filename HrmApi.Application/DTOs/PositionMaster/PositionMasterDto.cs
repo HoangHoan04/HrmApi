@@ -25,6 +25,10 @@
         public bool IsHadASecondInterview { get; set; }
         public bool IsApprovedDayOff { get; set; }
         public int? QuantityStandard { get; set; }
+        public string? GradeCode { get; set; }
+        public string? GradeName { get; set; }
+        public decimal? SalaryMin { get; set; }
+        public decimal? SalaryMax { get; set; }
         public bool IsActive { get; set; } = true;
         public int DisplayOrder { get; set; }
     }

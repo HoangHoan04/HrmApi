@@ -1,5 +1,6 @@
 ﻿using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Payroll
 {
@@ -13,13 +14,13 @@ namespace HrmApi.Domain.Entities.Payroll
         public DateTime DeductionDate { get; set; }
 
         /// <summary>
-        /// Loại khấu trừ (FINE, COMPENSATION, OTHER,...)
+        /// Loại khấu trừ — <see cref="DeductionSlipType"/>.
         /// </summary>
         public string? DeductionType { get; set; }
 
         public int? ApplyMonth { get; set; }
         public int? ApplyYear { get; set; }
-        public string Status { get; set; } = "PENDING";
+        public string Status { get; set; } = SlipStatus.Pending;
         public string? Reason { get; set; }
         public string? Note { get; set; }
         public string? ApprovedBy { get; set; }

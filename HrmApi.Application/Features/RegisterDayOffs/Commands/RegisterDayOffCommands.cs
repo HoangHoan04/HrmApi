@@ -24,11 +24,16 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly IWorkflowEngine _workflow;
 
-        public CreateRegisterDayOffCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        public CreateRegisterDayOffCommandHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IWorkflowEngine workflow)
         {
             _context = context;
             _currentUser = currentUser;
+            _workflow = workflow;
         }
 
         public async Task<Guid> Handle(CreateRegisterDayOffCommand request, CancellationToken cancellationToken)
@@ -127,6 +132,10 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
 
             _ = _context.RegisterDayOffEntities.Add(entity);
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            _ = await _workflow.StartAsync(
+                Domain.Enums.WorkflowEntityType.Leave, entity.Id, entity.CompanyId, cancellationToken);
+
             return entity.Id;
         }
     }
@@ -142,11 +151,16 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly IWorkflowEngine _workflow;
 
-        public ApproveRegisterDayOffCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        public ApproveRegisterDayOffCommandHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IWorkflowEngine workflow)
         {
             _context = context;
             _currentUser = currentUser;
+            _workflow = workflow;
         }
 
         public async Task<bool> Handle(ApproveRegisterDayOffCommand request, CancellationToken cancellationToken)
@@ -185,6 +199,16 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
             await LeaveBalanceHelper.ApplyApprovedUsageAsync(_context, entity, cancellationToken);
             await SyncTimekeepingLeaveAsync(_context, entity, overwritePunches: false, cancellationToken);
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            _ = await _workflow.AdvanceForEntityAsync(
+                Domain.Enums.WorkflowEntityType.Leave,
+                entity.Id,
+                approve: true,
+                request.ApproverNote,
+                _currentUser.UserId ?? Guid.Empty,
+                actorEmployeeId,
+                cancellationToken);
+
             return true;
         }
 
@@ -273,11 +297,16 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly IWorkflowEngine _workflow;
 
-        public RejectRegisterDayOffCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        public RejectRegisterDayOffCommandHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IWorkflowEngine workflow)
         {
             _context = context;
             _currentUser = currentUser;
+            _workflow = workflow;
         }
 
         public async Task<bool> Handle(RejectRegisterDayOffCommand request, CancellationToken cancellationToken)
@@ -300,6 +329,16 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
             entity.UpdatedBy = _currentUser.UserId ?? _currentUser.EmployeeId;
             entity.UpdatedAt = DateTime.UtcNow;
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            _ = await _workflow.AdvanceForEntityAsync(
+                Domain.Enums.WorkflowEntityType.Leave,
+                entity.Id,
+                approve: false,
+                request.ApproverNote,
+                _currentUser.UserId ?? Guid.Empty,
+                _currentUser.EmployeeId,
+                cancellationToken);
+
             return true;
         }
     }

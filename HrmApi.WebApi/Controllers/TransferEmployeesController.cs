@@ -43,6 +43,14 @@ namespace HrmApi.WebApi.Controllers
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
+        [HttpPost("bulk-create")]
+        [RequirePermission(PermissionCodes.HrTransferCreate)]
+        public async Task<ActionResult<List<Guid>>> BulkCreate([FromBody] BulkCreateTransferEmployeeCommand command)
+        {
+            try { return Ok(await _mediator.Send(command)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
         [HttpPost("update")]
         [RequirePermission(PermissionCodes.HrTransferUpdate)]
         public async Task<ActionResult<bool>> Update([FromBody] UpdateTransferEmployeeCommand command)

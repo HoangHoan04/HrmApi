@@ -15,6 +15,29 @@ namespace HrmApi.Domain.Enums
         public const string Deduction = "DEDUCTION";
     }
 
+    /// <summary>Loại phiếu điều chỉnh lương (khấu trừ / thu nhập thêm).</summary>
+    public static class SlipKind
+    {
+        public const string Deduction = "DEDUCTION";
+        public const string Addition = "ADDITION";
+    }
+
+    /// <summary>Giá trị DeductionSlipEntity.DeductionType.</summary>
+    public static class DeductionSlipType
+    {
+        public const string Fine = "FINE";
+        public const string Compensation = "COMPENSATION";
+        public const string Other = "OTHER";
+    }
+
+    /// <summary>Giá trị CashAdditionSlipEntity.AdditionType.</summary>
+    public static class AdditionSlipType
+    {
+        public const string Bonus = "BONUS";
+        public const string Support = "SUPPORT";
+        public const string Other = "OTHER";
+    }
+
     public static class SalaryItemCode
     {
         public const string Basic = "BASIC";
@@ -40,5 +63,11 @@ namespace HrmApi.Domain.Enums
         public const string Applied = "APPLIED";
         public const string Rejected = "REJECTED";
         public const string Cancelled = "CANCELLED";
+    }
+
+    public static class CurrencyCode
+    {
+        public const string Vnd = "VND";
+        public const string Usd = "USD";
     }
 }

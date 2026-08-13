@@ -1,5 +1,7 @@
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
+using HrmApi.Application.Common.Services;
 using HrmApi.Application.DTOs.TransferEmployee;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.EmployeeMovement;
@@ -173,15 +175,22 @@ namespace HrmApi.Application.Features.TransferEmployees.Queries
     public class GetTransferEmployeesPagedQueryHandler : IRequestHandler<GetTransferEmployeesPagedQuery, PagedResult<TransferEmployeeDto>>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IDataScopeService _dataScope;
 
-        public GetTransferEmployeesPagedQueryHandler(IApplicationDbContext context)
+        public GetTransferEmployeesPagedQueryHandler(IApplicationDbContext context, IDataScopeService dataScope)
         {
             _context = context;
+            _dataScope = dataScope;
         }
 
         public async Task<PagedResult<TransferEmployeeDto>> Handle(GetTransferEmployeesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<TransferEmployeeEntity> query = _context.TransferEmployeeEntities.AsNoTracking();
+            query = await query.ApplyTransferEmployeeDataScopeAsync(
+                _context.EmployeeEntities.AsNoTracking(),
+                _dataScope,
+                PermissionCodes.HrTransferView,
+                cancellationToken);
 
             if (request.IsDeleted.HasValue)
             {

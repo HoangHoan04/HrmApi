@@ -1,13 +1,20 @@
 using HrmApi.Application.Common.Interfaces;
+using HrmApi.Domain.Entities.Asset;
 using HrmApi.Domain.Entities.AuditLog;
 using HrmApi.Domain.Entities.Contract;
+using HrmApi.Domain.Entities.Discipline;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.EmployeeMovement;
 using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Entities.Payroll;
+using HrmApi.Domain.Entities.Performance;
 using HrmApi.Domain.Entities.Permission;
+using HrmApi.Domain.Entities.Recruitment;
+using HrmApi.Domain.Entities.Settings;
 using HrmApi.Domain.Entities.Timekeeping;
+using HrmApi.Domain.Entities.Training;
+using HrmApi.Domain.Entities.Workflow;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Infrastructure.Persistence
@@ -19,6 +26,7 @@ namespace HrmApi.Infrastructure.Persistence
         }
 
         public DbSet<CompanyEntity> CompanyEntities { get; set; }
+        public DbSet<CompanyAnnouncementEntity> CompanyAnnouncementEntities { get; set; }
         public DbSet<BranchEntity> BranchEntities { get; set; }
         public DbSet<DepartmentEntity> DepartmentEntities { get; set; }
         public DbSet<PartEntity> PartEntities { get; set; }
@@ -58,6 +66,7 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<TimekeepingEntity> TimekeepingEntities { get; set; }
         public DbSet<TimekeepingSummaryEntity> TimekeepingSummaryEntities { get; set; }
         public DbSet<AttendanceComplaintEntity> AttendanceComplaintEntities { get; set; }
+        public DbSet<OvertimeRequestEntity> OvertimeRequestEntities { get; set; }
 
         public DbSet<DayOffConfigEntity> DayOffConfigEntities { get; set; }
         public DbSet<DayOffConfigEmployeeEntity> DayOffConfigEmployeeEntities { get; set; }
@@ -70,6 +79,50 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<UserRoleEntity> UserRoleEntities { get; set; }
         public DbSet<UserTokenEntity> UserTokenEntities { get; set; }
         public DbSet<ActionLogEntity> ActionLogEntities { get; set; }
+
+        public DbSet<JobDescriptionEntity> JobDescriptionEntities { get; set; }
+        public DbSet<EvaluationCriteriaEntity> EvaluationCriteriaEntities { get; set; }
+        public DbSet<HiringSourceEntity> HiringSourceEntities { get; set; }
+        public DbSet<RecruitmentRequestEntity> RecruitmentRequestEntities { get; set; }
+        public DbSet<HiringPlanEntity> HiringPlanEntities { get; set; }
+        public DbSet<HiringPlanCriteriaEntity> HiringPlanCriteriaEntities { get; set; }
+        public DbSet<CandidateEntity> CandidateEntities { get; set; }
+        public DbSet<InterviewScheduleEntity> InterviewScheduleEntities { get; set; }
+        public DbSet<InterviewInterviewerEntity> InterviewInterviewerEntities { get; set; }
+        public DbSet<InterviewEvaluationEntity> InterviewEvaluationEntities { get; set; }
+
+        public DbSet<ViolationTypeEntity> ViolationTypeEntities { get; set; }
+        public DbSet<ViolationEntity> ViolationEntities { get; set; }
+        public DbSet<PerformanceReviewCycleEntity> PerformanceReviewCycleEntities { get; set; }
+        public DbSet<KpiGoalEntity> KpiGoalEntities { get; set; }
+        public DbSet<KpiResultEntity> KpiResultEntities { get; set; }
+        public DbSet<CompetencyFrameworkEntity> CompetencyFrameworkEntities { get; set; }
+        public DbSet<Performance360ReviewEntity> Performance360ReviewEntities { get; set; }
+        public DbSet<TrainingCourseEntity> TrainingCourseEntities { get; set; }
+        public DbSet<TrainingCourseMaterialEntity> TrainingCourseMaterialEntities { get; set; }
+        public DbSet<TrainingQuizEntity> TrainingQuizEntities { get; set; }
+        public DbSet<TrainingEnrollmentEntity> TrainingEnrollmentEntities { get; set; }
+        public DbSet<TrainingResultEntity> TrainingResultEntities { get; set; }
+
+        public DbSet<AssetTypeEntity> AssetTypeEntities { get; set; }
+        public DbSet<AssetEntity> AssetEntities { get; set; }
+        public DbSet<AssetTicketEntity> AssetTicketEntities { get; set; }
+
+        public DbSet<ReportScheduleEntity> ReportScheduleEntities { get; set; }
+        public DbSet<LegalRateConfigEntity> LegalRateConfigEntities { get; set; }
+        public DbSet<NotificationTemplateEntity> NotificationTemplateEntities { get; set; }
+        public DbSet<ApiClientKeyEntity> ApiClientKeyEntities { get; set; }
+        public DbSet<WebhookSubscriptionEntity> WebhookSubscriptionEntities { get; set; }
+        public DbSet<SystemRetentionConfigEntity> SystemRetentionConfigEntities { get; set; }
+        public DbSet<SmsGatewayConfigEntity> SmsGatewayConfigEntities { get; set; }
+        public DbSet<ZaloOaConfigEntity> ZaloOaConfigEntities { get; set; }
+        public DbSet<IpAllowlistEntryEntity> IpAllowlistEntryEntities { get; set; }
+
+        public DbSet<WorkflowDefinitionEntity> WorkflowDefinitionEntities { get; set; }
+        public DbSet<WorkflowStepEntity> WorkflowStepEntities { get; set; }
+        public DbSet<WorkflowInstanceEntity> WorkflowInstanceEntities { get; set; }
+        public DbSet<WorkflowTaskEntity> WorkflowTaskEntities { get; set; }
+        public DbSet<WorkflowFormTemplateEntity> WorkflowFormTemplateEntities { get; set; }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
@@ -87,6 +140,13 @@ namespace HrmApi.Infrastructure.Persistence
             ConfigurePermission(modelBuilder);
             ConfigureTimekeeping(modelBuilder);
             ConfigureLeave(modelBuilder);
+            ConfigureRecruitment(modelBuilder);
+            ConfigureDiscipline(modelBuilder);
+            ConfigurePerformance(modelBuilder);
+            ConfigureTraining(modelBuilder);
+            ConfigureAsset(modelBuilder);
+            ConfigureSettings(modelBuilder);
+            ConfigureWorkflow(modelBuilder);
             ConfigureAudit(modelBuilder);
         }
 
@@ -103,6 +163,13 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany()
                     .HasForeignKey(c => c.TimeKeepingStandardId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<CompanyAnnouncementEntity>(entity =>
+            {
+                _ = entity.Property(x => x.Title).HasMaxLength(300);
+                _ = entity.HasIndex(x => new { x.CompanyId, x.PublishedAt });
+                _ = entity.HasIndex(x => new { x.CompanyId, x.IsActive });
             });
 
             _ = modelBuilder.Entity<BranchEntity>(entity =>
@@ -267,6 +334,11 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany(p => p.EmployeeEntities)
                     .HasForeignKey(e => e.PositionId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasOne(e => e.DirectManager)
+                    .WithMany(e => e.DirectReports)
+                    .HasForeignKey(e => e.DirectManagerId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             _ = modelBuilder.Entity<EmployeeDependentEntity>(entity =>
@@ -299,6 +371,11 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany(e => e.Files)
                     .HasForeignKey(d => d.EmployeeId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                _ = entity.HasOne(d => d.ReplacesFile)
+                    .WithMany()
+                    .HasForeignKey(d => d.ReplacesFileId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             _ = modelBuilder.Entity<EmployeeSalaryHistoryEntity>(entity =>
@@ -702,6 +779,29 @@ namespace HrmApi.Infrastructure.Persistence
 
                 _ = entity.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.Status });
             });
+
+            _ = modelBuilder.Entity<OvertimeRequestEntity>(entity =>
+            {
+                _ = entity.Property(e => e.Code).HasMaxLength(50);
+                _ = entity.Property(e => e.OtType).HasMaxLength(30);
+                _ = entity.Property(e => e.Status).HasMaxLength(30);
+                _ = entity.Property(e => e.Reason).HasMaxLength(1000);
+                _ = entity.Property(e => e.ApproverNote).HasMaxLength(1000);
+                _ = entity.Property(e => e.AttachmentUrl).HasMaxLength(500);
+
+                _ = entity.HasOne(e => e.Employee)
+                    .WithMany()
+                    .HasForeignKey(e => e.EmployeeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasOne(e => e.Approver)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApproverId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasIndex(x => x.Code).IsUnique();
+                _ = entity.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.Status });
+            });
         }
 
         private static void ConfigureLeave(ModelBuilder modelBuilder)
@@ -869,6 +969,357 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany()
                     .HasForeignKey(x => x.EmployeeId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureRecruitment(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<JobDescriptionEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Part).WithMany().HasForeignKey(x => x.PartId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Position).WithMany().HasForeignKey(x => x.PositionId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.PositionMaster).WithMany().HasForeignKey(x => x.PositionMasterId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<EvaluationCriteriaEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<HiringSourceEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique();
+                _ = entity.HasIndex(x => x.DisplayOrder);
+                _ = entity.Property(x => x.ChannelType).HasMaxLength(50);
+                _ = entity.Property(x => x.ContactEmail).HasMaxLength(255);
+                _ = entity.Property(x => x.Description).HasMaxLength(1000);
+            });
+
+            _ = modelBuilder.Entity<RecruitmentRequestEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Part).WithMany().HasForeignKey(x => x.PartId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Position).WithMany().HasForeignKey(x => x.PositionId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.JobDescription).WithMany(j => j.RecruitmentRequests).HasForeignKey(x => x.JobDescriptionId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.RequestedByEmployee).WithMany().HasForeignKey(x => x.RequestedByEmployeeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.ApprovedByEmployee).WithMany().HasForeignKey(x => x.ApprovedByEmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<HiringPlanEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasOne(x => x.RecruitmentRequest).WithMany(r => r.HiringPlans).HasForeignKey(x => x.RecruitmentRequestId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.JobDescription).WithMany(j => j.HiringPlans).HasForeignKey(x => x.JobDescriptionId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Part).WithMany().HasForeignKey(x => x.PartId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Position).WithMany().HasForeignKey(x => x.PositionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<HiringPlanCriteriaEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.HiringPlanId, x.EvaluationCriteriaId }).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.HasOne(x => x.HiringPlan).WithMany(p => p.Criteria).HasForeignKey(x => x.HiringPlanId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.EvaluationCriteria).WithMany(c => c.PlanCriteria).HasForeignKey(x => x.EvaluationCriteriaId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<CandidateEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasIndex(x => new { x.Status, x.HiringPlanId });
+                _ = entity.HasOne(x => x.HiringPlan).WithMany(p => p.Candidates).HasForeignKey(x => x.HiringPlanId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.RecruitmentRequest).WithMany(r => r.Candidates).HasForeignKey(x => x.RecruitmentRequestId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.HiringSource).WithMany(s => s.Candidates).HasForeignKey(x => x.HiringSourceId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<InterviewScheduleEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.StartAt, x.EndAt });
+                _ = entity.HasIndex(x => new { x.CandidateId, x.Round });
+                _ = entity.HasOne(x => x.Candidate).WithMany(c => c.Interviews).HasForeignKey(x => x.CandidateId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.HiringPlan).WithMany(p => p.Interviews).HasForeignKey(x => x.HiringPlanId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<InterviewInterviewerEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.InterviewScheduleId, x.EmployeeId }).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.HasOne(x => x.InterviewSchedule).WithMany(i => i.Interviewers).HasForeignKey(x => x.InterviewScheduleId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<InterviewEvaluationEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.InterviewScheduleId, x.InterviewerEmployeeId, x.EvaluationCriteriaId })
+                    .IsUnique()
+                    .HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.HasOne(x => x.InterviewSchedule).WithMany(i => i.Evaluations).HasForeignKey(x => x.InterviewScheduleId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.InterviewerEmployee).WithMany().HasForeignKey(x => x.InterviewerEmployeeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.EvaluationCriteria).WithMany(c => c.Evaluations).HasForeignKey(x => x.EvaluationCriteriaId).OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private static void ConfigureDiscipline(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<ViolationTypeEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique();
+                _ = entity.Property(x => x.Severity).HasMaxLength(30);
+            });
+
+            _ = modelBuilder.Entity<ViolationEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasOne(x => x.ViolationType).WithMany(t => t.Violations).HasForeignKey(x => x.ViolationTypeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private static void ConfigurePerformance(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<PerformanceReviewCycleEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<KpiGoalEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.CycleId, x.EmployeeId });
+                _ = entity.HasOne(x => x.Cycle).WithMany(c => c.Goals).HasForeignKey(x => x.CycleId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<KpiResultEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.GoalId);
+                _ = entity.HasOne(x => x.Goal).WithMany(g => g.Results).HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.RatedByEmployee).WithMany().HasForeignKey(x => x.RatedByEmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<CompetencyFrameworkEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<Performance360ReviewEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.CycleId);
+                _ = entity.HasIndex(x => x.SubjectEmployeeId);
+                _ = entity.HasOne(x => x.Cycle).WithMany().HasForeignKey(x => x.CycleId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.SubjectEmployee).WithMany().HasForeignKey(x => x.SubjectEmployeeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.ReviewerEmployee).WithMany().HasForeignKey(x => x.ReviewerEmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private static void ConfigureTraining(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<TrainingCourseEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code);
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<TrainingCourseMaterialEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.CourseId, x.DisplayOrder });
+                _ = entity.HasOne(x => x.Course).WithMany(c => c.Materials).HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            _ = modelBuilder.Entity<TrainingQuizEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.CourseId);
+                _ = entity.HasOne(x => x.Course).WithMany(c => c.Quizzes).HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            _ = modelBuilder.Entity<TrainingEnrollmentEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.CourseId, x.EmployeeId }).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.HasOne(x => x.Course).WithMany(c => c.Enrollments).HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<TrainingResultEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.EnrollmentId).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.HasOne(x => x.Enrollment).WithOne(e => e.Result).HasForeignKey<TrainingResultEntity>(x => x.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureAsset(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<AssetTypeEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique();
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<AssetEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique();
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasIndex(x => x.AssetTypeId);
+                _ = entity.Property(x => x.Status).HasMaxLength(30);
+                _ = entity.HasOne(x => x.AssetType).WithMany(t => t.Assets).HasForeignKey(x => x.AssetTypeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<AssetTicketEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique();
+                _ = entity.HasIndex(x => new { x.Status, x.CompanyId });
+                _ = entity.HasIndex(x => x.AssetId);
+                _ = entity.Property(x => x.TicketType).HasMaxLength(30);
+                _ = entity.Property(x => x.Status).HasMaxLength(30);
+                _ = entity.HasOne(x => x.Asset).WithMany(a => a.Tickets).HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Cascade);
+                _ = entity.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private static void ConfigureSettings(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<ReportScheduleEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.Property(x => x.Code).HasMaxLength(50);
+                _ = entity.Property(x => x.Name).HasMaxLength(200);
+                _ = entity.Property(x => x.ReportType).HasMaxLength(40);
+                _ = entity.Property(x => x.CronHint).HasMaxLength(40);
+                _ = entity.Property(x => x.EmailTo).HasMaxLength(500);
+            });
+
+            _ = modelBuilder.Entity<LegalRateConfigEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Year).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+            });
+
+            _ = modelBuilder.Entity<NotificationTemplateEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.Property(x => x.Code).HasMaxLength(80);
+                _ = entity.Property(x => x.Channel).HasMaxLength(20);
+                _ = entity.Property(x => x.Subject).HasMaxLength(300);
+            });
+
+            _ = modelBuilder.Entity<ApiClientKeyEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.KeyHash).IsUnique();
+                _ = entity.HasIndex(x => x.KeyPrefix);
+                _ = entity.Property(x => x.Name).HasMaxLength(200);
+                _ = entity.Property(x => x.KeyHash).HasMaxLength(128);
+                _ = entity.Property(x => x.KeyPrefix).HasMaxLength(20);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<WebhookSubscriptionEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Name);
+                _ = entity.Property(x => x.Name).HasMaxLength(200);
+                _ = entity.Property(x => x.Url).HasMaxLength(1000);
+                _ = entity.Property(x => x.EventTypes).HasMaxLength(1000);
+                _ = entity.Property(x => x.Secret).HasMaxLength(200);
+            });
+
+            _ = modelBuilder.Entity<SystemRetentionConfigEntity>(entity =>
+            {
+                _ = entity.Property(x => x.SoftDeleteRetentionDays).HasDefaultValue(365);
+            });
+
+            _ = modelBuilder.Entity<SmsGatewayConfigEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Provider);
+                _ = entity.Property(x => x.Provider).HasMaxLength(80);
+                _ = entity.Property(x => x.ApiUrl).HasMaxLength(1000);
+                _ = entity.Property(x => x.ApiKey).HasMaxLength(500);
+                _ = entity.Property(x => x.SenderId).HasMaxLength(80);
+            });
+
+            _ = modelBuilder.Entity<ZaloOaConfigEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.OaId);
+                _ = entity.Property(x => x.OaId).HasMaxLength(80);
+                _ = entity.Property(x => x.AppId).HasMaxLength(80);
+                _ = entity.Property(x => x.SecretKey).HasMaxLength(500);
+                _ = entity.Property(x => x.AccessToken).HasMaxLength(2000);
+                _ = entity.Property(x => x.RefreshToken).HasMaxLength(2000);
+            });
+
+            _ = modelBuilder.Entity<IpAllowlistEntryEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.CidrOrIp);
+                _ = entity.Property(x => x.CidrOrIp).HasMaxLength(100);
+            });
+        }
+
+        private static void ConfigureWorkflow(ModelBuilder modelBuilder)
+        {
+            _ = modelBuilder.Entity<WorkflowDefinitionEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.Code).IsUnique().HasFilter("\"IsDeleted\" = FALSE");
+                _ = entity.HasIndex(x => new { x.EntityType, x.CompanyId, x.IsActive });
+                _ = entity.Property(x => x.Code).HasMaxLength(50);
+                _ = entity.Property(x => x.Name).HasMaxLength(200);
+                _ = entity.Property(x => x.EntityType).HasMaxLength(40);
+                _ = entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<WorkflowStepEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.DefinitionId, x.StepOrder });
+                _ = entity.Property(x => x.Name).HasMaxLength(200);
+                _ = entity.Property(x => x.ApproverResolver).HasMaxLength(20);
+                _ = entity.Property(x => x.RequiredRoleCode).HasMaxLength(50);
+                _ = entity.HasOne(x => x.Definition).WithMany(d => d.Steps).HasForeignKey(x => x.DefinitionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            _ = modelBuilder.Entity<WorkflowInstanceEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.EntityType, x.EntityId });
+                _ = entity.HasIndex(x => x.Status);
+                _ = entity.Property(x => x.EntityType).HasMaxLength(40);
+                _ = entity.Property(x => x.Status).HasMaxLength(20);
+                _ = entity.HasOne(x => x.Definition).WithMany().HasForeignKey(x => x.DefinitionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            _ = modelBuilder.Entity<WorkflowTaskEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.InstanceId, x.Status });
+                _ = entity.HasIndex(x => x.AssigneeEmployeeId);
+                _ = entity.Property(x => x.Status).HasMaxLength(20);
+                _ = entity.Property(x => x.Action).HasMaxLength(20);
+                _ = entity.HasOne(x => x.Instance).WithMany(i => i.Tasks).HasForeignKey(x => x.InstanceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            _ = modelBuilder.Entity<WorkflowFormTemplateEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.EntityType);
+                _ = entity.Property(x => x.EntityType).HasMaxLength(40);
+                _ = entity.Property(x => x.Name).HasMaxLength(200);
             });
         }
 

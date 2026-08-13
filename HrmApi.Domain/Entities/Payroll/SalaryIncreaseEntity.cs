@@ -1,5 +1,6 @@
 ﻿using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Payroll
 {
@@ -14,7 +15,7 @@ namespace HrmApi.Domain.Entities.Payroll
         public DateTime EffectiveDate { get; set; }
         public string? DecisionNumber { get; set; }
         public string? Reason { get; set; }
-        public string Status { get; set; } = "PENDING";
+        public string Status { get; set; } = SlipStatus.Pending;
         public string? ApprovedBy { get; set; }
         public DateTime? ApprovedDate { get; set; }
         public string? Note { get; set; }

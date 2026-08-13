@@ -1,0 +1,70 @@
+using System;
+using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
+using HrmApi.Application.Common.Models;
+using HrmApi.Application.DTOs.Training;
+using HrmApi.Application.Features.Training;
+using HrmApi.WebApi.Authorization;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace HrmApi.WebApi.Controllers
+{
+    [ApiController]
+    [Authorize]
+    [Route("api/v1/training-quiz")]
+    public class TrainingQuizzesController : ControllerBase
+    {
+        private readonly IMediator _mediator;
+        public TrainingQuizzesController(IMediator mediator) => _mediator = mediator;
+
+        [HttpPost("pagination")]
+        [RequirePermission(PermissionCodes.TrainingCourseView)]
+        public async Task<ActionResult<PagedResult<TrainingQuizDto>>> GetPaged([FromBody] GetTrainingQuizzesPagedQuery query)
+            => Ok(await _mediator.Send(query));
+
+        [HttpPost("detail")]
+        [RequirePermission(PermissionCodes.TrainingCourseView)]
+        public async Task<ActionResult<TrainingQuizDto>> GetDetail([FromBody] GetTrainingQuizByIdQuery query)
+        {
+            TrainingQuizDto? result = await _mediator.Send(query);
+            if (result == null) return NotFound("Không tìm thấy câu hỏi trắc nghiệm.");
+            return Ok(result);
+        }
+
+        [HttpPost("create")]
+        [RequirePermission(PermissionCodes.TrainingCourseUpdate)]
+        public async Task<ActionResult<Guid>> Create([FromBody] CreateTrainingQuizCommand command)
+        {
+            try { return Ok(await _mediator.Send(command)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("update")]
+        [RequirePermission(PermissionCodes.TrainingCourseUpdate)]
+        public async Task<ActionResult<bool>> Update([FromBody] UpdateTrainingQuizCommand command)
+        {
+            try
+            {
+                bool result = await _mediator.Send(command);
+                if (!result) return NotFound("Không tìm thấy câu hỏi trắc nghiệm.");
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("delete")]
+        [RequirePermission(PermissionCodes.TrainingCourseUpdate)]
+        public async Task<ActionResult<bool>> Delete([FromBody] DeleteTrainingQuizCommand command)
+        {
+            try
+            {
+                bool result = await _mediator.Send(command);
+                if (!result) return NotFound("Không tìm thấy câu hỏi trắc nghiệm.");
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+    }
+}

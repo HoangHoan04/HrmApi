@@ -1,5 +1,6 @@
 ﻿using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Payroll
 {
@@ -61,7 +62,7 @@ namespace HrmApi.Domain.Entities.Payroll
         /// <summary>
         /// Đơn vị tiền tệ mặc định
         /// </summary>
-        public string Currency { get; set; } = "VND";
+        public string Currency { get; set; } = CurrencyCode.Vnd;
 
         /// <summary>
         /// Trạng thái kích hoạt

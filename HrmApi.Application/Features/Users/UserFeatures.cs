@@ -92,7 +92,7 @@ namespace HrmApi.Application.Features.Users
     {
         public string Username { get; set; } = string.Empty;
         public string? Password { get; set; }
-        public string Type { get; set; } = "EMPLOYEE";
+        public string Type { get; set; } = UserType.Employee;
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
         public Guid? EmployeeId { get; set; }
@@ -127,9 +127,9 @@ namespace HrmApi.Application.Features.Users
             if (string.IsNullOrWhiteSpace(username))
                 throw new InvalidOperationException("Tên đăng nhập không được để trống.");
 
-            string type = (request.Type ?? "EMPLOYEE").Trim().ToUpperInvariant();
-            if (type is not ("ADMIN" or "EMPLOYEE" or "HR" or "MANAGER"))
-                type = "EMPLOYEE";
+            string type = (request.Type ?? UserType.Employee).Trim().ToUpperInvariant();
+            if (type is not (UserType.Admin or UserType.Employee or UserType.Hr or UserType.Manager))
+                type = UserType.Employee;
 
             bool exists = await _context.UserEntities.AsNoTracking()
                 .AnyAsync(x => !x.IsDeleted && x.Username.ToLower() == username.ToLower(), cancellationToken);
@@ -206,7 +206,7 @@ namespace HrmApi.Application.Features.Users
         public Guid Id { get; set; }
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
-        public string Type { get; set; } = "EMPLOYEE";
+        public string Type { get; set; } = UserType.Employee;
         public Guid? EmployeeId { get; set; }
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
@@ -237,7 +237,7 @@ namespace HrmApi.Application.Features.Users
                 ?? throw new InvalidOperationException("Không tìm thấy tài khoản.");
 
             string type = (request.Type ?? user.Type).Trim().ToUpperInvariant();
-            if (type is not ("ADMIN" or "EMPLOYEE" or "HR" or "MANAGER"))
+            if (type is not (UserType.Admin or UserType.Employee or UserType.Hr or UserType.Manager))
                 type = user.Type;
 
             if (request.EmployeeId.HasValue && request.EmployeeId != user.EmployeeId)

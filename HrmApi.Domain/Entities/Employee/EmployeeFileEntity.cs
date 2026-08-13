@@ -49,10 +49,25 @@ namespace HrmApi.Domain.Entities.Employee
         public DateTime? ExpiryDate { get; set; }
 
         /// <summary>
+        /// Số phiên bản trong cùng FileCategory (1, 2, 3…).
+        /// </summary>
+        public int VersionNo { get; set; } = 1;
+
+        /// <summary>
+        /// File phiên bản trước (nếu đây là bản thay thế).
+        /// </summary>
+        public Guid? ReplacesFileId { get; set; }
+
+        /// <summary>
+        /// Bản hiện hành của loại tài liệu (chỉ một IsCurrent=true / category / employee).
+        /// </summary>
+        public bool IsCurrent { get; set; } = true;
+
+        /// <summary>
         /// Navigation property tới nhân viên sở hữu file này
         /// </summary>
         public virtual EmployeeEntity? Employee { get; set; }
 
-
+        public virtual EmployeeFileEntity? ReplacesFile { get; set; }
     }
 }

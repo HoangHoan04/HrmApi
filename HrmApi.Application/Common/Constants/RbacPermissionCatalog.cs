@@ -147,6 +147,10 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperateAttendanceComplaintCreate, "Tạo mới", "OPERATE_ATTENDANCE_COMPLAINT", "CREATE");
             A(PermissionCodes.OperateAttendanceComplaintReview, "Duyệt", "OPERATE_ATTENDANCE_COMPLAINT", "REVIEW");
             A(PermissionCodes.OperateAttendanceComplaintManage, "Quản lý", "OPERATE_ATTENDANCE_COMPLAINT", "MANAGE");
+            A(PermissionCodes.OperateOvertimeView, "Xem", "OPERATE_OVERTIME", "VIEW");
+            A(PermissionCodes.OperateOvertimeCreate, "Tạo mới", "OPERATE_OVERTIME", "CREATE");
+            A(PermissionCodes.OperateOvertimeApprove, "Duyệt", "OPERATE_OVERTIME", "APPROVE");
+            A(PermissionCodes.OperateOvertimeManage, "Quản lý", "OPERATE_OVERTIME", "MANAGE");
 
             A(PermissionCodes.OperateDayOffConfigView, "Xem", "OPERATE_DAY_OFF_CONFIG", "VIEW");
             A(PermissionCodes.OperateDayOffConfigCreate, "Tạo mới", "OPERATE_DAY_OFF_CONFIG", "CREATE");
@@ -194,6 +198,41 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperateWorkPatternBulkAssign, "Gán hàng loạt", "OPERATE_WORK_PATTERN", "BULK_ASSIGN");
             A(PermissionCodes.OperateWorkPatternManage, "Quản lý", "OPERATE_WORK_PATTERN", "MANAGE");
 
+            // DISCIPLINE
+            A(PermissionCodes.DisciplineView, "Xem", "DISCIPLINE", "VIEW");
+            A(PermissionCodes.DisciplineTypeView, "Xem", "DISCIPLINE_TYPE", "VIEW");
+            A(PermissionCodes.DisciplineTypeManage, "Quản lý", "DISCIPLINE_TYPE", "MANAGE");
+            A(PermissionCodes.DisciplineViolationView, "Xem", "DISCIPLINE_VIOLATION", "VIEW");
+            A(PermissionCodes.DisciplineViolationCreate, "Tạo mới", "DISCIPLINE_VIOLATION", "CREATE");
+            A(PermissionCodes.DisciplineViolationUpdate, "Cập nhật", "DISCIPLINE_VIOLATION", "UPDATE");
+            A(PermissionCodes.DisciplineViolationApprove, "Duyệt", "DISCIPLINE_VIOLATION", "APPROVE");
+            A(PermissionCodes.DisciplineViolationDelete, "Xóa", "DISCIPLINE_VIOLATION", "DELETE");
+
+            // PERFORMANCE
+            A(PermissionCodes.PerformanceView, "Xem", "PERFORMANCE", "VIEW");
+            A(PermissionCodes.PerformanceCycleView, "Xem", "PERFORMANCE_CYCLE", "VIEW");
+            A(PermissionCodes.PerformanceCycleCreate, "Tạo mới", "PERFORMANCE_CYCLE", "CREATE");
+            A(PermissionCodes.PerformanceCycleUpdate, "Cập nhật", "PERFORMANCE_CYCLE", "UPDATE");
+            A(PermissionCodes.PerformanceGoalView, "Xem", "PERFORMANCE_GOAL", "VIEW");
+            A(PermissionCodes.PerformanceGoalManage, "Quản lý", "PERFORMANCE_GOAL", "MANAGE");
+            A(PermissionCodes.PerformanceResultView, "Xem", "PERFORMANCE_RESULT", "VIEW");
+            A(PermissionCodes.PerformanceResultManage, "Quản lý", "PERFORMANCE_RESULT", "MANAGE");
+            A(PermissionCodes.PerformanceCompetencyView, "Xem", "PERFORMANCE_COMPETENCY", "VIEW");
+            A(PermissionCodes.PerformanceCompetencyManage, "Quản lý", "PERFORMANCE_COMPETENCY", "MANAGE");
+            A(PermissionCodes.Performance360View, "Xem", "PERFORMANCE_360", "VIEW");
+            A(PermissionCodes.Performance360Manage, "Quản lý", "PERFORMANCE_360", "MANAGE");
+
+            // TRAINING
+            A(PermissionCodes.TrainingView, "Xem", "TRAINING", "VIEW");
+            A(PermissionCodes.TrainingCourseView, "Xem", "TRAINING_COURSE", "VIEW");
+            A(PermissionCodes.TrainingCourseCreate, "Tạo mới", "TRAINING_COURSE", "CREATE");
+            A(PermissionCodes.TrainingCourseUpdate, "Cập nhật", "TRAINING_COURSE", "UPDATE");
+            A(PermissionCodes.TrainingCourseDelete, "Xóa", "TRAINING_COURSE", "DELETE");
+            A(PermissionCodes.TrainingEnrollmentView, "Xem", "TRAINING_ENROLLMENT", "VIEW");
+            A(PermissionCodes.TrainingEnrollmentManage, "Quản lý", "TRAINING_ENROLLMENT", "MANAGE");
+            A(PermissionCodes.TrainingResultView, "Xem", "TRAINING_RESULT", "VIEW");
+            A(PermissionCodes.TrainingResultManage, "Quản lý", "TRAINING_RESULT", "MANAGE");
+
             // PAYROLL
             A(PermissionCodes.PayrollView, "Xem", "PAYROLL", "VIEW");
             A(PermissionCodes.PayrollManage, "Quản lý", "PAYROLL", "MANAGE");
@@ -213,7 +252,53 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.PayrollConfigActivate, "Kích hoạt", "PAYROLL_CONFIG", "ACTIVATE");
             A(PermissionCodes.PayrollConfigManage, "Quản lý", "PAYROLL_CONFIG", "MANAGE");
 
-            // SYSTEM
+            A(PermissionCodes.PayrollAllowanceView, "Xem", "PAYROLL_ALLOWANCE", "VIEW");
+            A(PermissionCodes.PayrollAllowanceManage, "Quản lý", "PAYROLL_ALLOWANCE", "MANAGE");
+            A(PermissionCodes.PayrollAdvanceView, "Xem", "PAYROLL_ADVANCE", "VIEW");
+            A(PermissionCodes.PayrollAdvanceCreate, "Tạo mới", "PAYROLL_ADVANCE", "CREATE");
+            A(PermissionCodes.PayrollAdvanceApprove, "Duyệt", "PAYROLL_ADVANCE", "APPROVE");
+            A(PermissionCodes.PayrollAdvanceManage, "Quản lý", "PAYROLL_ADVANCE", "MANAGE");
+            A(PermissionCodes.PayrollAdjustmentView, "Xem", "PAYROLL_ADJUSTMENT", "VIEW");
+            A(PermissionCodes.PayrollAdjustmentManage, "Quản lý", "PAYROLL_ADJUSTMENT", "MANAGE");
+
+            // RECRUITMENT
+            A(PermissionCodes.RecruitmentView, "Xem", "RECRUITMENT", "VIEW");
+            A(PermissionCodes.RecruitmentManage, "Quản lý", "RECRUITMENT", "MANAGE");
+            A(PermissionCodes.RecruitmentHeadcountView, "Xem", "RECRUITMENT_HEADCOUNT", "VIEW");
+            A(PermissionCodes.RecruitmentHeadcountUpdate, "Cập nhật", "RECRUITMENT_HEADCOUNT", "UPDATE");
+            A(PermissionCodes.RecruitmentJdView, "Xem", "RECRUITMENT_JD", "VIEW");
+            A(PermissionCodes.RecruitmentJdCreate, "Tạo mới", "RECRUITMENT_JD", "CREATE");
+            A(PermissionCodes.RecruitmentJdUpdate, "Cập nhật", "RECRUITMENT_JD", "UPDATE");
+            A(PermissionCodes.RecruitmentJdDelete, "Xóa", "RECRUITMENT_JD", "DELETE");
+            A(PermissionCodes.RecruitmentCriteriaView, "Xem", "RECRUITMENT_CRITERIA", "VIEW");
+            A(PermissionCodes.RecruitmentCriteriaManage, "Quản lý", "RECRUITMENT_CRITERIA", "MANAGE");
+            A(PermissionCodes.RecruitmentSourceView, "Xem", "RECRUITMENT_SOURCE", "VIEW");
+            A(PermissionCodes.RecruitmentSourceManage, "Quản lý", "RECRUITMENT_SOURCE", "MANAGE");
+            A(PermissionCodes.RecruitmentRequestView, "Xem", "RECRUITMENT_REQUEST", "VIEW");
+            A(PermissionCodes.RecruitmentRequestCreate, "Tạo mới", "RECRUITMENT_REQUEST", "CREATE");
+            A(PermissionCodes.RecruitmentRequestUpdate, "Cập nhật", "RECRUITMENT_REQUEST", "UPDATE");
+            A(PermissionCodes.RecruitmentRequestApprove, "Duyệt", "RECRUITMENT_REQUEST", "APPROVE");
+            A(PermissionCodes.RecruitmentPlanView, "Xem", "RECRUITMENT_PLAN", "VIEW");
+            A(PermissionCodes.RecruitmentPlanCreate, "Tạo mới", "RECRUITMENT_PLAN", "CREATE");
+            A(PermissionCodes.RecruitmentPlanUpdate, "Cập nhật", "RECRUITMENT_PLAN", "UPDATE");
+            A(PermissionCodes.RecruitmentCandidateView, "Xem", "RECRUITMENT_CANDIDATE", "VIEW");
+            A(PermissionCodes.RecruitmentCandidateCreate, "Tạo mới", "RECRUITMENT_CANDIDATE", "CREATE");
+            A(PermissionCodes.RecruitmentCandidateUpdate, "Cập nhật", "RECRUITMENT_CANDIDATE", "UPDATE");
+            A(PermissionCodes.RecruitmentInterviewView, "Xem", "RECRUITMENT_INTERVIEW", "VIEW");
+            A(PermissionCodes.RecruitmentInterviewManage, "Quản lý", "RECRUITMENT_INTERVIEW", "MANAGE");
+            A(PermissionCodes.RecruitmentPipelineView, "Xem", "RECRUITMENT_PIPELINE", "VIEW");
+
+            // ASSET
+            A(PermissionCodes.AssetView, "Xem", "ASSET", "VIEW");
+            A(PermissionCodes.AssetManage, "Quản lý", "ASSET", "MANAGE");
+            A(PermissionCodes.AssetInventoryView, "Xem", "ASSET_INVENTORY", "VIEW");
+            A(PermissionCodes.AssetInventoryCreate, "Tạo mới", "ASSET_INVENTORY", "CREATE");
+            A(PermissionCodes.AssetInventoryUpdate, "Cập nhật", "ASSET_INVENTORY", "UPDATE");
+            A(PermissionCodes.AssetInventoryImportExcel, "Import Excel", "ASSET_INVENTORY", "IMPORT_EXCEL");
+            A(PermissionCodes.AssetInventoryExportExcel, "Export Excel", "ASSET_INVENTORY", "EXPORT_EXCEL");
+            A(PermissionCodes.AssetInventoryManage, "Quản lý", "ASSET_INVENTORY", "MANAGE");
+
+            // SYSTEM / ROLE
             A(PermissionCodes.RoleView, "Xem", "ROLE", "VIEW");
             A(PermissionCodes.RoleCreate, "Tạo mới", "ROLE", "CREATE");
             A(PermissionCodes.RoleUpdate, "Cập nhật", "ROLE", "UPDATE");
@@ -227,6 +312,17 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.UserResetPassword, "Đặt lại mật khẩu", "USER", "RESET_PASSWORD");
             A(PermissionCodes.UserManage, "Quản lý", "USER", "MANAGE");
 
+            A(PermissionCodes.SystemSettingView, "Xem", "SYSTEM_SETTING", "VIEW", false);
+            A(PermissionCodes.SystemSettingsView, "Xem cấu hình hệ thống", "SYSTEM_SETTINGS", "VIEW", false);
+            A(PermissionCodes.SystemSettingsManage, "Quản lý cấu hình hệ thống", "SYSTEM_SETTINGS", "MANAGE", false);
+            A(PermissionCodes.ReportScheduleView, "Xem lịch báo cáo", "REPORT_SCHEDULE", "VIEW", false);
+            A(PermissionCodes.ReportScheduleManage, "Quản lý lịch báo cáo", "REPORT_SCHEDULE", "MANAGE", false);
+            A(PermissionCodes.ComplianceView, "Xem tuân thủ", "COMPLIANCE", "VIEW", false);
+            A(PermissionCodes.IntegrationsView, "Xem tích hợp", "INTEGRATIONS", "VIEW", false);
+            A(PermissionCodes.IntegrationsManage, "Quản lý tích hợp", "INTEGRATIONS", "MANAGE", false);
+            A(PermissionCodes.WorkflowView, "Xem workflow", "WORKFLOW", "VIEW", false);
+            A(PermissionCodes.WorkflowManage, "Quản lý workflow", "WORKFLOW", "MANAGE", false);
+            A(PermissionCodes.WorkflowInbox, "Hộp thư duyệt workflow", "WORKFLOW", "INBOX", false);
             A(PermissionCodes.ActionLogView, "Xem", "ACTION_LOG", "VIEW", false);
             A(PermissionCodes.MobileAccess, "Truy cập", "MOBILE", "ACCESS", false);
 
@@ -254,6 +350,7 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.OperateTimekeepingStandardView, PermissionCodes.OperateTimekeepingStandardManage, PermissionCodes.OperateTimekeepingStandardCreate, PermissionCodes.OperateTimekeepingStandardUpdate, PermissionCodes.OperateTimekeepingStandardActivate, PermissionCodes.OperateTimekeepingStandardDeactivate,
             PermissionCodes.OperateTimekeepingView, PermissionCodes.OperateTimekeepingManage, PermissionCodes.OperateTimekeepingAdjust, PermissionCodes.OperateTimekeepingSummarize,
             PermissionCodes.OperateAttendanceComplaintView, PermissionCodes.OperateAttendanceComplaintManage, PermissionCodes.OperateAttendanceComplaintReview,
+            PermissionCodes.OperateOvertimeView, PermissionCodes.OperateOvertimeCreate, PermissionCodes.OperateOvertimeApprove, PermissionCodes.OperateOvertimeManage,
             PermissionCodes.OperateDayOffConfigView, PermissionCodes.OperateDayOffConfigManage, PermissionCodes.OperateDayOffConfigCreate, PermissionCodes.OperateDayOffConfigUpdate, PermissionCodes.OperateDayOffConfigActivate, PermissionCodes.OperateDayOffConfigDeactivate,
             PermissionCodes.OperatePublicHolidayView, PermissionCodes.OperatePublicHolidayManage, PermissionCodes.OperatePublicHolidayCreate, PermissionCodes.OperatePublicHolidayUpdate, PermissionCodes.OperatePublicHolidayActivate, PermissionCodes.OperatePublicHolidayDeactivate,
             PermissionCodes.OperateLeaveView, PermissionCodes.OperateLeaveManage, PermissionCodes.OperateLeaveCreate, PermissionCodes.OperateLeaveApprove, PermissionCodes.OperateLeaveReject, PermissionCodes.OperateLeaveCancel,
@@ -264,8 +361,39 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.PayrollView, PermissionCodes.PayrollManage,
             PermissionCodes.PayrollSalaryView, PermissionCodes.PayrollSalaryManage, PermissionCodes.PayrollSalaryCreate, PermissionCodes.PayrollSalaryUpdate, PermissionCodes.PayrollSalaryApprove, PermissionCodes.PayrollSalaryMarkPaid, PermissionCodes.PayrollSalaryCancel,
             PermissionCodes.PayrollConfigView, PermissionCodes.PayrollConfigManage, PermissionCodes.PayrollConfigCreate, PermissionCodes.PayrollConfigUpdate, PermissionCodes.PayrollConfigActivate, PermissionCodes.PayrollConfigDeactivate,
+            PermissionCodes.PayrollAllowanceView, PermissionCodes.PayrollAllowanceManage,
+            PermissionCodes.PayrollAdvanceView, PermissionCodes.PayrollAdvanceCreate, PermissionCodes.PayrollAdvanceApprove, PermissionCodes.PayrollAdvanceManage,
+            PermissionCodes.PayrollAdjustmentView, PermissionCodes.PayrollAdjustmentManage,
+            PermissionCodes.RecruitmentView, PermissionCodes.RecruitmentManage,
+            PermissionCodes.RecruitmentHeadcountView, PermissionCodes.RecruitmentHeadcountUpdate,
+            PermissionCodes.RecruitmentJdView, PermissionCodes.RecruitmentJdCreate, PermissionCodes.RecruitmentJdUpdate, PermissionCodes.RecruitmentJdDelete,
+            PermissionCodes.RecruitmentCriteriaView, PermissionCodes.RecruitmentCriteriaManage,
+            PermissionCodes.RecruitmentSourceView, PermissionCodes.RecruitmentSourceManage,
+            PermissionCodes.RecruitmentRequestView, PermissionCodes.RecruitmentRequestCreate, PermissionCodes.RecruitmentRequestUpdate, PermissionCodes.RecruitmentRequestApprove,
+            PermissionCodes.RecruitmentPlanView, PermissionCodes.RecruitmentPlanCreate, PermissionCodes.RecruitmentPlanUpdate,
+            PermissionCodes.RecruitmentCandidateView, PermissionCodes.RecruitmentCandidateCreate, PermissionCodes.RecruitmentCandidateUpdate,
+            PermissionCodes.RecruitmentInterviewView, PermissionCodes.RecruitmentInterviewManage,
+            PermissionCodes.RecruitmentPipelineView,
+            PermissionCodes.DisciplineView,
+            PermissionCodes.DisciplineTypeView, PermissionCodes.DisciplineTypeManage,
+            PermissionCodes.DisciplineViolationView, PermissionCodes.DisciplineViolationCreate, PermissionCodes.DisciplineViolationUpdate, PermissionCodes.DisciplineViolationApprove, PermissionCodes.DisciplineViolationDelete,
+            PermissionCodes.PerformanceView,
+            PermissionCodes.PerformanceCycleView, PermissionCodes.PerformanceCycleCreate, PermissionCodes.PerformanceCycleUpdate,
+            PermissionCodes.PerformanceGoalView, PermissionCodes.PerformanceGoalManage,
+            PermissionCodes.PerformanceResultView, PermissionCodes.PerformanceResultManage,
+            PermissionCodes.PerformanceCompetencyView, PermissionCodes.PerformanceCompetencyManage,
+            PermissionCodes.Performance360View, PermissionCodes.Performance360Manage,
+            PermissionCodes.TrainingView,
+            PermissionCodes.TrainingCourseView, PermissionCodes.TrainingCourseCreate, PermissionCodes.TrainingCourseUpdate, PermissionCodes.TrainingCourseDelete,
+            PermissionCodes.TrainingEnrollmentView, PermissionCodes.TrainingEnrollmentManage,
+            PermissionCodes.TrainingResultView, PermissionCodes.TrainingResultManage,
             PermissionCodes.UserView,
             PermissionCodes.ActionLogView,
+            PermissionCodes.SystemSettingsView, PermissionCodes.SystemSettingsManage,
+            PermissionCodes.ReportScheduleView, PermissionCodes.ReportScheduleManage,
+            PermissionCodes.ComplianceView,
+            PermissionCodes.IntegrationsView, PermissionCodes.IntegrationsManage,
+            PermissionCodes.WorkflowView, PermissionCodes.WorkflowManage, PermissionCodes.WorkflowInbox,
             PermissionCodes.MobileAccess,
         ];
 
@@ -275,9 +403,12 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.HrEmployeeView,
             PermissionCodes.OperateTimekeepingView,
             PermissionCodes.OperateAttendanceComplaintView,
+            PermissionCodes.OperateOvertimeView,
+            PermissionCodes.OperateOvertimeApprove,
             PermissionCodes.OperateLeaveView,
             PermissionCodes.OperateLeaveApprove,
             PermissionCodes.OperateLeaveReject,
+            PermissionCodes.WorkflowView, PermissionCodes.WorkflowInbox,
             PermissionCodes.MobileAccess,
         ];
 
@@ -290,6 +421,9 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.OperateLeaveCreate,
             PermissionCodes.PayrollSalaryView,
             PermissionCodes.OperateAttendanceComplaintCreate,
+            PermissionCodes.OperateOvertimeView,
+            PermissionCodes.OperateOvertimeCreate,
+            PermissionCodes.WorkflowInbox,
         ];
     }
 }

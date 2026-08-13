@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
+using HrmApi.Application.Common.Services;
 using HrmApi.Application.DTOs.Department;
 using HrmApi.Application.Mappings;
 using MediatR;
@@ -26,15 +28,19 @@ namespace HrmApi.Application.Features.Departments.Queries
     public class GetDepartmentsPagedQueryHandler : IRequestHandler<GetDepartmentsPagedQuery, PagedResult<DepartmentDto>>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IDataScopeService _dataScope;
 
-        public GetDepartmentsPagedQueryHandler(IApplicationDbContext context)
+        public GetDepartmentsPagedQueryHandler(IApplicationDbContext context, IDataScopeService dataScope)
         {
             _context = context;
+            _dataScope = dataScope;
         }
 
         public async Task<PagedResult<DepartmentDto>> Handle(GetDepartmentsPagedQuery request, CancellationToken cancellationToken)
         {
             var query = _context.DepartmentEntities.AsNoTracking();
+            query = await query.ApplyDepartmentDataScopeAsync(
+                _dataScope, PermissionCodes.OrgDepartmentView, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
@@ -295,6 +301,46 @@ namespace HrmApi.Application.Features.Departments.Queries
     #endregion
 
     #region Cascade Query
+    public class GetDepartmentsByCompanyQuery : IRequest<List<DepartmentSelectBoxDto>>
+    {
+        public Guid CompanyId { get; set; }
+        public Guid? ExcludeId { get; set; }
+        public bool DirectOnly { get; set; }
+    }
+
+    public class GetDepartmentsByCompanyQueryHandler : IRequestHandler<GetDepartmentsByCompanyQuery, List<DepartmentSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+        public GetDepartmentsByCompanyQueryHandler(IApplicationDbContext context) => _context = context;
+
+        public async Task<List<DepartmentSelectBoxDto>> Handle(GetDepartmentsByCompanyQuery request, CancellationToken cancellationToken)
+        {
+            if (request.CompanyId == Guid.Empty)
+                throw new InvalidOperationException("Id công ty là bắt buộc.");
+
+            var query = _context.DepartmentEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted && x.CompanyId == request.CompanyId);
+
+            if (request.DirectOnly)
+                query = query.Where(x => !x.BranchId.HasValue);
+
+            if (request.ExcludeId.HasValue && request.ExcludeId != Guid.Empty)
+                query = query.Where(x => x.Id != request.ExcludeId.Value);
+
+            return await query
+                .OrderBy(x => x.Name)
+                .Select(x => new DepartmentSelectBoxDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    Name = x.Name,
+                    CompanyId = x.CompanyId,
+                    BranchId = x.BranchId
+                })
+                .ToListAsync(cancellationToken);
+        }
+    }
+
     public class GetDepartmentsByBranchQuery : IRequest<List<DepartmentSelectBoxDto>>
     {
         public Guid BranchId { get; set; }

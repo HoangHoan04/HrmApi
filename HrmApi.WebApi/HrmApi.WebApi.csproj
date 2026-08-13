@@ -10,19 +10,15 @@
     <Compile Remove="Common\**" />
     <Compile Remove="Extensions\**" />
     <Compile Remove="Filters\**" />
-    <Compile Remove="Middleware\**" />
     <Content Remove="Common\**" />
     <Content Remove="Extensions\**" />
     <Content Remove="Filters\**" />
-    <Content Remove="Middleware\**" />
     <EmbeddedResource Remove="Common\**" />
     <EmbeddedResource Remove="Extensions\**" />
     <EmbeddedResource Remove="Filters\**" />
-    <EmbeddedResource Remove="Middleware\**" />
     <None Remove="Common\**" />
     <None Remove="Extensions\**" />
     <None Remove="Filters\**" />
-    <None Remove="Middleware\**" />
   </ItemGroup>
 
   <ItemGroup>

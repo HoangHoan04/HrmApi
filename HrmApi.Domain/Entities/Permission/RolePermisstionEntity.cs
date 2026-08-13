@@ -1,4 +1,5 @@
 ﻿using HrmApi.Domain.Common;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Permission
 {
@@ -12,8 +13,8 @@ namespace HrmApi.Domain.Entities.Permission
         /// <summary>Mã quyền từ PermissionCodes / RbacPermissionCatalog.</summary>
         public string PermissionCode { get; set; } = string.Empty;
 
-        /// <summary>Phạm vi dữ liệu: ALL / BRANCH / DEPARTMENT / OWN.</summary>
-        public string DataScope { get; set; } = "OWN";
+        /// <summary>Phạm vi dữ liệu — <see cref="DataScope"/>.</summary>
+        public string DataScope { get; set; } = HrmApi.Domain.Enums.DataScope.Own;
 
         public RoleEntity Role { get; set; } = null!;
     }

@@ -1,5 +1,7 @@
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
+using HrmApi.Application.Common.Services;
 using HrmApi.Application.DTOs.Contract;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Contract;
@@ -163,15 +165,19 @@ namespace HrmApi.Application.Features.Contracts.Queries
     public class GetContractsPagedQueryHandler : IRequestHandler<GetContractsPagedQuery, PagedResult<ContractDto>>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IDataScopeService _dataScope;
 
-        public GetContractsPagedQueryHandler(IApplicationDbContext context)
+        public GetContractsPagedQueryHandler(IApplicationDbContext context, IDataScopeService dataScope)
         {
             _context = context;
+            _dataScope = dataScope;
         }
 
         public async Task<PagedResult<ContractDto>> Handle(GetContractsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<ContractEntity> query = _context.ContractEntities.AsNoTracking();
+            query = await query.ApplyContractDataScopeAsync(
+                _dataScope, PermissionCodes.HrContractView, cancellationToken);
 
             if (request.IsDeleted.HasValue)
             {

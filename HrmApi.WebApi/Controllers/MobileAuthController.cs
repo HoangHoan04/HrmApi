@@ -2,7 +2,6 @@ using HrmApi.Application.Common.Interfaces;
 using HrmApi.Domain.Entities.Permission;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 
 namespace HrmApi.WebApi.Controllers
 {
@@ -15,8 +14,9 @@ namespace HrmApi.WebApi.Controllers
             IPasswordHasher<UserEntity> passwordHasher,
             IConfiguration configuration,
             IEmailService emailService,
-            IAuthContextService authContext)
-            : base(context, passwordHasher, configuration, emailService, authContext)
+            IAuthContextService authContext,
+            IHttpClientFactory httpClientFactory)
+            : base(context, passwordHasher, configuration, emailService, authContext, httpClientFactory)
         {
         }
     }

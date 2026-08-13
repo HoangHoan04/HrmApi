@@ -71,6 +71,16 @@ namespace HrmApi.Domain.Entities.Timekeeping
         public int TotalEarlyMinutes { get; set; }
 
         /// <summary>
+        /// Tổng phút OT trong tháng
+        /// </summary>
+        public int TotalOtMinutes { get; set; }
+
+        /// <summary>
+        /// Tổng phút làm đêm trong tháng
+        /// </summary>
+        public int TotalNightMinutes { get; set; }
+
+        /// <summary>
         /// Navigation property tới nhân viên sở hữu tổng hợp công này (EmployeeEntity)
         /// </summary>
         public virtual EmployeeEntity? Employee { get; set; }

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
+using HrmApi.Application.DTOs.Mobile;
 using HrmApi.Application.DTOs.Salary;
+using HrmApi.Application.Features.Mobile;
 using HrmApi.Application.Features.Salaries.Queries;
 using HrmApi.WebApi.Authorization;
 using MediatR;
@@ -36,6 +38,13 @@ namespace HrmApi.WebApi.Controllers
                 if (result == null) return NotFound("Không tìm thấy phiếu lương.");
                 return Ok(result);
             }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("payslip-html")]
+        public async Task<ActionResult<MobilePayslipHtmlDto>> PayslipHtml([FromBody] GetMyPayslipHtmlQuery query)
+        {
+            try { return Ok(await _mediator.Send(query)); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
     }

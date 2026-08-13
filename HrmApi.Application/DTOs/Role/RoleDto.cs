@@ -23,7 +23,7 @@ namespace HrmApi.Application.DTOs.Role
         public string PermissionCode { get; set; } = string.Empty;
         public string PermissionName { get; set; } = string.Empty;
         public string Module { get; set; } = string.Empty;
-        public string DataScope { get; set; } = "OWN";
+        public string DataScope { get; set; } = HrmApi.Domain.Enums.DataScope.Own;
     }
 
     public class RoleDetailDto
@@ -42,7 +42,7 @@ namespace HrmApi.Application.DTOs.Role
     public class RolePermissionSetItem
     {
         public string PermissionCode { get; set; } = string.Empty;
-        public string DataScope { get; set; } = "OWN";
+        public string DataScope { get; set; } = HrmApi.Domain.Enums.DataScope.Own;
     }
 
     public class UserListItemDto

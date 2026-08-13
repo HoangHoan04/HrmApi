@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
+using HrmApi.Application.Common.Services;
 using HrmApi.Application.DTOs.Branch;
 using HrmApi.Application.Mappings;
 using MediatR;
@@ -25,15 +27,19 @@ namespace HrmApi.Application.Features.Branches.Queries
     public class GetBranchesPagedQueryHandler : IRequestHandler<GetBranchesPagedQuery, PagedResult<BranchDto>>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IDataScopeService _dataScope;
 
-        public GetBranchesPagedQueryHandler(IApplicationDbContext context)
+        public GetBranchesPagedQueryHandler(IApplicationDbContext context, IDataScopeService dataScope)
         {
             _context = context;
+            _dataScope = dataScope;
         }
 
         public async Task<PagedResult<BranchDto>> Handle(GetBranchesPagedQuery request, CancellationToken cancellationToken)
         {
             var query = _context.BranchEntities.AsNoTracking();
+            query = await query.ApplyBranchDataScopeAsync(
+                _dataScope, PermissionCodes.OrgBranchView, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {

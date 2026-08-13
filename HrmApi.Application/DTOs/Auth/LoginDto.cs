@@ -19,8 +19,80 @@ namespace HrmApi.Application.DTOs.Auth
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
         public bool MustChangePassword { get; set; }
+        public bool RequiresTwoFactor { get; set; }
+        public string? TempToken { get; set; }
+        public bool TwoFactorEnabled { get; set; }
         public List<string> Roles { get; set; } = [];
         public List<string> Permissions { get; set; } = [];
+    }
+
+    public class TwoFactorSetupResponse
+    {
+        public string Secret { get; set; } = string.Empty;
+        public string OtpAuthUri { get; set; } = string.Empty;
+    }
+
+    public class TwoFactorCodeRequest
+    {
+        public string Code { get; set; } = string.Empty;
+        public string? Password { get; set; }
+    }
+
+    public class TwoFactorVerifyRequest
+    {
+        public string TempToken { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+    }
+
+    public class SsoStartResponse
+    {
+        public string AuthorizeUrl { get; set; } = string.Empty;
+        public string Provider { get; set; } = string.Empty;
+    }
+
+    public class SsoCallbackRequest
+    {
+        public string Code { get; set; } = string.Empty;
+        public string? RedirectUri { get; set; }
+    }
+
+    public class SsoStatusResponse
+    {
+        public SsoProviderStatusDto Google { get; set; } = new();
+        public SsoProviderStatusDto Microsoft { get; set; } = new();
+    }
+
+    public class SsoProviderStatusDto
+    {
+        public bool Enabled { get; set; }
+        public bool Configured { get; set; }
+        public string? ClientIdMasked { get; set; }
+    }
+
+    public class SessionDto
+    {
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public string? Username { get; set; }
+        public string Platform { get; set; } = string.Empty;
+        public string? DeviceName { get; set; }
+        public string? IpAddress { get; set; }
+        public string? UserAgent { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public DateTime? RevokedAt { get; set; }
+        public bool IsCurrent { get; set; }
+    }
+
+    public class SessionListRequest
+    {
+        public bool? IncludeRevoked { get; set; }
+        public bool? AllUsers { get; set; }
+    }
+
+    public class SessionRevokeRequest
+    {
+        public Guid Id { get; set; }
     }
 
     public class RefreshRequest
@@ -100,6 +172,7 @@ namespace HrmApi.Application.DTOs.Auth
 
         public List<string> Roles { get; set; } = [];
         public List<string> Permissions { get; set; } = [];
+        public bool TwoFactorEnabled { get; set; }
 
         public MobileProfileStatsDto Stats { get; set; } = new();
     }

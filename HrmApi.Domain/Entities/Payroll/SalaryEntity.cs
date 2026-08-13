@@ -1,6 +1,7 @@
 ﻿using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Payroll
 {
@@ -43,7 +44,7 @@ namespace HrmApi.Domain.Entities.Payroll
         /// <summary>
         /// Trạng thái phiếu lương (DRAFT, PROCESSING, APPROVED, PAID, CANCELLED)
         /// </summary>
-        public string Status { get; set; } = "DRAFT";
+        public string Status { get; set; } = SalaryStatus.Draft;
 
         /// <summary>
         /// Snapshot công ty tại thời điểm tính lương
@@ -103,7 +104,7 @@ namespace HrmApi.Domain.Entities.Payroll
         /// <summary>
         /// Đơn vị tiền tệ
         /// </summary>
-        public string Currency { get; set; } = "VND";
+        public string Currency { get; set; } = CurrencyCode.Vnd;
 
         /// <summary>
         /// URL file phiếu lương PDF

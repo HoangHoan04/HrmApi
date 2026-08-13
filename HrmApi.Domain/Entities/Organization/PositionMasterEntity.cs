@@ -119,6 +119,26 @@ namespace HrmApi.Domain.Entities.Organization
         public int? QuantityStandard { get; set; }
 
         /// <summary>
+        /// Mã cấp bậc (vd: G1, G2, M1…)
+        /// </summary>
+        public string? GradeCode { get; set; }
+
+        /// <summary>
+        /// Tên cấp bậc / band
+        /// </summary>
+        public string? GradeName { get; set; }
+
+        /// <summary>
+        /// Lương tối thiểu theo thang chức danh (VND)
+        /// </summary>
+        public decimal? SalaryMin { get; set; }
+
+        /// <summary>
+        /// Lương tối đa theo thang chức danh (VND)
+        /// </summary>
+        public decimal? SalaryMax { get; set; }
+
+        /// <summary>
         /// Trạng thái kích hoạt (true: đang sử dụng, false: vô hiệu – không xóa dữ liệu)
         /// </summary>
         public bool IsActive { get; set; } = true;

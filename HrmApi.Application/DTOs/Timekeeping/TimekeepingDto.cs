@@ -27,6 +27,8 @@ namespace HrmApi.Application.DTOs.Timekeeping
         public int LateMinutes { get; set; }
         public int EarlyMinutes { get; set; }
         public int WorkedMinutes { get; set; }
+        public int OtMinutes { get; set; }
+        public int NightMinutes { get; set; }
         public string? Note { get; set; }
         public bool IsManualAdjusted { get; set; }
     }

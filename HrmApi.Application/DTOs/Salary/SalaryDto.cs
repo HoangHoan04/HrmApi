@@ -1,3 +1,5 @@
+using HrmApi.Domain.Enums;
+
 namespace HrmApi.Application.DTOs.Salary
 {
     public class SalaryLineItemDto
@@ -38,7 +40,7 @@ namespace HrmApi.Application.DTOs.Salary
         public decimal TotalDeduction { get; set; }
         public decimal NetSalary { get; set; }
         public decimal? InsuranceSalary { get; set; }
-        public string Currency { get; set; } = "VND";
+        public string Currency { get; set; } = CurrencyCode.Vnd;
         public string? PayslipFileUrl { get; set; }
         public DateTime? ApprovedDate { get; set; }
         public string? ApprovedBy { get; set; }
@@ -62,7 +64,7 @@ namespace HrmApi.Application.DTOs.Salary
         public decimal BhtnEmployeeRate { get; set; }
         public int? DefaultPayDay { get; set; }
         public bool IsComputePrevMonth { get; set; }
-        public string Currency { get; set; } = "VND";
+        public string Currency { get; set; } = CurrencyCode.Vnd;
         public bool IsActive { get; set; } = true;
         public int DisplayOrder { get; set; }
     }
@@ -75,6 +77,6 @@ namespace HrmApi.Application.DTOs.Salary
         public Guid? CompanyId { get; set; }
         public int StandardWorkingDays { get; set; }
         public int? DefaultPayDay { get; set; }
-        public string Currency { get; set; } = "VND";
+        public string Currency { get; set; } = CurrencyCode.Vnd;
     }
 }

@@ -22,5 +22,7 @@ namespace HrmApi.Application.DTOs.Timekeeping
         public int TotalWorkedMinutes { get; set; }
         public int TotalLateMinutes { get; set; }
         public int TotalEarlyMinutes { get; set; }
+        public int TotalOtMinutes { get; set; }
+        public int TotalNightMinutes { get; set; }
     }
 }

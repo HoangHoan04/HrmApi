@@ -44,34 +44,39 @@ namespace HrmApi.Application.Common.Services
             var roleIds = roleRows.Select(x => x.Id).Distinct().ToList();
             List<string> permissions = [];
 
-            if (roleIds.Count > 0)
+            var userType = await _context.UserEntities.AsNoTracking()
+                .Where(x => x.Id == userId && !x.IsDeleted)
+                .Select(x => x.Type)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var isAdmin =
+                string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
+                || roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
+
+            if (isAdmin)
+            {
+                if (!roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)))
+                {
+                    roles = [RoleCodes.Admin, .. roles];
+                }
+
+                permissions = PermissionCodes.All.OrderBy(x => x).ToList();
+            }
+            else if (roleIds.Count > 0)
             {
                 permissions = await LoadPermissionCodesAsync(roleIds, cancellationToken);
             }
             else
             {
-                var userType = await _context.UserEntities.AsNoTracking()
-                    .Where(x => x.Id == userId && !x.IsDeleted)
-                    .Select(x => x.Type)
+                var employeeRoleId = await _context.RoleEntities.AsNoTracking()
+                    .Where(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive)
+                    .Select(x => (Guid?)x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
 
-                if (string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase))
+                if (employeeRoleId.HasValue)
                 {
-                    roles = [RoleCodes.Admin];
-                    permissions = PermissionCodes.All.OrderBy(x => x).ToList();
-                }
-                else
-                {
-                    var employeeRoleId = await _context.RoleEntities.AsNoTracking()
-                        .Where(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive)
-                        .Select(x => (Guid?)x.Id)
-                        .FirstOrDefaultAsync(cancellationToken);
-
-                    if (employeeRoleId.HasValue)
-                    {
-                        roles = [RoleCodes.Employee];
-                        permissions = await LoadPermissionCodesAsync([employeeRoleId.Value], cancellationToken);
-                    }
+                    roles = [RoleCodes.Employee];
+                    permissions = await LoadPermissionCodesAsync([employeeRoleId.Value], cancellationToken);
                 }
             }
 

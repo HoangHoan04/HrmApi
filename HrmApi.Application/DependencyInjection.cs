@@ -17,6 +17,10 @@ namespace HrmApi.Application
             services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
             services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();
             services.AddScoped<IAuthContextService, AuthContextService>();
+            services.AddScoped<IDataScopeService, DataScopeService>();
+            services.AddScoped<IWorkflowEngine, WorkflowEngine>();
+            services.AddHttpClient(nameof(WebhookDeliveryService));
+            services.AddScoped<IWebhookDeliveryService, WebhookDeliveryService>();
 
             return services;
         }

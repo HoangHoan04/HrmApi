@@ -45,6 +45,16 @@ namespace HrmApi.Domain.Entities.Timekeeping
         public int EarlyLeaveGraceMinutes { get; set; } = 0;
 
         /// <summary>
+        /// Bắt đầu khung giờ đêm (mặc định 22:00) — dùng tính NightMinutes
+        /// </summary>
+        public TimeSpan NightStartTime { get; set; } = new(22, 0, 0);
+
+        /// <summary>
+        /// Kết thúc khung giờ đêm (mặc định 06:00 hôm sau)
+        /// </summary>
+        public TimeSpan NightEndTime { get; set; } = new(6, 0, 0);
+
+        /// <summary>
         /// Đang kích hoạt
         /// </summary>
         public bool IsActive { get; set; } = true;

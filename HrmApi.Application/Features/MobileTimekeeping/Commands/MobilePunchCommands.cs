@@ -55,26 +55,23 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
 
             var branchId = window.BranchId ?? employee.BranchId;
             var standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
+            var site = await PunchSiteResolver.ResolveAsync(_context, branchId, employee.CompanyId, cancellationToken);
 
-            var branch = branchId.HasValue
-                ? await _context.BranchEntities.AsNoTracking().FirstOrDefaultAsync(x => x.Id == branchId.Value, cancellationToken)
-                : null;
-            if (branch == null)
-                throw new InvalidOperationException("Không xác định được chi nhánh chấm công.");
-
-            var distance = _rules.ValidateGeofence(branch.Latitude, branch.Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
+            var distance = _rules.ValidateGeofence(
+                site.Latitude, site.Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
 
             record.CheckInAt = DateTime.UtcNow;
             record.CheckInLatitude = request.Latitude;
             record.CheckInLongitude = request.Longitude;
             record.CheckInDistanceM = distance;
-            record.BranchId = branchId;
+            record.BranchId = site.BranchId;
             record.CompanyId = employee.CompanyId;
             record.ShiftId = window.ShiftId;
             record.ShiftMasterId = window.ShiftMasterId;
             record.UpdatedAt = DateTime.UtcNow;
 
             _rules.ComputeStatus(record, window, standard);
+            await _rules.FinalizeOtAndNightAsync(record, window, standard, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
@@ -85,7 +82,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 TimekeepingMapper.ToLogObject(record),
                 "Mobile check-in");
 
-            return TimekeepingMapper.ToTodayDto(record, today, false, window, branch.Name, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, false, window, site.SiteName, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
@@ -147,14 +144,10 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
             var window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
             var branchId = record.BranchId ?? window.BranchId ?? employee.BranchId;
             var standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
+            var site = await PunchSiteResolver.ResolveAsync(_context, branchId, employee.CompanyId, cancellationToken);
 
-            var branch = branchId.HasValue
-                ? await _context.BranchEntities.AsNoTracking().FirstOrDefaultAsync(x => x.Id == branchId.Value, cancellationToken)
-                : null;
-            if (branch == null)
-                throw new InvalidOperationException("Không xác định được chi nhánh chấm công.");
-
-            var distance = _rules.ValidateGeofence(branch.Latitude, branch.Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
+            var distance = _rules.ValidateGeofence(
+                site.Latitude, site.Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
 
             record.CheckOutAt = DateTime.UtcNow;
             record.CheckOutLatitude = request.Latitude;
@@ -163,6 +156,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
             record.UpdatedAt = DateTime.UtcNow;
 
             _rules.ComputeStatus(record, window, standard);
+            await _rules.FinalizeOtAndNightAsync(record, window, standard, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
@@ -173,7 +167,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 TimekeepingMapper.ToLogObject(record),
                 "Mobile check-out");
 
-            return TimekeepingMapper.ToTodayDto(record, today, false, window, branch.Name, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, false, window, site.SiteName, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
@@ -192,6 +186,35 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên. Không thể chấm công.");
+        }
+    }
+
+    internal static class PunchSiteResolver
+    {
+        public static async Task<(Guid? BranchId, string SiteName, double? Latitude, double? Longitude)> ResolveAsync(
+            IApplicationDbContext context,
+            Guid? branchId,
+            Guid? companyId,
+            CancellationToken cancellationToken)
+        {
+            if (branchId.HasValue && branchId != Guid.Empty)
+            {
+                var branch = await context.BranchEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == branchId.Value && !x.IsDeleted, cancellationToken);
+                if (branch != null && branch.Latitude.HasValue && branch.Longitude.HasValue)
+                    return (branch.Id, branch.Name, branch.Latitude, branch.Longitude);
+            }
+
+            if (companyId.HasValue && companyId != Guid.Empty)
+            {
+                var company = await context.CompanyEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == companyId.Value && !x.IsDeleted, cancellationToken);
+                if (company != null && company.Latitude.HasValue && company.Longitude.HasValue)
+                    return (null, company.Name, company.Latitude, company.Longitude);
+            }
+
+            throw new InvalidOperationException(
+                "Không xác định được điểm chấm công GPS. Gán chi nhánh có tọa độ hoặc cấu hình GPS trên công ty (mô hình độc lập).");
         }
     }
 }

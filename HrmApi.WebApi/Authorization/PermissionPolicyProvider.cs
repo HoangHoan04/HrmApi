@@ -5,9 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace HrmApi.WebApi.Authorization
 {
-    /// <summary>
-    /// Tạo policy động dạng Perm:{CODE} khi dùng [RequirePermission("...")].
-    /// </summary>
+
     public sealed class PermissionPolicyProvider : IAuthorizationPolicyProvider
     {
         public const string PolicyPrefix = "Perm:";

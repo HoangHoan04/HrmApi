@@ -97,7 +97,7 @@ namespace HrmApi.WebApi.Controllers
         {
             try
             {
-                command.EmployeeId = null; // always self
+                command.EmployeeId = null;
                 return Ok(await _mediator.Send(command));
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }

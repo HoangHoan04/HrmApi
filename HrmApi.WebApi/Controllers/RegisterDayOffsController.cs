@@ -93,6 +93,15 @@ namespace HrmApi.WebApi.Controllers
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
+
+        [HttpPost("calendar-range")]
+        [RequirePermission(PermissionCodes.OperateLeaveView)]
+        public async Task<ActionResult<List<LeaveCalendarEventDto>>> CalendarRange(
+            [FromBody] GetLeaveCalendarRangeQuery query)
+        {
+            try { return Ok(await _mediator.Send(query)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
     }
 
     [ApiController]
@@ -107,6 +116,15 @@ namespace HrmApi.WebApi.Controllers
         [RequirePermission(PermissionCodes.OperateLeaveAllocationView)]
         public async Task<ActionResult<PagedResult<DayOffAllocationDto>>> GetPaged([FromBody] GetDayOffAllocationsPagedQuery query)
             => Ok(await _mediator.Send(query));
+
+        [HttpPost("balance-report")]
+        [RequirePermission(PermissionCodes.OperateLeaveAllocationView)]
+        public async Task<ActionResult<PagedResult<LeaveBalanceReportDto>>> BalanceReport(
+            [FromBody] GetLeaveBalanceReportQuery query)
+        {
+            try { return Ok(await _mediator.Send(query)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
 
         [HttpPost("upsert")]
         [RequirePermission(PermissionCodes.OperateLeaveAllocationManage)]

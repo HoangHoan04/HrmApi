@@ -64,20 +64,27 @@ namespace HrmApi.Application.Features.Departments.Commands
             if (string.IsNullOrWhiteSpace(request.Name))
                 throw new InvalidOperationException("Tên phòng ban là bắt buộc.");
 
-            if (!request.BranchId.HasValue || request.BranchId == Guid.Empty)
-                throw new InvalidOperationException("Chi nhánh là bắt buộc.");
+            bool hasBranch = request.BranchId.HasValue && request.BranchId != Guid.Empty;
 
-            var branch = await context.BranchEntities
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == request.BranchId.Value, cancellationToken);
+            if (hasBranch)
+            {
+                var branch = await context.BranchEntities
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.BranchId!.Value && !x.IsDeleted, cancellationToken)
+                    ?? throw new InvalidOperationException("Chi nhánh không tồn tại.");
 
-            if (branch == null)
-                throw new InvalidOperationException("Chi nhánh không tồn tại.");
-
-            if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
-                request.CompanyId = branch.CompanyId;
-            else if (branch.CompanyId.HasValue && branch.CompanyId != request.CompanyId)
-                throw new InvalidOperationException("Chi nhánh không thuộc công ty đã chọn.");
+                if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
+                    request.CompanyId = branch.CompanyId;
+                else if (branch.CompanyId.HasValue && branch.CompanyId != request.CompanyId)
+                    throw new InvalidOperationException("Chi nhánh không thuộc công ty đã chọn.");
+            }
+            else
+            {
+                request.BranchId = null;
+                if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
+                    throw new InvalidOperationException(
+                        "Công ty là bắt buộc khi tạo phòng ban không gắn chi nhánh (mô hình công ty độc lập).");
+            }
 
             var exists = await context.DepartmentEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
@@ -89,17 +96,9 @@ namespace HrmApi.Application.Features.Departments.Commands
             if (request.CompanyId.HasValue)
             {
                 var companyExists = await context.CompanyEntities
-                    .AnyAsync(x => x.Id == request.CompanyId.Value, cancellationToken);
+                    .AnyAsync(x => x.Id == request.CompanyId.Value && !x.IsDeleted, cancellationToken);
                 if (!companyExists)
                     throw new InvalidOperationException("Công ty không tồn tại.");
-            }
-
-            if (request.BranchId.HasValue)
-            {
-                var branchExists = await context.BranchEntities
-                    .AnyAsync(x => x.Id == request.BranchId.Value, cancellationToken);
-                if (!branchExists)
-                    throw new InvalidOperationException("Chi nhánh không tồn tại.");
             }
 
             if (request.ParentDepartmentId.HasValue)

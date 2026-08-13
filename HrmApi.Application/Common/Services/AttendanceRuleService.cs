@@ -33,7 +33,7 @@ namespace HrmApi.Application.Common.Services
             if (schedule != null)
             {
                 WorkWindowResult dayWindow = await ResolveFromDayScheduleAsync(schedule, employee, cancellationToken);
-                dayWindow.Source = "DAY_OVERRIDE";
+                dayWindow.Source = AttendanceScheduleSource.DayOverride;
                 dayWindow.IsScheduledWorkDay = true;
                 return dayWindow;
             }
@@ -62,7 +62,7 @@ namespace HrmApi.Application.Common.Services
                     ShiftMasterId = master.Id,
                     BranchId = pattern.BranchId ?? employee.BranchId,
                     IsOvernight = master.IsOvernight || master.EndTime < master.StartTime,
-                    Source = "WORK_PATTERN",
+                    Source = AttendanceScheduleSource.WorkPattern,
                     IsScheduledWorkDay = WorkPatternHelper.IsWorkDay(pattern, workDate),
                 }, master);
 
@@ -95,7 +95,7 @@ namespace HrmApi.Application.Common.Services
                             EndTime = pm.HourWorkingEnd.Value,
                             BranchId = employee.BranchId,
                             IsOvernight = pm.HourWorkingEnd.Value < pm.HourWorkingStart.Value,
-                            Source = "POSITION",
+                            Source = AttendanceScheduleSource.Position,
                             IsScheduledWorkDay = weekday,
                         };
                     }
@@ -203,13 +203,7 @@ namespace HrmApi.Application.Common.Services
                     .FirstOrDefaultAsync(x => x.Id == standardId.Value && !x.IsDeleted, cancellationToken);
                 if (std != null)
                 {
-                    return new AttendanceStandardResult
-                    {
-                        StandardId = std.Id,
-                        AllowedRadiusMeters = std.AllowedRadiusMeters > 0 ? std.AllowedRadiusMeters : 200,
-                        LateGraceMinutes = std.LateGraceMinutes,
-                        EarlyLeaveGraceMinutes = std.EarlyLeaveGraceMinutes
-                    };
+                    return ToStandardResult(std);
                 }
             }
 
@@ -221,13 +215,7 @@ namespace HrmApi.Application.Common.Services
                     .FirstOrDefaultAsync(cancellationToken);
                 if (companyStd != null)
                 {
-                    return new AttendanceStandardResult
-                    {
-                        StandardId = companyStd.Id,
-                        AllowedRadiusMeters = companyStd.AllowedRadiusMeters > 0 ? companyStd.AllowedRadiusMeters : 200,
-                        LateGraceMinutes = companyStd.LateGraceMinutes,
-                        EarlyLeaveGraceMinutes = companyStd.EarlyLeaveGraceMinutes
-                    };
+                    return ToStandardResult(companyStd);
                 }
             }
 
@@ -235,18 +223,31 @@ namespace HrmApi.Application.Common.Services
             {
                 AllowedRadiusMeters = 200,
                 LateGraceMinutes = 0,
-                EarlyLeaveGraceMinutes = 0
+                EarlyLeaveGraceMinutes = 0,
+                NightStartTime = new TimeSpan(22, 0, 0),
+                NightEndTime = new TimeSpan(6, 0, 0),
             };
         }
 
-        public double ValidateGeofence(double? branchLat, double? branchLng, double punchLat, double punchLng, int allowedRadiusMeters)
+        private static AttendanceStandardResult ToStandardResult(TimeKeepingStandardEntity std) => new()
         {
-            if (!branchLat.HasValue || !branchLng.HasValue)
+            StandardId = std.Id,
+            AllowedRadiusMeters = std.AllowedRadiusMeters > 0 ? std.AllowedRadiusMeters : 200,
+            LateGraceMinutes = std.LateGraceMinutes,
+            EarlyLeaveGraceMinutes = std.EarlyLeaveGraceMinutes,
+            NightStartTime = std.NightStartTime,
+            NightEndTime = std.NightEndTime,
+        };
+
+        public double ValidateGeofence(double? siteLat, double? siteLng, double punchLat, double punchLng, int allowedRadiusMeters)
+        {
+            if (!siteLat.HasValue || !siteLng.HasValue)
             {
-                throw new InvalidOperationException("Chi nhánh chưa cấu hình tọa độ GPS. Vui lòng liên hệ Admin.");
+                throw new InvalidOperationException(
+                    "Chưa cấu hình tọa độ GPS (chi nhánh hoặc công ty). Vui lòng liên hệ Admin.");
             }
 
-            double distance = GeoHelper.HaversineDistanceMeters(branchLat.Value, branchLng.Value, punchLat, punchLng);
+            double distance = GeoHelper.HaversineDistanceMeters(siteLat.Value, siteLng.Value, punchLat, punchLng);
             return distance > allowedRadiusMeters
                 ? throw new InvalidOperationException(
                     $"Bạn đang ngoài phạm vi chấm công ({distance:0}m / cho phép {allowedRadiusMeters}m).")
@@ -268,6 +269,8 @@ namespace HrmApi.Application.Common.Services
         {
             if (record.Status == AttendanceStatus.LEAVE)
             {
+                record.OtMinutes = 0;
+                record.NightMinutes = 0;
                 return;
             }
 
@@ -277,6 +280,8 @@ namespace HrmApi.Application.Common.Services
                 record.LateMinutes = 0;
                 record.EarlyMinutes = 0;
                 record.WorkedMinutes = 0;
+                record.OtMinutes = 0;
+                record.NightMinutes = 0;
                 return;
             }
 
@@ -327,9 +332,108 @@ namespace HrmApi.Application.Common.Services
             else
             {
                 record.WorkedMinutes = 0;
+                record.OtMinutes = 0;
+                record.NightMinutes = 0;
                 record.Status = record.LateMinutes > 0 ? AttendanceStatus.LATE : AttendanceStatus.INCOMPLETE;
             }
         }
+
+        public async Task FinalizeOtAndNightAsync(
+            TimekeepingEntity record,
+            WorkWindowResult window,
+            AttendanceStandardResult standard,
+            CancellationToken cancellationToken = default)
+        {
+            if (record.Status == AttendanceStatus.LEAVE
+                || !record.CheckInAt.HasValue
+                || !record.CheckOutAt.HasValue)
+            {
+                record.OtMinutes = 0;
+                record.NightMinutes = 0;
+                return;
+            }
+
+            DateTime inAt = NormalizeUtc(record.CheckInAt.Value);
+            DateTime outAt = NormalizeUtc(record.CheckOutAt.Value);
+            if (outAt <= inAt)
+            {
+                record.OtMinutes = 0;
+                record.NightMinutes = 0;
+                return;
+            }
+
+            var approvedOt = await _context.OvertimeRequestEntities.AsNoTracking()
+                .Where(x =>
+                    x.EmployeeId == record.EmployeeId
+                    && x.WorkDate == record.WorkDate
+                    && !x.IsDeleted
+                    && x.Status == OvertimeRequestStatus.Approved)
+                .ToListAsync(cancellationToken);
+
+            int otTotal = 0;
+            foreach (var ot in approvedOt)
+            {
+                DateTime otStart = BusinessDateHelper.ToUtc(record.WorkDate, ot.FromTime);
+                DateTime otEnd = BusinessDateHelper.ToUtc(record.WorkDate, ot.ToTime);
+                if (otEnd <= otStart)
+                {
+                    otEnd = otEnd.AddDays(1);
+                }
+
+                int overlap = OverlapMinutes(inAt, outAt, otStart, otEnd);
+                int cap = ot.ApprovedMinutes ?? ot.RequestedMinutes;
+                if (cap > 0)
+                {
+                    overlap = Math.Min(overlap, cap);
+                }
+
+                otTotal += overlap;
+            }
+
+            record.OtMinutes = Math.Max(0, otTotal);
+
+            DateTime nightStart = BusinessDateHelper.ToUtc(record.WorkDate, standard.NightStartTime);
+            DateTime nightEnd = BusinessDateHelper.ToUtc(record.WorkDate, standard.NightEndTime);
+            if (nightEnd <= nightStart)
+            {
+                nightEnd = nightEnd.AddDays(1);
+            }
+
+            int night = OverlapMinutes(inAt, outAt, nightStart, nightEnd);
+            if (window.IsOvernight || window.EndTime < window.StartTime)
+            {
+                DateTime prevNightStart = BusinessDateHelper.ToUtc(record.WorkDate.AddDays(-1), standard.NightStartTime);
+                DateTime prevNightEnd = BusinessDateHelper.ToUtc(record.WorkDate, standard.NightEndTime);
+                if (prevNightEnd <= prevNightStart)
+                {
+                    prevNightEnd = prevNightEnd.AddDays(1);
+                }
+
+                night += OverlapMinutes(inAt, outAt, prevNightStart, prevNightEnd);
+            }
+
+            record.NightMinutes = Math.Max(0, night);
+        }
+
+        private static int OverlapMinutes(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd)
+        {
+            DateTime start = aStart > bStart ? aStart : bStart;
+            DateTime end = aEnd < bEnd ? aEnd : bEnd;
+            if (end <= start)
+            {
+                return 0;
+            }
+
+            return Math.Max(0, (int)Math.Floor((end - start).TotalSeconds / 60.0));
+        }
+
+        private static DateTime NormalizeUtc(DateTime value) =>
+            value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            };
 
         public async Task<TimekeepingEntity> GetOrCreateTodayRecordAsync(EmployeeEntity employee, DateOnly workDate, CancellationToken cancellationToken = default)
         {

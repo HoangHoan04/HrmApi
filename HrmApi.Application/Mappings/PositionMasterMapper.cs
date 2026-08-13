@@ -36,6 +36,10 @@ namespace HrmApi.Application.Mappings
                 IsHadASecondInterview = entity.IsHadASecondInterview,
                 IsApprovedDayOff = entity.IsApprovedDayOff,
                 QuantityStandard = entity.QuantityStandard,
+                GradeCode = entity.GradeCode,
+                GradeName = entity.GradeName,
+                SalaryMin = entity.SalaryMin,
+                SalaryMax = entity.SalaryMax,
                 IsActive = entity.IsActive,
                 DisplayOrder = entity.DisplayOrder,
                 IsDeleted = entity.IsDeleted,
@@ -69,6 +73,15 @@ namespace HrmApi.Application.Mappings
             entity.IsHadASecondInterview = fields.IsHadASecondInterview;
             entity.IsApprovedDayOff = fields.IsApprovedDayOff;
             entity.QuantityStandard = fields.QuantityStandard;
+            entity.GradeCode = TrimOrNull(fields.GradeCode);
+            entity.GradeName = TrimOrNull(fields.GradeName);
+            entity.SalaryMin = fields.SalaryMin;
+            entity.SalaryMax = fields.SalaryMax;
+            if (entity.SalaryMin.HasValue && entity.SalaryMax.HasValue
+                && entity.SalaryMin.Value > entity.SalaryMax.Value)
+            {
+                throw new InvalidOperationException("Lương tối thiểu không được lớn hơn lương tối đa.");
+            }
             entity.IsActive = fields.IsActive;
             entity.DisplayOrder = fields.DisplayOrder;
         }
@@ -98,6 +111,10 @@ namespace HrmApi.Application.Mappings
                 entity.IsHadASecondInterview,
                 entity.IsApprovedDayOff,
                 entity.QuantityStandard,
+                entity.GradeCode,
+                entity.GradeName,
+                entity.SalaryMin,
+                entity.SalaryMax,
                 entity.IsActive,
                 entity.DisplayOrder
             };
@@ -130,6 +147,10 @@ namespace HrmApi.Application.Mappings
         public bool IsHadASecondInterview { get; set; }
         public bool IsApprovedDayOff { get; set; }
         public int? QuantityStandard { get; set; }
+        public string? GradeCode { get; set; }
+        public string? GradeName { get; set; }
+        public decimal? SalaryMin { get; set; }
+        public decimal? SalaryMax { get; set; }
         public bool IsActive { get; set; } = true;
         public int DisplayOrder { get; set; }
     }

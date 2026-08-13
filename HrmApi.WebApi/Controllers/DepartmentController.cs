@@ -186,5 +186,23 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Load phòng ban theo công ty (cascade khi công ty độc lập / không chọn chi nhánh).
+        /// </summary>
+        [HttpPost("load-by-company")]
+        [RequirePermission(PermissionCodes.OrgDepartmentView)]
+        public async Task<ActionResult<List<DepartmentSelectBoxDto>>> GetByCompany(
+            [FromBody] GetDepartmentsByCompanyQuery query)
+        {
+            try
+            {
+                return Ok(await _mediator.Send(query));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

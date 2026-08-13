@@ -52,6 +52,7 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                 var window = await _rules.ResolveWorkWindowAsync(employee, entity.WorkDate, cancellationToken);
                 var standard = await _rules.ResolveStandardAsync(entity.BranchId ?? employee.BranchId, employee.CompanyId, cancellationToken);
                 _rules.ComputeStatus(entity, window, standard);
+                await _rules.FinalizeOtAndNightAsync(entity, window, standard, cancellationToken);
             }
 
             entity.IsManualAdjusted = true;
@@ -232,6 +233,8 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                 summary.TotalWorkedMinutes = records.Sum(r => r.WorkedMinutes);
                 summary.TotalLateMinutes = records.Sum(r => r.LateMinutes);
                 summary.TotalEarlyMinutes = records.Sum(r => r.EarlyMinutes);
+                summary.TotalOtMinutes = records.Sum(r => r.OtMinutes);
+                summary.TotalNightMinutes = records.Sum(r => r.NightMinutes);
                 summary.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync(cancellationToken);

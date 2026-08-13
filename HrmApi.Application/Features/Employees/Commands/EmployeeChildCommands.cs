@@ -513,16 +513,36 @@ namespace HrmApi.Application.Features.Employees.Commands
             if (string.IsNullOrWhiteSpace(request.FileUrl))
                 throw new InvalidOperationException("URL file là bắt buộc.");
 
+            var category = request.FileCategory.Trim();
+            var previous = await _context.EmployeeFileEntities
+                .Where(x => x.EmployeeId == request.EmployeeId
+                    && !x.IsDeleted
+                    && x.FileCategory == category
+                    && x.IsCurrent)
+                .OrderByDescending(x => x.VersionNo)
+                .ThenByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var nextVersion = previous == null ? 1 : Math.Max(1, previous.VersionNo) + 1;
+            if (previous != null)
+            {
+                previous.IsCurrent = false;
+                previous.UpdatedAt = DateTime.UtcNow;
+            }
+
             var entity = new EmployeeFileEntity
             {
                 EmployeeId = request.EmployeeId,
-                FileCategory = request.FileCategory.Trim(),
+                FileCategory = category,
                 FileName = request.FileName.Trim(),
                 FileUrl = request.FileUrl.Trim(),
                 ContentType = EmployeeChildHelpers.TrimOrNull(request.ContentType),
                 FileSize = request.FileSize,
                 Description = EmployeeChildHelpers.TrimOrNull(request.Description),
                 ExpiryDate = request.ExpiryDate,
+                VersionNo = nextVersion,
+                ReplacesFileId = previous?.Id,
+                IsCurrent = true,
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
             };
@@ -536,7 +556,9 @@ namespace HrmApi.Application.Features.Employees.Commands
                 entity.Id,
                 null,
                 EmployeeMapper.ToFileDto(entity),
-                "Thêm tài liệu " + entity.FileName);
+                previous == null
+                    ? "Thêm tài liệu " + entity.FileName
+                    : $"Thêm tài liệu {entity.FileName} (v{entity.VersionNo}, thay thế bản trước)");
 
             return entity.Id;
         }

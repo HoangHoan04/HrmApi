@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
+using HrmApi.Application.Common.Services;
 using HrmApi.Application.DTOs.Employee;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
@@ -27,15 +29,19 @@ namespace HrmApi.Application.Features.Employees.Queries
     public class GetEmployeesPagedQueryHandler : IRequestHandler<GetEmployeesPagedQuery, PagedResult<EmployeeDto>>
     {
         private readonly IApplicationDbContext _context;
+        private readonly IDataScopeService _dataScope;
 
-        public GetEmployeesPagedQueryHandler(IApplicationDbContext context)
+        public GetEmployeesPagedQueryHandler(IApplicationDbContext context, IDataScopeService dataScope)
         {
             _context = context;
+            _dataScope = dataScope;
         }
 
         public async Task<PagedResult<EmployeeDto>> Handle(GetEmployeesPagedQuery request, CancellationToken cancellationToken)
         {
             var query = _context.EmployeeEntities.AsNoTracking();
+            query = await query.ApplyEmployeeDataScopeAsync(
+                _dataScope, PermissionCodes.HrEmployeeView, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
@@ -157,6 +163,7 @@ namespace HrmApi.Application.Features.Employees.Queries
         {
             var employee = await _context.EmployeeEntities
                 .AsNoTracking()
+                .Include(x => x.DirectManager)
                 .Include(x => x.Dependents)
                 .Include(x => x.Educations)
                 .Include(x => x.Certificates)
@@ -173,6 +180,8 @@ namespace HrmApi.Application.Features.Employees.Queries
     public class GetEmployeeSelectBoxQuery : IRequest<List<EmployeeSelectBoxDto>>
     {
         public Guid? ExcludeId { get; set; }
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
     }
 
     public class GetEmployeeSelectBoxQueryHandler : IRequestHandler<GetEmployeeSelectBoxQuery, List<EmployeeSelectBoxDto>>
@@ -193,6 +202,16 @@ namespace HrmApi.Application.Features.Employees.Queries
             if (request.ExcludeId.HasValue && request.ExcludeId != Guid.Empty)
             {
                 query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
+
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
+            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == request.BranchId);
             }
 
             return await query

@@ -96,6 +96,48 @@ namespace HrmApi.WebApi.Controllers
             return Ok(result);
         }
 
+        [HttpPost("set-lifecycle-status")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
+        public async Task<ActionResult<bool>> SetLifecycleStatus([FromBody] SetEmployeeLifecycleStatusCommand command)
+        {
+            try
+            {
+                var result = await _mediator.Send(command);
+                if (!result) return NotFound("Không tìm thấy thông tin nhân viên.");
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("bulk-change-manager")]
+        [RequirePermission(PermissionCodes.HrEmployeeUpdate)]
+        public async Task<ActionResult<int>> BulkChangeManager([FromBody] BulkChangeDirectManagerCommand command)
+        {
+            try
+            {
+                return Ok(await _mediator.Send(command));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("change-timeline")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
+        public async Task<ActionResult<List<EmployeeChangeTimelineItemDto>>> ChangeTimeline(
+            [FromBody] GetEmployeeChangeTimelineQuery query)
+            => Ok(await _mediator.Send(query));
+
+        [HttpPost("files/expiring")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
+        public async Task<ActionResult<List<EmployeeExpiringFileDto>>> ExpiringFiles(
+            [FromBody] GetExpiringEmployeeFilesQuery query)
+            => Ok(await _mediator.Send(query));
+
         [HttpPost("select-box")]
         [RequirePermission(PermissionCodes.HrEmployeeView)]
         public async Task<ActionResult<List<EmployeeSelectBoxDto>>> GetSelectBox([FromBody] GetEmployeeSelectBoxQuery? query)

@@ -18,6 +18,8 @@ namespace HrmApi.Application.Mappings
                 AllowedRadiusMeters = entity.AllowedRadiusMeters,
                 LateGraceMinutes = entity.LateGraceMinutes,
                 EarlyLeaveGraceMinutes = entity.EarlyLeaveGraceMinutes,
+                NightStartTime = entity.NightStartTime,
+                NightEndTime = entity.NightEndTime,
                 IsActive = entity.IsActive,
                 CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
@@ -37,6 +39,8 @@ namespace HrmApi.Application.Mappings
             if (fields.AllowedRadiusMeters.HasValue) entity.AllowedRadiusMeters = fields.AllowedRadiusMeters.Value;
             if (fields.LateGraceMinutes.HasValue) entity.LateGraceMinutes = fields.LateGraceMinutes.Value;
             if (fields.EarlyLeaveGraceMinutes.HasValue) entity.EarlyLeaveGraceMinutes = fields.EarlyLeaveGraceMinutes.Value;
+            if (fields.NightStartTime.HasValue) entity.NightStartTime = fields.NightStartTime.Value;
+            if (fields.NightEndTime.HasValue) entity.NightEndTime = fields.NightEndTime.Value;
             if (fields.IsActive.HasValue) entity.IsActive = fields.IsActive.Value;
         }
 
@@ -50,6 +54,8 @@ namespace HrmApi.Application.Mappings
             entity.AllowedRadiusMeters,
             entity.LateGraceMinutes,
             entity.EarlyLeaveGraceMinutes,
+            entity.NightStartTime,
+            entity.NightEndTime,
             entity.IsActive
         };
     }
@@ -63,6 +69,8 @@ namespace HrmApi.Application.Mappings
         public int? AllowedRadiusMeters { get; set; }
         public int? LateGraceMinutes { get; set; }
         public int? EarlyLeaveGraceMinutes { get; set; }
+        public TimeSpan? NightStartTime { get; set; }
+        public TimeSpan? NightEndTime { get; set; }
         public bool? IsActive { get; set; }
     }
 }

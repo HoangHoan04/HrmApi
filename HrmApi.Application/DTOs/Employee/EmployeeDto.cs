@@ -43,12 +43,39 @@ namespace HrmApi.Application.DTOs.Employee
         public Guid? DepartmentId { get; set; }
         public Guid? PartId { get; set; }
         public Guid? PositionId { get; set; }
+        public Guid? DirectManagerId { get; set; }
+        public string? DirectManagerName { get; set; }
+        public string? DirectManagerCode { get; set; }
 
         public List<EmployeeDependentDto> Dependents { get; set; } = [];
         public List<EmployeeEducationDto> Educations { get; set; } = [];
         public List<EmployeeCertificateDto> Certificates { get; set; } = [];
         public List<EmployeeFileDto> Files { get; set; } = [];
         public List<EmployeeSalaryHistoryDto> SalaryHistories { get; set; } = [];
+    }
+
+    public class EmployeeChangeTimelineItemDto
+    {
+        public DateTime At { get; set; }
+        public string Kind { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string? Summary { get; set; }
+        public Guid? RefId { get; set; }
+        public string? RefType { get; set; }
+    }
+
+    public class EmployeeExpiringFileDto
+    {
+        public Guid Id { get; set; }
+        public Guid EmployeeId { get; set; }
+        public string EmployeeCode { get; set; } = string.Empty;
+        public string EmployeeName { get; set; } = string.Empty;
+        public string FileCategory { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public DateTime? ExpiryDate { get; set; }
+        public int VersionNo { get; set; }
+        public bool IsExpired { get; set; }
+        public int DaysUntilExpiry { get; set; }
     }
 
     public class EmployeeDependentDto : BaseDto
@@ -98,6 +125,10 @@ namespace HrmApi.Application.DTOs.Employee
         public long? FileSize { get; set; }
         public string? Description { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public int VersionNo { get; set; } = 1;
+        public Guid? ReplacesFileId { get; set; }
+        public bool IsCurrent { get; set; } = true;
+        public bool IsExpired { get; set; }
     }
 
     public class EmployeeSalaryHistoryDto : BaseDto

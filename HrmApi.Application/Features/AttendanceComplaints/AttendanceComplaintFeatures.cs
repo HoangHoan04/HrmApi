@@ -32,15 +32,18 @@ namespace HrmApi.Application.Features.AttendanceComplaints
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IActionLogService _actionLog;
+        private readonly IWorkflowEngine _workflow;
 
         public CreateAttendanceComplaintCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
-            IActionLogService actionLog)
+            IActionLogService actionLog,
+            IWorkflowEngine workflow)
         {
             _context = context;
             _currentUser = currentUser;
             _actionLog = actionLog;
+            _workflow = workflow;
         }
 
         public async Task<Guid> Handle(CreateAttendanceComplaintCommand request, CancellationToken cancellationToken)
@@ -102,6 +105,9 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                 null,
                 AttendanceComplaintMapper.ToLogObject(entity),
                 "Tạo khiếu nại chấm công");
+
+            _ = await _workflow.StartAsync(
+                WorkflowEntityType.Complaint, entity.Id, entity.CompanyId, cancellationToken);
 
             return entity.Id;
         }
@@ -345,6 +351,7 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             record.UpdatedBy = _currentUser.UserId;
 
             _rules.ComputeStatus(record, window, standard);
+            await _rules.FinalizeOtAndNightAsync(record, window, standard, cancellationToken);
 
             entity.Status = AttendanceComplaintStatus.APPROVED;
             entity.ApproverNote = string.IsNullOrWhiteSpace(request.ApproverNote)

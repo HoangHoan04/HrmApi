@@ -25,27 +25,29 @@ namespace HrmApi.WebApi.Controllers
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
         private readonly IAuthContextService _authContext;
+        private readonly IHttpClientFactory _httpClientFactory;
 
         public AuthController(
             IApplicationDbContext context,
             IPasswordHasher<UserEntity> passwordHasher,
             IConfiguration configuration,
             IEmailService emailService,
-            IAuthContextService authContext)
+            IAuthContextService authContext,
+            IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _passwordHasher = passwordHasher;
             _configuration = configuration;
             _emailService = emailService;
             _authContext = authContext;
+            _httpClientFactory = httpClientFactory;
         }
 
         [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> GetCurrentUser()
         {
-            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdStr, out Guid userId))
+            if (!TryGetUserId(out Guid userId))
             {
                 return Unauthorized();
             }
@@ -55,7 +57,7 @@ namespace HrmApi.WebApi.Controllers
                 .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
             if (user == null)
             {
-                return NotFound("Người dùng không tồn tại.");
+                return Unauthorized("Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.");
             }
 
             EmployeeEntity? employee = null;
@@ -211,6 +213,7 @@ namespace HrmApi.WebApi.Controllers
                 BankName = employee?.BankName,
                 Roles = authContext.Roles,
                 Permissions = authContext.Permissions,
+                TwoFactorEnabled = user.TwoFactorEnabled,
                 Stats = new MobileProfileStatsDto
                 {
                     WorkDaysThisMonth = workDaysThisMonth,
@@ -283,46 +286,21 @@ namespace HrmApi.WebApi.Controllers
             user.IsLocked = false;
             user.LockedUntil = null;
 
-            AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
-            string tokenString = GenerateJwtToken(user, authContext);
-            string refreshToken = GenerateRefreshToken();
-
-            string refreshTokenHash = HashToken(refreshToken);
-            string platform = Request.Path.StartsWithSegments("/api/v1/mobile") ? "MOBILE" : "WEB";
-            UserTokenEntity userToken = new()
+            if (user.TwoFactorEnabled)
             {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                RefreshTokenHash = refreshTokenHash,
-                ExpiresAt = DateTime.UtcNow.AddDays(7),
-                Platform = platform,
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = Request.Headers["User-Agent"].ToString(),
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = user.Id
-            };
+                _ = await _context.SaveChangesAsync(default);
+                string tempToken = GenerateTwoFactorTempToken(user);
+                return Ok(new LoginResponse
+                {
+                    RequiresTwoFactor = true,
+                    TempToken = tempToken,
+                    Username = user.Username,
+                    Type = user.Type,
+                    TwoFactorEnabled = true,
+                });
+            }
 
-            _ = _context.UserTokenEntities.Add(userToken);
-
-            user.LastLoginAt = DateTime.UtcNow;
-            user.LastLoginIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-            _ = await _context.SaveChangesAsync(default);
-
-            System.Console.WriteLine($"[API Auth] Login successful for user: '{user.Username}'. Token generated.");
-
-            return Ok(new LoginResponse
-            {
-                Token = tokenString,
-                RefreshToken = refreshToken,
-                Username = user.Username,
-                Type = user.Type,
-                EmployeeId = user.EmployeeId,
-                CompanyId = user.CompanyId,
-                BranchId = user.BranchId,
-                MustChangePassword = user.MustChangePassword,
-                Roles = authContext.Roles,
-                Permissions = authContext.Permissions,
-            });
+            return Ok(await IssueFullLoginAsync(user));
         }
 
         [HttpPost("refresh")]
@@ -469,8 +447,7 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Thông tin mật khẩu không được để trống.");
             }
 
-            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdStr, out Guid userId))
+            if (!TryGetUserId(out Guid userId))
             {
                 return Unauthorized();
             }
@@ -505,8 +482,7 @@ namespace HrmApi.WebApi.Controllers
                 return BadRequest("Thông tin cập nhật không hợp lệ.");
             }
 
-            string? userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdStr, out Guid userId))
+            if (!TryGetUserId(out Guid userId))
             {
                 return Unauthorized();
             }
@@ -549,6 +525,509 @@ namespace HrmApi.WebApi.Controllers
             return Ok(new { message = "Cập nhật thông tin thành công." });
         }
 
+        [Authorize]
+        [HttpPost("2fa/setup")]
+        public async Task<ActionResult<TwoFactorSetupResponse>> SetupTwoFactor()
+        {
+            if (!TryGetUserId(out Guid userId))
+                return Unauthorized();
+
+            UserEntity? user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null) return NotFound("Người dùng không tồn tại.");
+
+            string secret = TotpHelper.GenerateSecret();
+            user.TwoFactorSecret = secret;
+            user.UpdatedAt = DateTime.UtcNow;
+            _ = await _context.SaveChangesAsync(default);
+
+            return Ok(new TwoFactorSetupResponse
+            {
+                Secret = secret,
+                OtpAuthUri = TotpHelper.BuildOtpAuthUri(secret, user.Username, "HRM"),
+            });
+        }
+
+        [Authorize]
+        [HttpPost("2fa/enable")]
+        public async Task<IActionResult> EnableTwoFactor([FromBody] TwoFactorCodeRequest request)
+        {
+            if (!TryGetUserId(out Guid userId))
+                return Unauthorized();
+            if (request == null || string.IsNullOrWhiteSpace(request.Code))
+                return BadRequest("Mã xác thực không được để trống.");
+
+            UserEntity? user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null) return NotFound("Người dùng không tồn tại.");
+            if (string.IsNullOrWhiteSpace(user.TwoFactorSecret))
+                return BadRequest("Chưa thiết lập secret 2FA. Vui lòng gọi setup trước.");
+            if (!TotpHelper.VerifyCode(user.TwoFactorSecret, request.Code))
+                return BadRequest("Mã xác thực không đúng.");
+
+            user.TwoFactorEnabled = true;
+            user.TwoFactorEnabledAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
+            _ = await _context.SaveChangesAsync(default);
+            return Ok(new { message = "Đã bật xác thực hai bước.", twoFactorEnabled = true });
+        }
+
+        [Authorize]
+        [HttpPost("2fa/disable")]
+        public async Task<IActionResult> DisableTwoFactor([FromBody] TwoFactorCodeRequest request)
+        {
+            if (!TryGetUserId(out Guid userId))
+                return Unauthorized();
+            if (request == null || string.IsNullOrWhiteSpace(request.Code))
+                return BadRequest("Mã xác thực không được để trống.");
+
+            UserEntity? user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null) return NotFound("Người dùng không tồn tại.");
+
+            bool isAdminForce = User.IsInRole("ADMIN")
+                || User.Claims.Any(c => c.Type == ClaimTypesEx.Permission
+                    && string.Equals(c.Value, PermissionCodes.SystemSettingsManage, StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrWhiteSpace(request.Password))
+            {
+                PasswordVerificationResult pwd = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+                if (pwd == PasswordVerificationResult.Failed)
+                    return BadRequest("Mật khẩu không chính xác.");
+            }
+
+            if (!isAdminForce)
+            {
+                if (string.IsNullOrWhiteSpace(user.TwoFactorSecret)
+                    || !TotpHelper.VerifyCode(user.TwoFactorSecret, request.Code))
+                {
+                    return BadRequest("Mã xác thực không đúng.");
+                }
+            }
+
+            user.TwoFactorEnabled = false;
+            user.TwoFactorSecret = null;
+            user.TwoFactorEnabledAt = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            _ = await _context.SaveChangesAsync(default);
+            return Ok(new { message = "Đã tắt xác thực hai bước.", twoFactorEnabled = false });
+        }
+
+        [HttpPost("2fa/verify")]
+        public async Task<ActionResult<LoginResponse>> VerifyTwoFactor([FromBody] TwoFactorVerifyRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.TempToken) || string.IsNullOrWhiteSpace(request.Code))
+                return BadRequest("TempToken và mã xác thực là bắt buộc.");
+
+            Guid? userId = ValidateTwoFactorTempToken(request.TempToken);
+            if (!userId.HasValue)
+                return Unauthorized("Temp token không hợp lệ hoặc đã hết hạn.");
+
+            UserEntity? user = await _context.UserEntities.FirstOrDefaultAsync(u => u.Id == userId.Value && !u.IsDeleted);
+            if (user == null || !user.IsActive)
+                return Unauthorized("Tài khoản không hợp lệ.");
+            if (!user.TwoFactorEnabled || string.IsNullOrWhiteSpace(user.TwoFactorSecret))
+                return BadRequest("Tài khoản chưa bật 2FA.");
+            if (!TotpHelper.VerifyCode(user.TwoFactorSecret, request.Code))
+                return BadRequest("Mã xác thực không đúng.");
+
+            return Ok(await IssueFullLoginAsync(user));
+        }
+
+        [HttpGet("sso/status")]
+        [Authorize]
+        public ActionResult<SsoStatusResponse> GetSsoStatus()
+        {
+            return Ok(BuildSsoStatus());
+        }
+
+        [HttpPost("sso/{provider}/start")]
+        public ActionResult<SsoStartResponse> StartSso(string provider)
+        {
+            string? key = NormalizeProvider(provider);
+            if (key == null) return BadRequest("Provider không hỗ trợ. Dùng google hoặc microsoft.");
+
+            string section = $"Authentication:{Capitalize(key)}";
+            bool enabled = bool.TryParse(_configuration[$"{section}:Enabled"], out bool en) && en;
+            string? clientId = _configuration[$"{section}:ClientId"];
+            if (!enabled || string.IsNullOrWhiteSpace(clientId))
+            {
+                return StatusCode(StatusCodes.Status501NotImplemented,
+                    $"SSO provider '{key}' chưa được cấu hình (ClientId / Enabled).");
+            }
+
+            string redirectUri = _configuration[$"{section}:RedirectUri"]
+                ?? $"http://localhost:4200/auth/sso/{key}/callback";
+            string authorizeUrl = key switch
+            {
+                "google" =>
+                    "https://accounts.google.com/o/oauth2/v2/auth"
+                    + $"?client_id={Uri.EscapeDataString(clientId)}"
+                    + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
+                    + "&response_type=code&scope=openid%20email%20profile&access_type=offline",
+                "microsoft" =>
+                    $"https://login.microsoftonline.com/{_configuration[$"{section}:TenantId"] ?? "common"}/oauth2/v2.0/authorize"
+                    + $"?client_id={Uri.EscapeDataString(clientId)}"
+                    + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
+                    + "&response_type=code&scope=openid%20email%20profile%20User.Read",
+                _ => string.Empty,
+            };
+
+            return Ok(new SsoStartResponse { Provider = key, AuthorizeUrl = authorizeUrl });
+        }
+
+        [HttpPost("sso/{provider}/callback")]
+        public async Task<ActionResult<LoginResponse>> SsoCallback(string provider, [FromBody] SsoCallbackRequest request)
+        {
+            string? key = NormalizeProvider(provider);
+            if (key == null) return BadRequest("Provider không hỗ trợ.");
+            if (request == null || string.IsNullOrWhiteSpace(request.Code))
+                return BadRequest("Authorization code là bắt buộc.");
+
+            string section = $"Authentication:{Capitalize(key)}";
+            bool enabled = bool.TryParse(_configuration[$"{section}:Enabled"], out bool en) && en;
+            string? clientId = _configuration[$"{section}:ClientId"];
+            string? clientSecret = _configuration[$"{section}:ClientSecret"];
+            if (!enabled || string.IsNullOrWhiteSpace(clientId))
+            {
+                return StatusCode(StatusCodes.Status501NotImplemented,
+                    $"SSO provider '{key}' chưa được cấu hình (ClientId / Enabled).");
+            }
+
+            string redirectUri = request.RedirectUri
+                ?? _configuration[$"{section}:RedirectUri"]
+                ?? $"http://localhost:4200/auth/sso/{key}/callback";
+
+            string subject;
+            string? email = null;
+            if (!string.IsNullOrWhiteSpace(clientSecret))
+            {
+                try
+                {
+                    (subject, email) = await ExchangeOidcCodeAsync(key, clientId!, clientSecret!, redirectUri, request.Code);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"SSO token exchange failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                subject = $"stub-{key}-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Code)))[..16].ToLowerInvariant();
+            }
+
+            UserEntity? user = key == "google"
+                ? await _context.UserEntities.FirstOrDefaultAsync(u => u.GoogleSubject == subject && !u.IsDeleted)
+                : await _context.UserEntities.FirstOrDefaultAsync(u => u.MicrosoftSubject == subject && !u.IsDeleted);
+
+            if (user == null && !string.IsNullOrWhiteSpace(email))
+            {
+                user = await _context.UserEntities.FirstOrDefaultAsync(
+                    u => u.Email != null && u.Email.ToLower() == email.ToLower() && !u.IsDeleted);
+                if (user != null)
+                {
+                    if (key == "google") user.GoogleSubject = subject;
+                    else user.MicrosoftSubject = subject;
+                }
+            }
+
+            if (user == null)
+            {
+                string username = !string.IsNullOrWhiteSpace(email)
+                    ? email.Split('@')[0]
+                    : $"{key}_{subject[..Math.Min(12, subject.Length)]}";
+                username = await EnsureUniqueUsernameAsync(username);
+                user = new UserEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Username = username,
+                    Email = email,
+                    PasswordHash = _passwordHasher.HashPassword(new UserEntity(), Guid.NewGuid().ToString("N")),
+                    Type = "EMPLOYEE",
+                    IsActive = true,
+                    MustChangePassword = false,
+                    CreatedAt = DateTime.UtcNow,
+                    GoogleSubject = key == "google" ? subject : null,
+                    MicrosoftSubject = key == "microsoft" ? subject : null,
+                };
+                _ = _context.UserEntities.Add(user);
+            }
+
+            if (!user.IsActive)
+                return BadRequest("Tài khoản đang bị khóa hoặc ngưng hoạt động.");
+
+            _ = await _context.SaveChangesAsync(default);
+
+            if (user.TwoFactorEnabled)
+            {
+                return Ok(new LoginResponse
+                {
+                    RequiresTwoFactor = true,
+                    TempToken = GenerateTwoFactorTempToken(user),
+                    Username = user.Username,
+                    Type = user.Type,
+                    TwoFactorEnabled = true,
+                });
+            }
+
+            return Ok(await IssueFullLoginAsync(user));
+        }
+
+        [Authorize]
+        [HttpGet("sessions/list")]
+        [HttpPost("sessions/list")]
+        public async Task<ActionResult<List<SessionDto>>> ListSessions([FromBody] SessionListRequest? request)
+        {
+            if (!TryGetUserId(out Guid userId))
+                return Unauthorized();
+
+            bool canManageAll = User.IsInRole("ADMIN")
+                || User.Claims.Any(c => c.Type == ClaimTypesEx.Permission
+                    && string.Equals(c.Value, PermissionCodes.SystemSettingsManage, StringComparison.OrdinalIgnoreCase));
+
+            bool allUsers = canManageAll && request?.AllUsers == true;
+            bool includeRevoked = request?.IncludeRevoked == true;
+
+            IQueryable<UserTokenEntity> query = _context.UserTokenEntities.AsNoTracking()
+                .Include(t => t.User)
+                .Where(t => !t.IsDeleted);
+
+            if (!allUsers)
+                query = query.Where(t => t.UserId == userId);
+            if (!includeRevoked)
+                query = query.Where(t => t.RevokedAt == null && t.ExpiresAt > DateTime.UtcNow);
+
+            List<UserTokenEntity> rows = await query.OrderByDescending(t => t.CreatedAt).Take(200).ToListAsync();
+            List<SessionDto> items = rows.Select(t => new SessionDto
+            {
+                Id = t.Id,
+                UserId = t.UserId,
+                Username = t.User?.Username,
+                Platform = t.Platform,
+                DeviceName = t.DeviceName,
+                IpAddress = t.IpAddress,
+                UserAgent = t.UserAgent,
+                CreatedAt = t.CreatedAt,
+                ExpiresAt = t.ExpiresAt,
+                RevokedAt = t.RevokedAt,
+                IsCurrent = false,
+            }).ToList();
+
+            return Ok(items);
+        }
+
+        [Authorize]
+        [HttpPost("sessions/revoke")]
+        public async Task<IActionResult> RevokeSession([FromBody] SessionRevokeRequest request)
+        {
+            if (!TryGetUserId(out Guid userId))
+                return Unauthorized();
+            if (request == null || request.Id == Guid.Empty)
+                return BadRequest("Id phiên không hợp lệ.");
+
+            bool canManageAll = User.IsInRole("ADMIN")
+                || User.Claims.Any(c => c.Type == ClaimTypesEx.Permission
+                    && string.Equals(c.Value, PermissionCodes.SystemSettingsManage, StringComparison.OrdinalIgnoreCase));
+
+            UserTokenEntity? token = await _context.UserTokenEntities
+                .FirstOrDefaultAsync(t => t.Id == request.Id && !t.IsDeleted);
+            if (token == null) return NotFound("Không tìm thấy phiên.");
+            if (token.UserId != userId && !canManageAll)
+                return Forbid();
+
+            token.RevokedAt = DateTime.UtcNow;
+            token.RevokedReason = "RevokedByUser";
+            token.UpdatedAt = DateTime.UtcNow;
+            token.UpdatedBy = userId;
+            _ = await _context.SaveChangesAsync(default);
+            return Ok(new { message = "Đã thu hồi phiên.", id = token.Id });
+        }
+
+        private async Task<LoginResponse> IssueFullLoginAsync(UserEntity user)
+        {
+            AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
+            string tokenString = GenerateJwtToken(user, authContext);
+            string refreshToken = GenerateRefreshToken();
+
+            string refreshTokenHash = HashToken(refreshToken);
+            string platform = Request.Path.StartsWithSegments("/api/v1/mobile") ? "MOBILE" : "WEB";
+            UserTokenEntity userToken = new()
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                RefreshTokenHash = refreshTokenHash,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                Platform = platform,
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = Request.Headers["User-Agent"].ToString(),
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = user.Id
+            };
+
+            _ = _context.UserTokenEntities.Add(userToken);
+
+            user.LastLoginAt = DateTime.UtcNow;
+            user.LastLoginIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            _ = await _context.SaveChangesAsync(default);
+
+            System.Console.WriteLine($"[API Auth] Login successful for user: '{user.Username}'. Token generated.");
+
+            return new LoginResponse
+            {
+                Token = tokenString,
+                RefreshToken = refreshToken,
+                Username = user.Username,
+                Type = user.Type,
+                EmployeeId = user.EmployeeId,
+                CompanyId = user.CompanyId,
+                BranchId = user.BranchId,
+                MustChangePassword = user.MustChangePassword,
+                TwoFactorEnabled = user.TwoFactorEnabled,
+                Roles = authContext.Roles,
+                Permissions = authContext.Permissions,
+            };
+        }
+
+        private string GenerateTwoFactorTempToken(UserEntity user)
+        {
+            JwtSecurityTokenHandler tokenHandler = new();
+            string jwtSecret = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
+            byte[] key = Encoding.ASCII.GetBytes(jwtSecret);
+            SecurityTokenDescriptor tokenDescriptor = new()
+            {
+                Subject = new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim("purpose", "2fa"),
+                ]),
+                Expires = DateTime.UtcNow.AddMinutes(5),
+                Issuer = _configuration["JwtSettings:Issuer"] ?? "HrmApi",
+                Audience = _configuration["JwtSettings:Audience"] ?? "HrmAdmin",
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+            return tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
+        }
+
+        private Guid? ValidateTwoFactorTempToken(string tempToken)
+        {
+            try
+            {
+                JwtSecurityTokenHandler tokenHandler = new();
+                string jwtSecret = _configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
+                TokenValidationParameters parameters = new()
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSecret)),
+                    ValidateIssuer = true,
+                    ValidIssuer = _configuration["JwtSettings:Issuer"] ?? "HrmApi",
+                    ValidateAudience = true,
+                    ValidAudience = _configuration["JwtSettings:Audience"] ?? "HrmAdmin",
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                };
+                ClaimsPrincipal principal = tokenHandler.ValidateToken(tempToken, parameters, out _);
+                string? purpose = principal.FindFirst("purpose")?.Value;
+                if (!string.Equals(purpose, "2fa", StringComparison.Ordinal))
+                    return null;
+                string? id = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+                return Guid.TryParse(id, out Guid userId) ? userId : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private SsoStatusResponse BuildSsoStatus()
+        {
+            return new SsoStatusResponse
+            {
+                Google = ReadProviderStatus("Google"),
+                Microsoft = ReadProviderStatus("Microsoft"),
+            };
+        }
+
+        private SsoProviderStatusDto ReadProviderStatus(string name)
+        {
+            string section = $"Authentication:{name}";
+            bool enabled = bool.TryParse(_configuration[$"{section}:Enabled"], out bool en) && en;
+            string? clientId = _configuration[$"{section}:ClientId"];
+            bool configured = !string.IsNullOrWhiteSpace(clientId);
+            string? masked = null;
+            if (configured && clientId!.Length > 8)
+                masked = clientId[..4] + "…" + clientId[^4..];
+            else if (configured)
+                masked = "****";
+            return new SsoProviderStatusDto
+            {
+                Enabled = enabled,
+                Configured = configured,
+                ClientIdMasked = masked,
+            };
+        }
+
+        private async Task<(string Subject, string? Email)> ExchangeOidcCodeAsync(
+            string provider, string clientId, string clientSecret, string redirectUri, string code)
+        {
+            HttpClient client = _httpClientFactory.CreateClient();
+            string tokenUrl = provider == "google"
+                ? "https://oauth2.googleapis.com/token"
+                : $"https://login.microsoftonline.com/{_configuration["Authentication:Microsoft:TenantId"] ?? "common"}/oauth2/v2.0/token";
+
+            using FormUrlEncodedContent form = new(new Dictionary<string, string>
+            {
+                ["code"] = code,
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["redirect_uri"] = redirectUri,
+                ["grant_type"] = "authorization_code",
+            });
+            HttpResponseMessage resp = await client.PostAsync(tokenUrl, form);
+            string body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                throw new InvalidOperationException(body);
+
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(body);
+            string? idToken = doc.RootElement.TryGetProperty("id_token", out var idEl) ? idEl.GetString() : null;
+            if (string.IsNullOrWhiteSpace(idToken))
+                throw new InvalidOperationException("id_token missing from token response.");
+
+            JwtSecurityToken jwt = new JwtSecurityTokenHandler().ReadJwtToken(idToken);
+            string? sub = jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+            string? email = jwt.Claims.FirstOrDefault(c => c.Type is "email" or "preferred_username")?.Value;
+            if (string.IsNullOrWhiteSpace(sub))
+                throw new InvalidOperationException("sub claim missing.");
+            return (sub, email);
+        }
+
+        private async Task<string> EnsureUniqueUsernameAsync(string baseUsername)
+        {
+            string candidate = baseUsername;
+            int i = 1;
+            while (await _context.UserEntities.AnyAsync(u => u.Username == candidate && !u.IsDeleted))
+            {
+                candidate = $"{baseUsername}{i++}";
+            }
+            return candidate;
+        }
+
+        private static string? NormalizeProvider(string? provider)
+        {
+            if (string.IsNullOrWhiteSpace(provider)) return null;
+            string p = provider.Trim().ToLowerInvariant();
+            return p is "google" or "microsoft" ? p : null;
+        }
+
+        private static string Capitalize(string s) =>
+            string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
+
+        private bool TryGetUserId(out Guid userId)
+        {
+            string? userIdStr =
+                User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? User.FindFirstValue("sub");
+            return Guid.TryParse(userIdStr, out userId);
+        }
+
         private string GenerateJwtToken(UserEntity user, AuthContextDto authContext)
         {
             JwtSecurityTokenHandler tokenHandler = new();
@@ -571,7 +1050,6 @@ namespace HrmApi.WebApi.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            // Backward-compatible: keep Type as a role claim if not already present as a role code
             if (!string.IsNullOrWhiteSpace(user.Type)
                 && !authContext.Roles.Any(r => string.Equals(r, user.Type, StringComparison.OrdinalIgnoreCase)))
             {

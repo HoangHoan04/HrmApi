@@ -1,6 +1,7 @@
 using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Permission
 {
@@ -37,7 +38,7 @@ namespace HrmApi.Domain.Entities.Permission
         /// <summary>
         /// Loại tài khoản
         /// </summary>
-        public string Type { get; set; } = "EMPLOYEE";
+        public string Type { get; set; } = UserType.Employee;
 
         /// <summary>
         /// Email nhân viên (Nếu là nhân viên)
@@ -104,6 +105,32 @@ namespace HrmApi.Domain.Entities.Permission
         /// Token gửi FireBase cho mobile
         /// </summary>
         public string? FcmTokenMobile { get; set; }
+
+        /// <summary>
+        /// Bật xác thực hai bước (TOTP)
+        /// </summary>
+        public bool TwoFactorEnabled { get; set; }
+
+        /// <summary>
+        /// Secret TOTP (Base32). Lưu khi setup; chỉ dùng khi TwoFactorEnabled hoặc đang pending setup.
+        /// </summary>
+        public string? TwoFactorSecret { get; set; }
+
+        /// <summary>
+        /// Thời điểm bật 2FA
+        /// </summary>
+        public DateTime? TwoFactorEnabledAt { get; set; }
+
+        /// <summary>
+        /// Subject Id từ Google OIDC
+        /// </summary>
+        public string? GoogleSubject { get; set; }
+
+        /// <summary>
+        /// Subject Id từ Microsoft OIDC
+        /// </summary>
+        public string? MicrosoftSubject { get; set; }
+
         /// <summary>
         /// Danh sách vai trò của người dùng
         /// </summary>

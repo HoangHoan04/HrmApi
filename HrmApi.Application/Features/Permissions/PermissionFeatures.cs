@@ -76,15 +76,44 @@ namespace HrmApi.Application.Features.Permissions
                 ["OPERATE_SHIFT"] = ("OPERATE", "Vận hành", "Ca làm việc", 38),
                 ["OPERATE_WORK_SCHEDULE"] = ("OPERATE", "Vận hành", "Lịch làm việc", 39),
                 ["OPERATE_WORK_PATTERN"] = ("OPERATE", "Vận hành", "Mẫu ca NV", 40),
-
                 ["PAYROLL"] = ("PAYROLL", "Lương", "Lương", 50),
                 ["PAYROLL_SALARY"] = ("PAYROLL", "Lương", "Bảng lương", 51),
                 ["PAYROLL_CONFIG"] = ("PAYROLL", "Lương", "Cấu hình lương", 52),
 
-                ["ROLE"] = ("SYSTEM", "Hệ thống", "Vai trò", 60),
-                ["USER"] = ("SYSTEM", "Hệ thống", "Tài khoản", 61),
-                ["ACTION_LOG"] = ("SYSTEM", "Hệ thống", "Nhật ký thao tác", 62),
-                ["MOBILE"] = ("MOBILE", "Di động", "Ứng dụng di động", 70),
+                ["RECRUITMENT"] = ("RECRUITMENT", "Tuyển dụng", "Tuyển dụng", 55),
+                ["RECRUITMENT_HEADCOUNT"] = ("RECRUITMENT", "Tuyển dụng", "Định biên", 56),
+                ["RECRUITMENT_JD"] = ("RECRUITMENT", "Tuyển dụng", "JD tuyển dụng", 57),
+                ["RECRUITMENT_CRITERIA"] = ("RECRUITMENT", "Tuyển dụng", "Tiêu chí đánh giá", 58),
+                ["RECRUITMENT_SOURCE"] = ("RECRUITMENT", "Tuyển dụng", "Nguồn tuyển dụng", 58),
+                ["RECRUITMENT_REQUEST"] = ("RECRUITMENT", "Tuyển dụng", "Yêu cầu tuyển dụng", 59),
+                ["RECRUITMENT_PLAN"] = ("RECRUITMENT", "Tuyển dụng", "Kế hoạch tuyển dụng", 60),
+                ["RECRUITMENT_CANDIDATE"] = ("RECRUITMENT", "Tuyển dụng", "Ứng viên", 61),
+                ["RECRUITMENT_INTERVIEW"] = ("RECRUITMENT", "Tuyển dụng", "Phỏng vấn", 62),
+                ["RECRUITMENT_PIPELINE"] = ("RECRUITMENT", "Tuyển dụng", "Xử lý hồ sơ", 63),
+
+                ["DISCIPLINE"] = ("DISCIPLINE", "Kỷ luật", "Kỷ luật", 70),
+                ["DISCIPLINE_TYPE"] = ("DISCIPLINE", "Kỷ luật", "Loại vi phạm", 71),
+                ["DISCIPLINE_VIOLATION"] = ("DISCIPLINE", "Kỷ luật", "Biên bản vi phạm", 72),
+
+                ["PERFORMANCE"] = ("PERFORMANCE", "Hiệu suất", "Hiệu suất", 75),
+                ["PERFORMANCE_CYCLE"] = ("PERFORMANCE", "Hiệu suất", "Chu kỳ đánh giá", 76),
+                ["PERFORMANCE_GOAL"] = ("PERFORMANCE", "Hiệu suất", "Mục tiêu KPI", 77),
+                ["PERFORMANCE_RESULT"] = ("PERFORMANCE", "Hiệu suất", "Kết quả KPI", 78),
+                ["PERFORMANCE_COMPETENCY"] = ("PERFORMANCE", "Hiệu suất", "Khung năng lực", 79),
+
+                ["TRAINING"] = ("TRAINING", "Đào tạo", "Đào tạo", 80),
+                ["TRAINING_COURSE"] = ("TRAINING", "Đào tạo", "Khóa đào tạo", 81),
+                ["TRAINING_ENROLLMENT"] = ("TRAINING", "Đào tạo", "Ghi danh", 82),
+                ["TRAINING_RESULT"] = ("TRAINING", "Đào tạo", "Kết quả đào tạo", 83),
+
+                ["ASSET"] = ("ASSET", "Tài sản", "Tài sản", 85),
+                ["ASSET_INVENTORY"] = ("ASSET", "Tài sản", "Kho tài sản", 86),
+
+                ["ROLE"] = ("SYSTEM", "Hệ thống", "Vai trò", 90),
+                ["USER"] = ("SYSTEM", "Hệ thống", "Tài khoản", 91),
+                ["SYSTEM_SETTING"] = ("SYSTEM", "Hệ thống", "Cài đặt hệ thống", 92),
+                ["ACTION_LOG"] = ("SYSTEM", "Hệ thống", "Nhật ký thao tác", 93),
+                ["MOBILE"] = ("MOBILE", "Di động", "Ứng dụng di động", 100),
             };
 
         private static readonly Dictionary<string, string> ActionNames = new(StringComparer.OrdinalIgnoreCase)

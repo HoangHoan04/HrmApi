@@ -15,11 +15,16 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
     {
         private readonly IApplicationDbContext _context;
         private readonly IActionLogService _actionLog;
+        private readonly IWorkflowEngine _workflow;
 
-        public CreateTransferEmployeeCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
+        public CreateTransferEmployeeCommandHandler(
+            IApplicationDbContext context,
+            IActionLogService actionLog,
+            IWorkflowEngine workflow)
         {
             _context = context;
             _actionLog = actionLog;
+            _workflow = workflow;
         }
 
         public async Task<Guid> Handle(CreateTransferEmployeeCommand request, CancellationToken cancellationToken)
@@ -86,6 +91,9 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
                 null,
                 TransferEmployeeMapper.ToLogObject(entity),
                 "Tạo đơn điều chuyển " + entity.Code);
+
+            _ = await _workflow.StartAsync(
+                Domain.Enums.WorkflowEntityType.Transfer, entity.Id, employee.CompanyId, cancellationToken);
 
             return entity.Id;
         }
@@ -292,11 +300,14 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
         private readonly IActionLogService _actionLog;
         private readonly CreateTransferEmployeeCommandHandler _createHandler;
 
-        public UpdateTransferEmployeeCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
+        public UpdateTransferEmployeeCommandHandler(
+            IApplicationDbContext context,
+            IActionLogService actionLog,
+            IWorkflowEngine workflow)
         {
             _context = context;
             _actionLog = actionLog;
-            _createHandler = new CreateTransferEmployeeCommandHandler(context, actionLog);
+            _createHandler = new CreateTransferEmployeeCommandHandler(context, actionLog, workflow);
         }
 
         public async Task<bool> Handle(UpdateTransferEmployeeCommand request, CancellationToken cancellationToken)
@@ -613,6 +624,127 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
                 "Hủy đơn điều chuyển " + entity.Code);
 
             return true;
+        }
+    }
+
+    public class BulkCreateTransferEmployeeCommand : IRequest<List<Guid>>
+    {
+        public List<Guid> EmployeeIds { get; set; } = [];
+        public string? CodePrefix { get; set; }
+        public string? TransferType { get; set; }
+        public DateTime? RequestDate { get; set; }
+        public DateTime? EffectiveDate { get; set; }
+        public DateTime? ExpectedEndDate { get; set; }
+        public string? Reason { get; set; }
+        public string? DecisionNumber { get; set; }
+        public DateTime? DecisionDate { get; set; }
+        public string? DecisionFileUrl { get; set; }
+        public string? Note { get; set; }
+        public Guid? NewCompanyId { get; set; }
+        public Guid? NewBranchId { get; set; }
+        public Guid? NewDepartmentId { get; set; }
+        public Guid? NewPartId { get; set; }
+        public Guid? NewPositionId { get; set; }
+    }
+
+    public class BulkCreateTransferEmployeeCommandHandler : IRequestHandler<BulkCreateTransferEmployeeCommand, List<Guid>>
+    {
+        private readonly IMediator _mediator;
+        private readonly IApplicationDbContext _context;
+
+        public BulkCreateTransferEmployeeCommandHandler(IMediator mediator, IApplicationDbContext context)
+        {
+            _mediator = mediator;
+            _context = context;
+        }
+
+        public async Task<List<Guid>> Handle(BulkCreateTransferEmployeeCommand request, CancellationToken cancellationToken)
+        {
+            var ids = request.EmployeeIds.Where(x => x != Guid.Empty).Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                throw new InvalidOperationException("Cần chọn ít nhất một nhân viên.");
+            }
+
+            if (!request.EffectiveDate.HasValue)
+            {
+                throw new InvalidOperationException("Ngày hiệu lực là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.TransferType))
+            {
+                throw new InvalidOperationException("Loại điều chuyển là bắt buộc.");
+            }
+
+            if (!request.NewCompanyId.HasValue
+                && !request.NewBranchId.HasValue
+                && !request.NewDepartmentId.HasValue
+                && !request.NewPartId.HasValue
+                && !request.NewPositionId.HasValue)
+            {
+                throw new InvalidOperationException("Cần ít nhất một giá trị tổ chức mới (công ty/CN/PB/bộ phận/chức vụ).");
+            }
+
+            var employees = await _context.EmployeeEntities.AsNoTracking()
+                .Where(x => ids.Contains(x.Id) && !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+            if (employees.Count == 0)
+            {
+                throw new InvalidOperationException("Không tìm thấy nhân viên hợp lệ.");
+            }
+
+            var prefix = string.IsNullOrWhiteSpace(request.CodePrefix)
+                ? $"DC-{DateTime.UtcNow:yyyyMMdd}"
+                : request.CodePrefix.Trim();
+            var created = new List<Guid>();
+            var seq = 1;
+
+            foreach (var employee in employees)
+            {
+                var code = $"{prefix}-{seq:D3}";
+                seq++;
+
+                var detail = new TransferEmployeePositionInputDto
+                {
+                    OldCompanyId = employee.CompanyId,
+                    OldBranchId = employee.BranchId,
+                    OldDepartmentId = employee.DepartmentId,
+                    OldPartId = employee.PartId,
+                    OldPositionId = employee.PositionId,
+                    NewCompanyId = request.NewCompanyId ?? employee.CompanyId,
+                    NewBranchId = request.NewBranchId,
+                    NewDepartmentId = request.NewDepartmentId,
+                    NewPartId = request.NewPartId,
+                    NewPositionId = request.NewPositionId,
+                    EffectiveDate = request.EffectiveDate,
+                    ChangeType = TransferChangeType.Mixed,
+                };
+
+                if (!request.NewBranchId.HasValue) detail.NewBranchId = employee.BranchId;
+                if (!request.NewDepartmentId.HasValue) detail.NewDepartmentId = employee.DepartmentId;
+                if (!request.NewPartId.HasValue) detail.NewPartId = employee.PartId;
+                if (!request.NewPositionId.HasValue) detail.NewPositionId = employee.PositionId;
+
+                var id = await _mediator.Send(new CreateTransferEmployeeCommand
+                {
+                    EmployeeId = employee.Id,
+                    Code = code,
+                    TransferType = request.TransferType,
+                    RequestDate = request.RequestDate ?? DateTime.UtcNow,
+                    EffectiveDate = request.EffectiveDate,
+                    ExpectedEndDate = request.ExpectedEndDate,
+                    Reason = request.Reason,
+                    DecisionNumber = request.DecisionNumber,
+                    DecisionDate = request.DecisionDate,
+                    DecisionFileUrl = request.DecisionFileUrl,
+                    Note = request.Note,
+                    Details = [detail],
+                }, cancellationToken);
+
+                created.Add(id);
+            }
+
+            return created;
         }
     }
 }

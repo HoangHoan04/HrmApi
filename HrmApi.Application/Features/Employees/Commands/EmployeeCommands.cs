@@ -176,6 +176,21 @@ namespace HrmApi.Application.Features.Employees.Commands
             {
                 throw new InvalidOperationException("Số CCCD đã tồn tại trong hệ thống.");
             }
+
+            if (request.DirectManagerId.HasValue && request.DirectManagerId != Guid.Empty)
+            {
+                if (excludeId.HasValue && request.DirectManagerId == excludeId.Value)
+                {
+                    throw new InvalidOperationException("Quản lý trực tiếp không thể là chính nhân viên.");
+                }
+
+                bool managerExists = await context.EmployeeEntities
+                    .AnyAsync(x => x.Id == request.DirectManagerId && !x.IsDeleted, cancellationToken);
+                if (!managerExists)
+                {
+                    throw new InvalidOperationException("Quản lý trực tiếp không tồn tại.");
+                }
+            }
         }
     }
     #endregion

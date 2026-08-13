@@ -183,6 +183,27 @@ namespace HrmApi.Domain.Entities.Organization
         public string? LogoUrl { get; set; }
 
         /// <summary>
+        /// Màu chủ đạo branding (hex, ví dụ #0B5FFF)
+        /// </summary>
+        public string? PrimaryColor { get; set; }
+
+        /// <summary>
+        /// Định biên nhân sự cấp công ty (dùng khi công ty độc lập, không có chi nhánh).
+        /// Nếu đã có chi nhánh thì định biên công ty = tổng MaxEmployeeCapacity các chi nhánh.
+        /// </summary>
+        public int? MaxEmployeeCapacity { get; set; }
+
+        /// <summary>
+        /// Tọa độ GPS trụ sở (dùng chấm công khi công ty độc lập / NV không gắn chi nhánh).
+        /// </summary>
+        public double? Latitude { get; set; }
+
+        /// <summary>
+        /// Tọa độ GPS trụ sở (dùng chấm công khi công ty độc lập / NV không gắn chi nhánh).
+        /// </summary>
+        public double? Longitude { get; set; }
+
+        /// <summary>
         /// Trạng thái kích hoạt (true: đang hoạt động, false: vô hiệu – không xóa dữ liệu)
         /// </summary>
         public bool IsActive { get; set; } = true;

@@ -84,6 +84,17 @@ namespace HrmApi.Domain.Entities.Timekeeping
         /// Số phút làm việc thực tế (nếu có)
         /// </summary>
         public int WorkedMinutes { get; set; }
+
+        /// <summary>
+        /// Số phút OT trong ngày (theo đơn duyệt ∩ giờ làm thực tế)
+        /// </summary>
+        public int OtMinutes { get; set; }
+
+        /// <summary>
+        /// Số phút làm đêm (giao với khung NightStart–NightEnd của chuẩn CC)
+        /// </summary>
+        public int NightMinutes { get; set; }
+
         /// <summary>
         /// Ghi chú thêm về bản ghi chấm công
         /// </summary>

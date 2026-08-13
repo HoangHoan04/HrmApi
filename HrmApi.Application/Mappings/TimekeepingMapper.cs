@@ -39,6 +39,8 @@ namespace HrmApi.Application.Mappings
                 LateMinutes = entity.LateMinutes,
                 EarlyMinutes = entity.EarlyMinutes,
                 WorkedMinutes = entity.WorkedMinutes,
+                OtMinutes = entity.OtMinutes,
+                NightMinutes = entity.NightMinutes,
                 Note = entity.Note,
                 IsManualAdjusted = entity.IsManualAdjusted,
                 CreatedBy = entity.CreatedBy,
@@ -77,6 +79,8 @@ namespace HrmApi.Application.Mappings
                 TotalWorkedMinutes = entity.TotalWorkedMinutes,
                 TotalLateMinutes = entity.TotalLateMinutes,
                 TotalEarlyMinutes = entity.TotalEarlyMinutes,
+                TotalOtMinutes = entity.TotalOtMinutes,
+                TotalNightMinutes = entity.TotalNightMinutes,
                 CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
                 UpdatedBy = entity.UpdatedBy,
@@ -146,6 +150,8 @@ namespace HrmApi.Application.Mappings
             entity.LateMinutes,
             entity.EarlyMinutes,
             entity.WorkedMinutes,
+            entity.OtMinutes,
+            entity.NightMinutes,
             entity.Note,
             entity.IsManualAdjusted
         };

@@ -171,6 +171,11 @@ namespace HrmApi.Domain.Entities.Employee
         public Guid? PositionId { get; set; }
 
         /// <summary>
+        /// Quản lý trực tiếp (Employee khác cùng hệ thống)
+        /// </summary>
+        public Guid? DirectManagerId { get; set; }
+
+        /// <summary>
         /// Navigation property tới công ty mà nhân viên đang làm việc
         /// </summary>
         public virtual Organization.CompanyEntity? Company { get; set; }
@@ -190,6 +195,16 @@ namespace HrmApi.Domain.Entities.Employee
         /// Navigation property tới chức vụ mà nhân viên đang đảm nhiệm
         /// </summary>
         public virtual Organization.PositionEntity? Position { get; set; }
+
+        /// <summary>
+        /// Quản lý trực tiếp
+        /// </summary>
+        public virtual EmployeeEntity? DirectManager { get; set; }
+
+        /// <summary>
+        /// Nhân viên đang báo cáo trực tiếp cho người này
+        /// </summary>
+        public virtual ICollection<EmployeeEntity> DirectReports { get; set; } = [];
 
         /// <summary>
         /// Navigation property tới tài khoản đăng nhập gắn với nhân viên này (UserEntity)

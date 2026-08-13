@@ -36,10 +36,14 @@ namespace HrmApi.Application.DTOs.Company
         public string? TimeZone { get; set; }
         public string? DefaultLanguage { get; set; }
         public string? LogoUrl { get; set; }
+        public string? PrimaryColor { get; set; }
         public bool IsActive { get; set; } = true;
         public string? SocialInsuranceCode { get; set; }
         public Guid? TimeKeepingStandardId { get; set; }
         public HrmApi.Domain.Enums.SaturdayPolicy SaturdayPolicy { get; set; } = HrmApi.Domain.Enums.SaturdayPolicy.Work;
+        public int? MaxEmployeeCapacity { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
     public class CompanySelectBoxDto
     {

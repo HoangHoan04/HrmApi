@@ -127,7 +127,7 @@ namespace HrmApi.Application.Common.Helpers
         {
             var emp = await context.EmployeeEntities.AsNoTracking()
                 .Where(x => x.Id == employeeId && !x.IsDeleted)
-                .Select(x => new { x.PartId, x.DepartmentId, x.BranchId })
+                .Select(x => new { x.PartId, x.DepartmentId, x.BranchId, x.CompanyId })
                 .FirstOrDefaultAsync(cancellationToken);
             if (emp == null) return null;
 
@@ -159,6 +159,16 @@ namespace HrmApi.Application.Common.Helpers
                     .FirstOrDefaultAsync(cancellationToken);
                 if (branchMgr.HasValue && branchMgr != Guid.Empty && branchMgr != employeeId)
                     return branchMgr;
+            }
+            else if (emp.CompanyId.HasValue)
+            {
+                Guid? hqMgr = await context.BranchEntities.AsNoTracking()
+                    .Where(x => !x.IsDeleted && x.CompanyId == emp.CompanyId && x.ManagerId != null)
+                    .OrderByDescending(x => x.IsHeadQuarter)
+                    .Select(x => x.ManagerId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (hqMgr.HasValue && hqMgr != Guid.Empty && hqMgr != employeeId)
+                    return hqMgr;
             }
 
             return null;

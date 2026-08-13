@@ -3,6 +3,8 @@ using HrmApi.Application;
 using HrmApi.Infrastructure;
 using HrmApi.Infrastructure.Persistence;
 using HrmApi.WebApi.Authorization;
+using HrmApi.WebApi.Background;
+using HrmApi.WebApi.Middleware;
 using Microsoft.EntityFrameworkCore;
 
 string envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
@@ -28,8 +30,10 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddPermissionAuthorization();
+builder.Services.AddHostedService<HrmPeriodicJobsService>();
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<HrmApi.Application.Common.Interfaces.ICurrentUserService, HrmApi.WebApi.Services.CurrentUserService>();
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
@@ -91,6 +95,8 @@ if (app.Environment.IsDevelopment() || true)
 }
 
 app.UseCors("AllowAngularDev");
+
+app.UseMiddleware<IpAllowlistMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -12,6 +12,8 @@ namespace HrmApi.Application.DTOs.TimeKeepingStandard
         public int AllowedRadiusMeters { get; set; }
         public int LateGraceMinutes { get; set; }
         public int EarlyLeaveGraceMinutes { get; set; }
+        public TimeSpan NightStartTime { get; set; }
+        public TimeSpan NightEndTime { get; set; }
         public bool IsActive { get; set; }
     }
 

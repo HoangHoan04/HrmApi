@@ -1,5 +1,6 @@
 ﻿using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Domain.Entities.Payroll
 {
@@ -27,7 +28,7 @@ namespace HrmApi.Domain.Entities.Payroll
         /// <summary>
         /// Trạng thái (DRAFT, PENDING, APPROVED, APPLIED, REJECTED, CANCELLED)
         /// </summary>
-        public string Status { get; set; } = "PENDING";
+        public string Status { get; set; } = SlipStatus.Pending;
 
         public string? Reason { get; set; }
         public string? Note { get; set; }

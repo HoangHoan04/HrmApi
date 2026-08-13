@@ -44,10 +44,14 @@ namespace HrmApi.Application.Mappings
                 TimeZone = entity.TimeZone,
                 DefaultLanguage = entity.DefaultLanguage,
                 LogoUrl = entity.LogoUrl,
+                PrimaryColor = entity.PrimaryColor,
                 IsActive = entity.IsActive,
                 SocialInsuranceCode = entity.SocialInsuranceCode,
                 TimeKeepingStandardId = entity.TimeKeepingStandardId,
                 SaturdayPolicy = entity.SaturdayPolicy,
+                MaxEmployeeCapacity = entity.MaxEmployeeCapacity,
+                Latitude = entity.Latitude,
+                Longitude = entity.Longitude,
                 IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
                 CreatedBy = entity.CreatedBy,
@@ -91,9 +95,13 @@ namespace HrmApi.Application.Mappings
             entity.TimeZone = TrimOrNull(fields.TimeZone);
             entity.DefaultLanguage = TrimOrNull(fields.DefaultLanguage);
             entity.LogoUrl = TrimOrNull(fields.LogoUrl);
+            entity.PrimaryColor = TrimOrNull(fields.PrimaryColor);
             entity.IsActive = fields.IsActive;
             entity.SocialInsuranceCode = TrimOrNull(fields.SocialInsuranceCode);
             entity.TimeKeepingStandardId = fields.TimeKeepingStandardId;
+            entity.MaxEmployeeCapacity = fields.MaxEmployeeCapacity;
+            entity.Latitude = fields.Latitude;
+            entity.Longitude = fields.Longitude;
             if (fields.SaturdayPolicy.HasValue)
             {
                 entity.SaturdayPolicy = fields.SaturdayPolicy.Value;
@@ -137,9 +145,13 @@ namespace HrmApi.Application.Mappings
                 entity.TimeZone,
                 entity.DefaultLanguage,
                 entity.LogoUrl,
+                entity.PrimaryColor,
                 entity.IsActive,
                 entity.SocialInsuranceCode,
-                entity.TimeKeepingStandardId
+                entity.TimeKeepingStandardId,
+                entity.MaxEmployeeCapacity,
+                entity.Latitude,
+                entity.Longitude
             };
         }
 
@@ -182,9 +194,13 @@ namespace HrmApi.Application.Mappings
         public string? TimeZone { get; set; }
         public string? DefaultLanguage { get; set; }
         public string? LogoUrl { get; set; }
+        public string? PrimaryColor { get; set; }
         public bool IsActive { get; set; } = true;
         public string? SocialInsuranceCode { get; set; }
         public Guid? TimeKeepingStandardId { get; set; }
         public HrmApi.Domain.Enums.SaturdayPolicy? SaturdayPolicy { get; set; }
+        public int? MaxEmployeeCapacity { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
 }

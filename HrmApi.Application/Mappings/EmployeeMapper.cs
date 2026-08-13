@@ -50,6 +50,12 @@ namespace HrmApi.Application.Mappings
                 DepartmentId = entity.DepartmentId,
                 PartId = entity.PartId,
                 PositionId = entity.PositionId,
+                DirectManagerId = entity.DirectManagerId,
+                DirectManagerName = entity.DirectManager?.FullName
+                    ?? (entity.DirectManager != null
+                        ? $"{entity.DirectManager.LastName} {entity.DirectManager.FirstName}".Trim()
+                        : null),
+                DirectManagerCode = entity.DirectManager?.Code,
                 IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
                 CreatedBy = entity.CreatedBy,
@@ -135,6 +141,9 @@ namespace HrmApi.Application.Mappings
             entity.DepartmentId = fields.DepartmentId;
             entity.PartId = fields.PartId;
             entity.PositionId = fields.PositionId;
+            entity.DirectManagerId = fields.DirectManagerId.HasValue && fields.DirectManagerId != Guid.Empty
+                ? fields.DirectManagerId
+                : null;
         }
 
         public static object ToLogObject(EmployeeEntity entity)
@@ -175,7 +184,13 @@ namespace HrmApi.Application.Mappings
                 entity.Status,
                 entity.JoinDate,
                 entity.ResignationDate,
-                entity.ResignationReason
+                entity.ResignationReason,
+                entity.DirectManagerId,
+                entity.CompanyId,
+                entity.BranchId,
+                entity.DepartmentId,
+                entity.PartId,
+                entity.PositionId
             };
         }
 
@@ -245,6 +260,7 @@ namespace HrmApi.Application.Mappings
 
         public static EmployeeFileDto ToFileDto(EmployeeFileEntity entity)
         {
+            var today = DateTime.UtcNow.Date;
             return new()
             {
                 Id = entity.Id,
@@ -256,6 +272,10 @@ namespace HrmApi.Application.Mappings
                 FileSize = entity.FileSize,
                 Description = entity.Description,
                 ExpiryDate = entity.ExpiryDate,
+                VersionNo = entity.VersionNo <= 0 ? 1 : entity.VersionNo,
+                ReplacesFileId = entity.ReplacesFileId,
+                IsCurrent = entity.IsCurrent,
+                IsExpired = entity.ExpiryDate.HasValue && entity.ExpiryDate.Value.Date < today,
                 IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
                 CreatedBy = entity.CreatedBy,
@@ -341,5 +361,6 @@ namespace HrmApi.Application.Mappings
         public Guid? DepartmentId { get; set; }
         public Guid? PartId { get; set; }
         public Guid? PositionId { get; set; }
+        public Guid? DirectManagerId { get; set; }
     }
 }

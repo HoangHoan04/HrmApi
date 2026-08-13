@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.DTOs.RegisterDayOff;
 using HrmApi.Application.Features.DayOffAllocations;
+using HrmApi.Application.Features.Mobile;
 using HrmApi.Application.Features.RegisterDayOffs.Commands;
 using HrmApi.Application.Features.RegisterDayOffs.Queries;
 using HrmApi.WebApi.Authorization;
@@ -97,6 +98,13 @@ namespace HrmApi.WebApi.Controllers
                 if (!result) return NotFound("Không tìm thấy đơn nghỉ phép.");
                 return Ok(result);
             }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("team-calendar")]
+        public async Task<ActionResult<List<LeaveCalendarEventDto>>> TeamCalendar([FromBody] GetMobileTeamCalendarQuery query)
+        {
+            try { return Ok(await _mediator.Send(query)); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
     }

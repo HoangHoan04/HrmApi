@@ -31,6 +31,9 @@ namespace HrmApi.Application.Features.ActionLogs.Queries
     {
         public string? EntityName { get; set; }
         public Guid? EntityId { get; set; }
+        public string? ActionType { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
     }
 
     public class GetActionLogsQueryHandler : IRequestHandler<GetActionLogsQuery, PagedResult<ActionLogDto>>
@@ -54,6 +57,24 @@ namespace HrmApi.Application.Features.ActionLogs.Queries
             if (request.EntityId.HasValue && request.EntityId.Value != Guid.Empty)
             {
                 query = query.Where(x => x.EntityId == request.EntityId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ActionType))
+            {
+                var actionType = request.ActionType.Trim();
+                query = query.Where(x => x.ActionType == actionType);
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                var from = request.FromDate.Value.Date;
+                query = query.Where(x => x.CreatedAt >= from);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                var to = request.ToDate.Value.Date.AddDays(1);
+                query = query.Where(x => x.CreatedAt < to);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))

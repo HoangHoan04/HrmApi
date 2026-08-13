@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Timekeeping;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Common.Interfaces
 {
@@ -17,7 +18,7 @@ namespace HrmApi.Application.Common.Interfaces
         public Guid? ShiftId { get; set; }
         public Guid? BranchId { get; set; }
         public bool IsOvernight { get; set; }
-        public string Source { get; set; } = "WORK_PATTERN";
+        public string Source { get; set; } = AttendanceScheduleSource.WorkPattern;
         public bool IsScheduledWorkDay { get; set; } = true;
     }
 
@@ -27,6 +28,8 @@ namespace HrmApi.Application.Common.Interfaces
         public int AllowedRadiusMeters { get; set; } = 200;
         public int LateGraceMinutes { get; set; }
         public int EarlyLeaveGraceMinutes { get; set; }
+        public TimeSpan NightStartTime { get; set; } = new(22, 0, 0);
+        public TimeSpan NightEndTime { get; set; } = new(6, 0, 0);
     }
 
     public interface IAttendanceRuleService
@@ -42,6 +45,12 @@ namespace HrmApi.Application.Common.Interfaces
         Task<bool> HasApprovedLeaveAsync(Guid employeeId, DateOnly workDate, CancellationToken cancellationToken = default);
 
         void ComputeStatus(TimekeepingEntity record, WorkWindowResult window, AttendanceStandardResult standard);
+
+        Task FinalizeOtAndNightAsync(
+            TimekeepingEntity record,
+            WorkWindowResult window,
+            AttendanceStandardResult standard,
+            CancellationToken cancellationToken = default);
 
         Task<TimekeepingEntity> GetOrCreateTodayRecordAsync(EmployeeEntity employee, DateOnly workDate, CancellationToken cancellationToken = default);
     }
