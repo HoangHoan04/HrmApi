@@ -75,13 +75,18 @@ namespace HrmApi.Application.Features.Employees.Commands
                 _ = await _context.SaveChangesAsync(cancellationToken);
 
                 bool hasEmployeeRole = await _context.RoleEntities.AsNoTracking()
-                    .AnyAsync(x => x.Id == RbacSeedIds.RoleEmployee && !x.IsDeleted && x.IsActive, cancellationToken);
+                    .AnyAsync(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive, cancellationToken);
                 if (hasEmployeeRole)
                 {
+                    Guid employeeRoleId = await _context.RoleEntities.AsNoTracking()
+                        .Where(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive)
+                        .Select(x => x.Id)
+                        .FirstAsync(cancellationToken);
+
                     _ = _context.UserRoleEntities.Add(new UserRoleEntity
                     {
                         UserId = user.Id,
-                        RoleId = RbacSeedIds.RoleEmployee,
+                        RoleId = employeeRoleId,
                         EffectiveFrom = DateTime.UtcNow,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = _currentUser.UserId ?? Guid.Empty,

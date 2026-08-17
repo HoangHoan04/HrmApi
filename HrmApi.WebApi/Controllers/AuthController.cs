@@ -108,6 +108,10 @@ namespace HrmApi.WebApi.Controllers
 
             AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
 
+            ActionResult? mobileDenied = ValidateMobileAccess(user, authContext);
+            if (mobileDenied != null)
+                return mobileDenied;
+
             return Ok(new AuthMeDto
             {
                 Id = user.Id,
@@ -383,7 +387,7 @@ namespace HrmApi.WebApi.Controllers
                 });
             }
 
-            return Ok(await IssueFullLoginAsync(user));
+            return Ok(await CompleteLoginAsync(user));
         }
 
         [HttpPost("refresh")]
@@ -411,6 +415,16 @@ namespace HrmApi.WebApi.Controllers
             }
 
             AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
+
+            bool isMobileSession = string.Equals(tokenEntity.Platform, "MOBILE", StringComparison.OrdinalIgnoreCase)
+                || IsMobileAuthRequest;
+            if (isMobileSession)
+            {
+                ActionResult? mobileDenied = ValidateMobileAccess(user, authContext);
+                if (mobileDenied != null)
+                    return mobileDenied;
+            }
+
             string newAccessToken = GenerateJwtToken(user, authContext);
             string newRefreshToken = GenerateRefreshToken();
 
@@ -711,7 +725,7 @@ namespace HrmApi.WebApi.Controllers
             if (!TotpHelper.VerifyCode(user.TwoFactorSecret, request.Code))
                 return BadRequest("Mã xác thực không đúng.");
 
-            return Ok(await IssueFullLoginAsync(user));
+            return Ok(await CompleteLoginAsync(user));
         }
 
         [HttpGet("sso/status")]
@@ -850,7 +864,7 @@ namespace HrmApi.WebApi.Controllers
                 });
             }
 
-            return Ok(await IssueFullLoginAsync(user));
+            return Ok(await CompleteLoginAsync(user));
         }
 
         [Authorize]
@@ -923,9 +937,51 @@ namespace HrmApi.WebApi.Controllers
             return Ok(new { message = "Đã thu hồi phiên.", id = token.Id });
         }
 
-        private async Task<LoginResponse> IssueFullLoginAsync(UserEntity user)
+        private const string MobileAccessDeniedMessage =
+            "Bạn không có quyền truy cập ứng dụng di động. Vui lòng liên hệ quản trị viên.";
+
+        private bool IsMobileAuthRequest =>
+            Request.Path.StartsWithSegments("/api/v1/mobile", StringComparison.OrdinalIgnoreCase);
+
+        private static bool HasMobileAccess(UserEntity user, AuthContextDto authContext)
+        {
+            if (string.Equals(user.Type, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
+                || authContext.Roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            return authContext.Permissions.Any(p =>
+                string.Equals(p, PermissionCodes.MobileAccess, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private ActionResult? ValidateMobileAccess(UserEntity user, AuthContextDto authContext)
+        {
+            if (!IsMobileAuthRequest)
+                return null;
+
+            if (HasMobileAccess(user, authContext))
+                return null;
+
+            _logger.LogWarning(
+                "Mobile access denied for user {Username}: missing {Permission}.",
+                user.Username,
+                PermissionCodes.MobileAccess);
+            return StatusCode(StatusCodes.Status403Forbidden, MobileAccessDeniedMessage);
+        }
+
+        private async Task<ActionResult<LoginResponse>> CompleteLoginAsync(UserEntity user)
         {
             AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
+            ActionResult? mobileDenied = ValidateMobileAccess(user, authContext);
+            if (mobileDenied != null)
+                return mobileDenied;
+
+            return Ok(await IssueFullLoginAsync(user, authContext));
+        }
+
+        private async Task<LoginResponse> IssueFullLoginAsync(UserEntity user, AuthContextDto authContext)
+        {
             string tokenString = GenerateJwtToken(user, authContext);
             string refreshToken = GenerateRefreshToken();
 

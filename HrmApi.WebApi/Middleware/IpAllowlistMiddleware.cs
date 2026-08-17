@@ -15,6 +15,13 @@ namespace HrmApi.WebApi.Middleware
 
         public async Task InvokeAsync(HttpContext context, IIpAllowlistCache ipAllowlistCache)
         {
+            string path = context.Request.Path.Value ?? string.Empty;
+            if (IsAuthBypassPath(path))
+            {
+                await _next(context);
+                return;
+            }
+
             string? remoteIp = context.Connection.RemoteIpAddress?.ToString();
             if (IsLocalhost(context.Connection.RemoteIpAddress))
             {
@@ -38,6 +45,12 @@ namespace HrmApi.WebApi.Middleware
             }
 
             await _next(context);
+        }
+
+        private static bool IsAuthBypassPath(string path)
+        {
+            return path.StartsWith("/api/v1/mobile/auth/", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/api/v1/admin/auth/", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsLocalhost(IPAddress? ip)

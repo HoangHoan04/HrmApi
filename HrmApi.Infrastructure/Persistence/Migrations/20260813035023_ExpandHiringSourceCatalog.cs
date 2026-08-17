@@ -74,30 +74,6 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                 ) THEN TRUE ELSE "IsSystem" END
                 WHERE "IsDeleted" = FALSE;
                 """);
-
-            // Grant new source permissions to system Admin + HR (same scope as prior recruitment pack).
-            migrationBuilder.Sql("""
-                INSERT INTO "RolePermissionEntities"
-                    ("Id","RoleId","PermissionCode","DataScope","CreatedBy","CreatedAt","IsDeleted","Version")
-                SELECT gen_random_uuid(), r."Id", p.code, 'ALL',
-                       '00000000-0000-0000-0000-000000000000'::uuid, NOW(), FALSE, 1
-                FROM (
-                    SELECT '10000000-0000-0000-0000-000000000001'::uuid AS "Id"
-                    UNION ALL
-                    SELECT '10000000-0000-0000-0000-000000000002'::uuid
-                ) r
-                CROSS JOIN (
-                    SELECT 'RECRUITMENT_SOURCE_VIEW' AS code
-                    UNION ALL
-                    SELECT 'RECRUITMENT_SOURCE_MANAGE'
-                ) p
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM "RolePermissionEntities" rp
-                    WHERE rp."RoleId" = r."Id"
-                      AND rp."PermissionCode" = p.code
-                      AND rp."IsDeleted" = FALSE
-                );
-                """);
         }
 
         /// <inheritdoc />

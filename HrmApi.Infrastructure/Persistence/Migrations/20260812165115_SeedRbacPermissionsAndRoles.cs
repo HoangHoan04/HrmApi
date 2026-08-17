@@ -6,19 +6,12 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
     /// <remarks>
-    /// Seeds permission catalog + system roles (ADMIN/HR/MANAGER/EMPLOYEE)
-    /// and assigns default admin user to ADMIN.
-    /// DataScope is stored on RolePermission for Phase B filtering.
-    /// Idempotent upsert by Code.
+    /// Legacy seed for PermissionEntities (superseded by code catalog + DropPermissionEntity).
+    /// Roles and role permissions are created manually via Admin/API.
     /// </remarks>
     public partial class SeedRbacPermissionsAndRoles : Migration
     {
         private const string ActorId = "00000000-0000-0000-0000-000000000000";
-        private const string AdminUserId = "00000000-0000-0000-0000-000000000001";
-        private const string RoleAdminId = "10000000-0000-0000-0000-000000000001";
-        private const string RoleHrId = "10000000-0000-0000-0000-000000000002";
-        private const string RoleManagerId = "10000000-0000-0000-0000-000000000003";
-        private const string RoleEmployeeId = "10000000-0000-0000-0000-000000000004";
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -29,21 +22,7 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql($"""
-                DELETE FROM "UserRoleEntities"
-                WHERE "Id" = '40000000-0000-0000-0000-000000000001'::uuid;
-
-                DELETE FROM "RolePermissionEntities"
-                WHERE "Id"::text LIKE '30000000-0000-0000-%';
-
-                DELETE FROM "RoleEntities"
-                WHERE "Id" IN (
-                    '{RoleAdminId}'::uuid,
-                    '{RoleHrId}'::uuid,
-                    '{RoleManagerId}'::uuid,
-                    '{RoleEmployeeId}'::uuid
-                );
-
+            migrationBuilder.Sql("""
                 DELETE FROM "PermissionEntities"
                 WHERE "Id"::text LIKE '20000000-0000-0000-0000-%';
                 """);
@@ -91,7 +70,7 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
             ];
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("-- Permissions");
+            sb.AppendLine("-- Permissions (legacy table; dropped in DropPermissionEntity)");
             foreach (string row in permissions)
             {
                 string[] p = row.Split('|');
@@ -108,99 +87,7 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     """);
             }
 
-            sb.AppendLine($"""
-                -- System roles
-                INSERT INTO "RoleEntities" ("Id","CompanyId","BranchId","Code","Name","Description","IsSystem","IsActive","CreatedBy","CreatedAt","IsDeleted","Version")
-                SELECT '{RoleAdminId}'::uuid, NULL, NULL, 'ADMIN', 'Quản trị viên', 'Toàn quyền hệ thống', TRUE, TRUE, '{ActorId}'::uuid, NOW() AT TIME ZONE 'UTC', FALSE, NULL
-                WHERE NOT EXISTS (SELECT 1 FROM "RoleEntities" WHERE "Code" = 'ADMIN' AND "IsDeleted" = FALSE);
-                UPDATE "RoleEntities" SET "Name" = 'Quản trị viên', "Description" = 'Toàn quyền hệ thống', "IsSystem" = TRUE, "IsActive" = TRUE, "UpdatedAt" = NOW() AT TIME ZONE 'UTC'
-                WHERE "Code" = 'ADMIN' AND "IsDeleted" = FALSE;
-
-                INSERT INTO "RoleEntities" ("Id","CompanyId","BranchId","Code","Name","Description","IsSystem","IsActive","CreatedBy","CreatedAt","IsDeleted","Version")
-                SELECT '{RoleHrId}'::uuid, NULL, NULL, 'HR', 'Nhân sự', 'Quản lý tổ chức, nhân viên, chấm công, nghỉ phép, hợp đồng, lương', TRUE, TRUE, '{ActorId}'::uuid, NOW() AT TIME ZONE 'UTC', FALSE, NULL
-                WHERE NOT EXISTS (SELECT 1 FROM "RoleEntities" WHERE "Code" = 'HR' AND "IsDeleted" = FALSE);
-                UPDATE "RoleEntities" SET "Name" = 'Nhân sự', "IsSystem" = TRUE, "IsActive" = TRUE, "UpdatedAt" = NOW() AT TIME ZONE 'UTC'
-                WHERE "Code" = 'HR' AND "IsDeleted" = FALSE;
-
-                INSERT INTO "RoleEntities" ("Id","CompanyId","BranchId","Code","Name","Description","IsSystem","IsActive","CreatedBy","CreatedAt","IsDeleted","Version")
-                SELECT '{RoleManagerId}'::uuid, NULL, NULL, 'MANAGER', 'Quản lý', 'Duyệt nghỉ phép và xem dữ liệu theo chi nhánh', TRUE, TRUE, '{ActorId}'::uuid, NOW() AT TIME ZONE 'UTC', FALSE, NULL
-                WHERE NOT EXISTS (SELECT 1 FROM "RoleEntities" WHERE "Code" = 'MANAGER' AND "IsDeleted" = FALSE);
-                UPDATE "RoleEntities" SET "Name" = 'Quản lý', "IsSystem" = TRUE, "IsActive" = TRUE, "UpdatedAt" = NOW() AT TIME ZONE 'UTC'
-                WHERE "Code" = 'MANAGER' AND "IsDeleted" = FALSE;
-
-                INSERT INTO "RoleEntities" ("Id","CompanyId","BranchId","Code","Name","Description","IsSystem","IsActive","CreatedBy","CreatedAt","IsDeleted","Version")
-                SELECT '{RoleEmployeeId}'::uuid, NULL, NULL, 'EMPLOYEE', 'Nhân viên', 'Truy cập mobile và dữ liệu cá nhân', TRUE, TRUE, '{ActorId}'::uuid, NOW() AT TIME ZONE 'UTC', FALSE, NULL
-                WHERE NOT EXISTS (SELECT 1 FROM "RoleEntities" WHERE "Code" = 'EMPLOYEE' AND "IsDeleted" = FALSE);
-                UPDATE "RoleEntities" SET "Name" = 'Nhân viên', "IsSystem" = TRUE, "IsActive" = TRUE, "UpdatedAt" = NOW() AT TIME ZONE 'UTC'
-                WHERE "Code" = 'EMPLOYEE' AND "IsDeleted" = FALSE;
-                """);
-
-            AppendRolePermissions(sb, "ADMIN", "ALL", 1, permissions.Select(r => r.Split('|')[0]).ToArray());
-            AppendRolePermissions(sb, "HR", "ALL", 2,
-            [
-                "ORG_VIEW","ORG_MANAGE","EMPLOYEE_VIEW","EMPLOYEE_CREATE","EMPLOYEE_UPDATE","EMPLOYEE_DELETE","EMPLOYEE_MANAGE",
-                "TIMEKEEPING_VIEW","TIMEKEEPING_ADJUST","TIMEKEEPING_MANAGE","SHIFT_VIEW","SHIFT_MANAGE",
-                "LEAVE_VIEW","LEAVE_CREATE","LEAVE_APPROVE","LEAVE_MANAGE","ATTENDANCE_COMPLAINT_VIEW","ATTENDANCE_COMPLAINT_REVIEW",
-                "CONTRACT_VIEW","CONTRACT_CREATE","CONTRACT_UPDATE","CONTRACT_MANAGE","PAYROLL_VIEW","PAYROLL_CREATE","PAYROLL_MANAGE",
-                "USER_VIEW","ACTION_LOG_VIEW","MOBILE_ACCESS"
-            ]);
-            AppendRolePermissions(sb, "MANAGER", "BRANCH", 3,
-            [
-                "LEAVE_APPROVE","TIMEKEEPING_VIEW","ATTENDANCE_COMPLAINT_VIEW","EMPLOYEE_VIEW","MOBILE_ACCESS"
-            ]);
-            AppendRolePermissions(sb, "EMPLOYEE", "OWN", 4,
-            [
-                "MOBILE_ACCESS","TIMEKEEPING_VIEW","LEAVE_CREATE","LEAVE_VIEW","PAYROLL_VIEW","ATTENDANCE_COMPLAINT_CREATE"
-            ]);
-
-            sb.AppendLine($"""
-                INSERT INTO "UserRoleEntities" ("Id","UserId","RoleId","EffectiveFrom","EffectiveTo","CreatedBy","CreatedAt","IsDeleted","Version")
-                SELECT '40000000-0000-0000-0000-000000000001'::uuid,
-                       '{AdminUserId}'::uuid,
-                       (SELECT "Id" FROM "RoleEntities" WHERE "Code" = 'ADMIN' AND "IsDeleted" = FALSE LIMIT 1),
-                       NOW() AT TIME ZONE 'UTC', NULL, '{ActorId}'::uuid, NOW() AT TIME ZONE 'UTC', FALSE, NULL
-                WHERE EXISTS (SELECT 1 FROM "UserEntities" WHERE "Id" = '{AdminUserId}'::uuid AND "IsDeleted" = FALSE)
-                  AND NOT EXISTS (
-                    SELECT 1 FROM "UserRoleEntities" ur
-                    INNER JOIN "RoleEntities" r ON r."Id" = ur."RoleId"
-                    WHERE ur."UserId" = '{AdminUserId}'::uuid AND r."Code" = 'ADMIN' AND ur."IsDeleted" = FALSE
-                  );
-                """);
-
             return sb.ToString();
-        }
-
-        private static void AppendRolePermissions(
-            System.Text.StringBuilder sb,
-            string roleCode,
-            string dataScope,
-            int roleNum,
-            string[] codes)
-        {
-            sb.AppendLine($"-- RolePermission {roleCode} scope={dataScope}");
-            for (int i = 0; i < codes.Length; i++)
-            {
-                string code = codes[i];
-                string rpId = $"30000000-0000-0000-{roleNum:D4}-{(i + 1):D12}";
-                sb.AppendLine($"""
-                    INSERT INTO "RolePermissionEntities" ("Id","RoleId","PermissionId","DataScope","CreatedBy","CreatedAt","IsDeleted","Version")
-                    SELECT '{rpId}'::uuid,
-                           (SELECT "Id" FROM "RoleEntities" WHERE "Code" = '{roleCode}' AND "IsDeleted" = FALSE LIMIT 1),
-                           (SELECT "Id" FROM "PermissionEntities" WHERE "Code" = '{code}' AND "IsDeleted" = FALSE LIMIT 1),
-                           '{dataScope}', '{ActorId}'::uuid, NOW() AT TIME ZONE 'UTC', FALSE, NULL
-                    WHERE NOT EXISTS (
-                      SELECT 1 FROM "RolePermissionEntities" rp
-                      INNER JOIN "RoleEntities" r ON r."Id" = rp."RoleId"
-                      INNER JOIN "PermissionEntities" p ON p."Id" = rp."PermissionId"
-                      WHERE r."Code" = '{roleCode}' AND p."Code" = '{code}' AND rp."IsDeleted" = FALSE
-                    );
-                    UPDATE "RolePermissionEntities" rp
-                    SET "DataScope" = '{dataScope}', "IsDeleted" = FALSE, "UpdatedAt" = NOW() AT TIME ZONE 'UTC'
-                    FROM "RoleEntities" r, "PermissionEntities" p
-                    WHERE rp."RoleId" = r."Id" AND rp."PermissionId" = p."Id"
-                      AND r."Code" = '{roleCode}' AND p."Code" = '{code}';
-                    """);
-            }
         }
     }
 }
