@@ -12,7 +12,6 @@ namespace HrmApi.Application.DTOs.RegisterDayOff
         public string? BranchName { get; set; }
         public Guid? DayOffConfigId { get; set; }
         public string? DayOffConfigName { get; set; }
-        public DayOffType DayOffType { get; set; } = DayOffType.ANNUAL;
         public DateOnly FromDate { get; set; }
         public DateOnly ToDate { get; set; }
         public LeaveSession Session { get; set; } = LeaveSession.FULL;
@@ -64,7 +63,6 @@ namespace HrmApi.Application.DTOs.RegisterDayOff
         public Guid Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public DayOffType DayOffType { get; set; }
         public decimal DefaultDaysPerYear { get; set; }
         public bool IsPaid { get; set; }
         public bool DeductBalance { get; set; }

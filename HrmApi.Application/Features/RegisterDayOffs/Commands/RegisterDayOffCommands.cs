@@ -12,7 +12,6 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
     {
         public Guid? EmployeeId { get; set; }
         public Guid? DayOffConfigId { get; set; }
-        public DayOffType? DayOffType { get; set; }
         public DateOnly FromDate { get; set; }
         public DateOnly ToDate { get; set; }
         public LeaveSession Session { get; set; } = LeaveSession.FULL;
@@ -67,11 +66,11 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
             }
             else
             {
-                DayOffType type = request.DayOffType ?? DayOffType.ANNUAL;
                 config = await _context.DayOffConfigEntities.AsNoTracking()
-                    .Where(x => !x.IsDeleted && x.IsActive && x.DayOffType == type
+                    .Where(x => !x.IsDeleted && x.IsActive
                         && (x.CompanyId == null || x.CompanyId == employee.CompanyId))
                     .OrderByDescending(x => x.CompanyId.HasValue)
+                    .ThenBy(x => x.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken)
                     ?? throw new InvalidOperationException("Chưa cấu hình loại nghỉ. Vui lòng chọn DayOffConfig.");
             }
@@ -117,7 +116,6 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 CompanyId = employee.CompanyId,
                 BranchId = employee.BranchId,
                 DayOffConfigId = config.Id,
-                DayOffType = config.DayOffType,
                 FromDate = request.FromDate,
                 ToDate = request.ToDate,
                 Session = request.Session,
@@ -181,7 +179,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 if (config != null)
                 {
                     decimal remaining = await LeaveBalanceHelper.GetRemainingAsync(
-                        _context, entity.EmployeeId, entity.CompanyId, config.Id, entity.DayOffType,
+                        _context, entity.EmployeeId, entity.CompanyId, config.Id,
                         entity.FromDate.Year, cancellationToken) + entity.TotalDays;
                     if (config.DeductBalance && entity.TotalDays > remaining)
                         throw new InvalidOperationException(

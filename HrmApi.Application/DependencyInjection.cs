@@ -16,6 +16,7 @@ namespace HrmApi.Application
 
             services.AddMemoryCache();
             services.AddSingleton<IPermissionCache, MemoryPermissionCache>();
+            services.AddSingleton<IIpAllowlistCache, MemoryIpAllowlistCache>();
 
             services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
             services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();

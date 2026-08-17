@@ -27,7 +27,8 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
         public DateOnly StartDate { get; set; }
         public DateOnly EndDate { get; set; }
         public string? Status { get; set; }
-        public DayOffType? DayOffType { get; set; }
+        public Guid? DayOffConfigId { get; set; }
+        public string? DayOffConfigName { get; set; }
         public LeaveSession? Session { get; set; }
         public decimal? TotalDays { get; set; }
         public Guid? EmployeeId { get; set; }
@@ -36,7 +37,6 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
         public string? BranchName { get; set; }
-        public string? DayOffConfigName { get; set; }
         public string? Reason { get; set; }
     }
 
@@ -130,11 +130,11 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                     {
                         EventType = LeaveCalendarEventType.Leave,
                         LeaveId = leave.Id,
-                        Title = $"{empLabel} · {cfgName ?? leave.DayOffType.ToString()}",
+                        Title = $"{empLabel} · {cfgName ?? "Nghỉ phép"}",
                         StartDate = leave.FromDate,
                         EndDate = leave.ToDate,
                         Status = leave.Status.ToString(),
-                        DayOffType = leave.DayOffType,
+                        DayOffConfigId = leave.DayOffConfigId,
                         Session = leave.Session,
                         TotalDays = leave.TotalDays,
                         EmployeeId = leave.EmployeeId,

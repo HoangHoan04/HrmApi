@@ -17,7 +17,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
         public DayOffStatus? Status { get; set; }
-        public DayOffType? DayOffType { get; set; }
+        public Guid? DayOffConfigId { get; set; }
         public DateOnly? FromDate { get; set; }
         public DateOnly? ToDate { get; set; }
         public bool? IsDeleted { get; set; }
@@ -57,9 +57,9 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 query = query.Where(x => x.Status == request.Status.Value);
             }
 
-            if (request.DayOffType.HasValue)
+            if (request.DayOffConfigId.HasValue && request.DayOffConfigId != Guid.Empty)
             {
-                query = query.Where(x => x.DayOffType == request.DayOffType.Value);
+                query = query.Where(x => x.DayOffConfigId == request.DayOffConfigId.Value);
             }
 
             if (request.FromDate.HasValue)
@@ -341,19 +341,25 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                     && (x.Status == DayOffStatus.PENDING || x.Status == DayOffStatus.APPROVED))
                 .ToListAsync(cancellationToken);
 
-            decimal SumDays(DayOffType type, DayOffStatus status) =>
-                yearLeaves
-                    .Where(x => x.DayOffType == type && x.Status == status)
+            DayOffConfigEntity? annualConfig = configs.FirstOrDefault(x => string.Equals(x.Code, "ANNUAL", StringComparison.OrdinalIgnoreCase))
+                ?? configs.FirstOrDefault(x => x.DeductBalance)
+                ?? configs.FirstOrDefault();
+
+            decimal annualUsed = 0;
+            decimal annualPending = 0;
+            if (annualConfig != null)
+            {
+                annualUsed = yearLeaves
+                    .Where(x => x.DayOffConfigId == annualConfig.Id && x.Status == DayOffStatus.APPROVED)
                     .Sum(x => x.TotalDays);
+                annualPending = yearLeaves
+                    .Where(x => x.DayOffConfigId == annualConfig.Id && x.Status == DayOffStatus.PENDING)
+                    .Sum(x => x.TotalDays);
+            }
 
-            decimal annualUsed = SumDays(DayOffType.ANNUAL, DayOffStatus.APPROVED);
-            decimal annualPending = SumDays(DayOffType.ANNUAL, DayOffStatus.PENDING);
-            decimal sickUsed = SumDays(DayOffType.SICK, DayOffStatus.APPROVED)
-                + SumDays(DayOffType.SICK, DayOffStatus.PENDING);
-            decimal unpaidUsed = SumDays(DayOffType.UNPAID, DayOffStatus.APPROVED)
-                + SumDays(DayOffType.UNPAID, DayOffStatus.PENDING);
-
-            DayOffConfigEntity? annualConfig = configs.FirstOrDefault(x => x.DayOffType == DayOffType.ANNUAL);
+            decimal otherUsed = yearLeaves
+                .Where(x => annualConfig == null || x.DayOffConfigId != annualConfig.Id)
+                .Sum(x => x.TotalDays);
 
             decimal annualTotal = 0;
             DayOffConfigEmployeeEntity? empAllocation = null;
@@ -381,14 +387,13 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 AnnualUsed = annualUsed,
                 AnnualPending = annualPending,
                 AnnualRemaining = annualRemaining,
-                SickUsed = sickUsed,
-                UnpaidUsed = unpaidUsed,
+                SickUsed = otherUsed,
+                UnpaidUsed = 0,
                 Configs = configs.Select(x => new MobileLeaveConfigDto
                 {
                     Id = x.Id,
                     Code = x.Code,
                     Name = x.Name,
-                    DayOffType = x.DayOffType,
                     DefaultDaysPerYear = x.DefaultDaysPerYear,
                     IsPaid = x.IsPaid,
                     DeductBalance = x.DeductBalance,

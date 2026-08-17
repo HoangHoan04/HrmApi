@@ -25,11 +25,6 @@ namespace HrmApi.Domain.Entities.Leave
         /// Id cấu hình ngày phép (khóa ngoại tới DayOffConfigEntity)
         /// </summary>
         public Guid? DayOffConfigId { get; set; }
-
-        /// <summary>
-        /// Loại nghỉ phép
-        /// </summary>
-        public HrmApi.Domain.Enums.DayOffType DayOffType { get; set; } = HrmApi.Domain.Enums.DayOffType.ANNUAL;
         /// <summary>
         /// Ngày bắt đầu nghỉ phép
         /// </summary>

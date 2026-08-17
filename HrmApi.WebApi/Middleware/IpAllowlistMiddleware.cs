@@ -1,11 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
 using HrmApi.Application.Common.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.WebApi.Middleware
 {
-
     public class IpAllowlistMiddleware
     {
         private readonly RequestDelegate _next;
@@ -15,7 +13,7 @@ namespace HrmApi.WebApi.Middleware
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context, IApplicationDbContext db)
+        public async Task InvokeAsync(HttpContext context, IIpAllowlistCache ipAllowlistCache)
         {
             string? remoteIp = context.Connection.RemoteIpAddress?.ToString();
             if (IsLocalhost(context.Connection.RemoteIpAddress))
@@ -24,10 +22,7 @@ namespace HrmApi.WebApi.Middleware
                 return;
             }
 
-            List<string> entries = await db.IpAllowlistEntryEntities.AsNoTracking()
-                .Where(x => !x.IsDeleted && x.IsActive)
-                .Select(x => x.CidrOrIp)
-                .ToListAsync(context.RequestAborted);
+            IReadOnlyList<string> entries = await ipAllowlistCache.GetActiveEntriesAsync(context.RequestAborted);
 
             if (entries.Count == 0)
             {

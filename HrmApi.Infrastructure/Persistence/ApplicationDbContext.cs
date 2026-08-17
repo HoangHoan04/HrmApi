@@ -817,8 +817,6 @@ namespace HrmApi.Infrastructure.Persistence
         {
             _ = modelBuilder.Entity<DayOffConfigEntity>(entity =>
             {
-                _ = entity.Property(e => e.DayOffType).HasConversion<string>();
-
                 _ = entity.HasOne(d => d.Company)
                     .WithMany(c => c.DayOffConfigEntities)
                     .HasForeignKey(d => d.CompanyId)
@@ -848,7 +846,6 @@ namespace HrmApi.Infrastructure.Persistence
 
             _ = modelBuilder.Entity<RegisterDayOffEntity>(entity =>
             {
-                _ = entity.Property(e => e.DayOffType).HasConversion<string>();
                 _ = entity.Property(e => e.Status).HasConversion<string>();
 
                 _ = entity.HasOne(r => r.Employee)

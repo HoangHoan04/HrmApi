@@ -1,6 +1,5 @@
 using HrmApi.Application.DTOs.DayOffConfig;
 using HrmApi.Domain.Entities.Leave;
-using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Mappings
 {
@@ -16,7 +15,6 @@ namespace HrmApi.Application.Mappings
                 Description = entity.Description,
                 CompanyId = entity.CompanyId,
                 CompanyName = companyName,
-                DayOffType = entity.DayOffType,
                 DefaultDaysPerYear = entity.DefaultDaysPerYear,
                 IsPaid = entity.IsPaid,
                 DeductBalance = entity.DeductBalance,
@@ -43,10 +41,6 @@ namespace HrmApi.Application.Mappings
                 entity.CompanyId = fields.CompanyId;
             }
 
-            if (fields.DayOffType.HasValue)
-            {
-                entity.DayOffType = fields.DayOffType.Value;
-            }
             if (fields.DefaultDaysPerYear.HasValue)
             {
                 entity.DefaultDaysPerYear = fields.DefaultDaysPerYear.Value;
@@ -91,7 +85,6 @@ namespace HrmApi.Application.Mappings
                 entity.Code,
                 entity.Name,
                 entity.CompanyId,
-                entity.DayOffType,
                 entity.DefaultDaysPerYear,
                 entity.IsPaid,
                 entity.DeductBalance,
@@ -109,7 +102,6 @@ namespace HrmApi.Application.Mappings
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public Guid? CompanyId { get; set; }
-        public DayOffType? DayOffType { get; set; }
         public decimal? DefaultDaysPerYear { get; set; }
         public bool? IsPaid { get; set; }
         public bool? DeductBalance { get; set; }

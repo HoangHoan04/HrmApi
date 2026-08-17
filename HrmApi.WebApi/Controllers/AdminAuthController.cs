@@ -15,8 +15,9 @@ namespace HrmApi.WebApi.Controllers
             IConfiguration configuration,
             IEmailService emailService,
             IAuthContextService authContext,
-            IHttpClientFactory httpClientFactory)
-            : base(context, passwordHasher, configuration, emailService, authContext, httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            ILoggerFactory loggerFactory)
+            : base(context, passwordHasher, configuration, emailService, authContext, httpClientFactory, loggerFactory)
         {
         }
     }

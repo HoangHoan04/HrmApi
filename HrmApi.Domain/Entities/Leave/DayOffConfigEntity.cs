@@ -25,10 +25,6 @@ namespace HrmApi.Domain.Entities.Leave
         /// </summary>
         public Guid? CompanyId { get; set; }
         /// <summary>
-        /// Loại nghỉ phép
-        /// </summary>
-        public HrmApi.Domain.Enums.DayOffType DayOffType { get; set; } = HrmApi.Domain.Enums.DayOffType.ANNUAL;
-        /// <summary>
         /// Số ngày phép mặc định trong năm
         /// </summary>
         public decimal DefaultDaysPerYear { get; set; }

@@ -14,7 +14,6 @@ namespace HrmApi.Application.Features.DayOffConfigs.Queries
         public string? Code { get; set; }
         public string? Name { get; set; }
         public Guid? CompanyId { get; set; }
-        public string? DayOffType { get; set; }
         public bool? IsDeleted { get; set; }
         public bool? IsActive { get; set; }
     }
@@ -46,11 +45,6 @@ namespace HrmApi.Application.Features.DayOffConfigs.Queries
                 query = query.Where(x => x.CompanyId == request.CompanyId);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.DayOffType)
-            && Enum.TryParse<HrmApi.Domain.Enums.DayOffType>(request.DayOffType.Trim(), true, out DayOffType dayOffType))
-            {
-                query = query.Where(x => x.DayOffType == dayOffType);
-            }
 
             if (request.IsDeleted.HasValue)
             {
@@ -154,7 +148,6 @@ namespace HrmApi.Application.Features.DayOffConfigs.Queries
                     Id = x.Id,
                     Code = x.Code,
                     Name = x.Name,
-                    DayOffType = x.DayOffType,
                     CompanyId = x.CompanyId,
                     RequireAttachment = x.RequireAttachment,
                     DeductBalance = x.DeductBalance,

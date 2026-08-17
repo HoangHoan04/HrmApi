@@ -14,7 +14,6 @@ namespace HrmApi.Application.Features.DayOffAllocations
         public Guid Id { get; set; }
         public Guid DayOffConfigId { get; set; }
         public string? DayOffConfigName { get; set; }
-        public DayOffType DayOffType { get; set; }
         public Guid EmployeeId { get; set; }
         public string? EmployeeName { get; set; }
         public string? EmployeeCode { get; set; }
@@ -68,13 +67,13 @@ namespace HrmApi.Application.Features.DayOffAllocations
                 .ToDictionaryAsync(x => x.Id, x => new { x.FullName, x.Code, x.LastName, x.FirstName }, cancellationToken);
             var configs = await _context.DayOffConfigEntities.AsNoTracking()
                 .Where(x => cfgIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => new { x.Name, x.DayOffType }, cancellationToken);
+                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             List<DayOffAllocationDto> result = [];
             foreach (DayOffConfigEmployeeEntity row in rows)
             {
                 employees.TryGetValue(row.EmployeeId, out var emp);
-                configs.TryGetValue(row.DayOffConfigId, out var cfg);
+                configs.TryGetValue(row.DayOffConfigId, out var cfgName);
                 DateOnly ys = new(row.Year, 1, 1);
                 DateOnly ye = new(row.Year, 12, 31);
                 decimal pending = await _context.RegisterDayOffEntities.AsNoTracking()
@@ -89,8 +88,7 @@ namespace HrmApi.Application.Features.DayOffAllocations
                 {
                     Id = row.Id,
                     DayOffConfigId = row.DayOffConfigId,
-                    DayOffConfigName = cfg?.Name,
-                    DayOffType = cfg?.DayOffType ?? DayOffType.ANNUAL,
+                    DayOffConfigName = cfgName,
                     EmployeeId = row.EmployeeId,
                     EmployeeName = emp?.FullName ?? $"{emp?.LastName} {emp?.FirstName}".Trim(),
                     EmployeeCode = emp?.Code,
@@ -253,7 +251,6 @@ namespace HrmApi.Application.Features.DayOffAllocations
         public Guid Id { get; set; }
         public Guid DayOffConfigId { get; set; }
         public string? DayOffConfigName { get; set; }
-        public DayOffType DayOffType { get; set; }
         public Guid EmployeeId { get; set; }
         public string? EmployeeName { get; set; }
         public string? EmployeeCode { get; set; }
@@ -388,7 +385,7 @@ namespace HrmApi.Application.Features.DayOffAllocations
 
             var configs = await _context.DayOffConfigEntities.AsNoTracking()
                 .Where(x => cfgIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => new { x.Name, x.DayOffType }, cancellationToken);
+                .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
             DateOnly soonThreshold = today.AddDays(60);
@@ -397,7 +394,7 @@ namespace HrmApi.Application.Features.DayOffAllocations
             foreach (var row in rows)
             {
                 empMap.TryGetValue(row.EmployeeId, out var emp);
-                configs.TryGetValue(row.DayOffConfigId, out var cfg);
+                configs.TryGetValue(row.DayOffConfigId, out var cfgName);
                 pendingMap.TryGetValue((row.EmployeeId, row.DayOffConfigId), out decimal pending);
                 decimal remaining = Math.Max(0, row.AllocatedDays - row.UsedDays - pending);
 
@@ -405,8 +402,7 @@ namespace HrmApi.Application.Features.DayOffAllocations
                 {
                     Id = row.Id,
                     DayOffConfigId = row.DayOffConfigId,
-                    DayOffConfigName = cfg?.Name,
-                    DayOffType = cfg?.DayOffType ?? DayOffType.ANNUAL,
+                    DayOffConfigName = cfgName,
                     EmployeeId = row.EmployeeId,
                     EmployeeName = emp?.Name,
                     EmployeeCode = emp?.Code,

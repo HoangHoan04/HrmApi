@@ -18,12 +18,34 @@ namespace HrmApi.Application.DTOs.Auth
         public Guid? EmployeeId { get; set; }
         public Guid? CompanyId { get; set; }
         public Guid? BranchId { get; set; }
+        public string? Email { get; set; }
+        public string? AvatarUrl { get; set; }
+        public string? FullName { get; set; }
         public bool MustChangePassword { get; set; }
         public bool RequiresTwoFactor { get; set; }
         public string? TempToken { get; set; }
         public bool TwoFactorEnabled { get; set; }
         public List<string> Roles { get; set; } = [];
         public List<string> Permissions { get; set; } = [];
+    }
+
+    /// <summary>
+    /// Auth shell nhẹ — navbar / cold start / validate session (không attendance stats).
+    /// </summary>
+    public class AuthMeDto
+    {
+        public Guid Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? AvatarUrl { get; set; }
+        public string? FullName { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public Guid? EmployeeId { get; set; }
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+        public List<string> Roles { get; set; } = [];
+        public List<string> Permissions { get; set; } = [];
+        public bool TwoFactorEnabled { get; set; }
     }
 
     public class TwoFactorSetupResponse

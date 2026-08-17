@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace HrmApi.WebApi.Controllers
@@ -26,6 +27,7 @@ namespace HrmApi.WebApi.Controllers
         private readonly IEmailService _emailService;
         private readonly IAuthContextService _authContext;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger _logger;
 
         public AuthController(
             IApplicationDbContext context,
@@ -33,7 +35,8 @@ namespace HrmApi.WebApi.Controllers
             IConfiguration configuration,
             IEmailService emailService,
             IAuthContextService authContext,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            ILoggerFactory loggerFactory)
         {
             _context = context;
             _passwordHasher = passwordHasher;
@@ -41,11 +44,91 @@ namespace HrmApi.WebApi.Controllers
             _emailService = emailService;
             _authContext = authContext;
             _httpClientFactory = httpClientFactory;
+            _logger = loggerFactory.CreateLogger(GetType());
         }
 
+        /// <summary>Shell auth nhẹ — navbar / cold start (không Include org graph / attendance).</summary>
         [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> GetCurrentUser()
+        {
+            if (!TryGetUserId(out Guid userId))
+            {
+                return Unauthorized();
+            }
+
+            UserEntity? user = await _context.UserEntities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+            if (user == null)
+            {
+                return Unauthorized("Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.");
+            }
+
+            string? email = user.Email;
+            string? avatarUrl = null;
+            string? fullName = null;
+            Guid? companyId = user.CompanyId;
+            Guid? branchId = user.BranchId;
+            Guid? employeeId = user.EmployeeId;
+
+            if (user.EmployeeId.HasValue && user.EmployeeId != Guid.Empty)
+            {
+                var empLight = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(e => e.Id == user.EmployeeId.Value && !e.IsDeleted)
+                    .Select(e => new
+                    {
+                        e.Email,
+                        e.CompanyEmail,
+                        e.AvatarUrl,
+                        e.FullName,
+                        e.FirstName,
+                        e.LastName,
+                        e.CompanyId,
+                        e.BranchId,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (empLight != null)
+                {
+                    employeeId = user.EmployeeId;
+                    companyId = empLight.CompanyId ?? companyId;
+                    branchId = empLight.BranchId ?? branchId;
+                    avatarUrl = empLight.AvatarUrl;
+                    email = empLight.Email ?? empLight.CompanyEmail ?? email;
+                    fullName = string.IsNullOrWhiteSpace(empLight.FullName)
+                        ? $"{empLight.LastName} {empLight.FirstName}".Trim()
+                        : empLight.FullName;
+                    if (string.IsNullOrWhiteSpace(fullName)) fullName = null;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(email))
+                email = $"{user.Username}@hrm.com";
+
+            AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
+
+            return Ok(new AuthMeDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = email,
+                AvatarUrl = avatarUrl,
+                FullName = fullName,
+                Type = user.Type ?? string.Empty,
+                EmployeeId = employeeId,
+                CompanyId = companyId,
+                BranchId = branchId,
+                Roles = authContext.Roles,
+                Permissions = authContext.Permissions,
+                TwoFactorEnabled = user.TwoFactorEnabled,
+            });
+        }
+
+        /// <summary>Hồ sơ đầy đủ + stats tháng — màn Cá nhân / drawer (không dùng cho shell sau login).</summary>
+        [Authorize]
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetProfile()
         {
             if (!TryGetUserId(out Guid userId))
             {
@@ -166,7 +249,7 @@ namespace HrmApi.WebApi.Controllers
                 }
             }
 
-            var authContext = await _authContext.LoadAuthContextAsync(user.Id);
+            AuthContextDto authContext = await _authContext.LoadAuthContextAsync(user.Id);
 
             var profile = new MobileProfileDto
             {
@@ -231,10 +314,10 @@ namespace HrmApi.WebApi.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
         {
-            System.Console.WriteLine($"[API Auth] Login attempt received for username: '{request?.Username}'");
+            _logger.LogInformation("Login attempt for username: {Username}", request?.Username);
             if (request == null || string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
             {
-                System.Console.WriteLine("[API Auth] Login rejected: Username or password null/empty.");
+                _logger.LogDebug("Login rejected: Username or password null/empty.");
                 return BadRequest("Tài khoản và mật khẩu không được để trống.");
             }
 
@@ -243,37 +326,37 @@ namespace HrmApi.WebApi.Controllers
 
             if (user == null)
             {
-                System.Console.WriteLine($"[API Auth] Login rejected: User '{request.Username}' not found.");
+                _logger.LogDebug("Login rejected: User {Username} not found.", request.Username);
                 return BadRequest("Tài khoản hoặc mật khẩu không chính xác.");
             }
 
             if (!user.IsActive)
             {
-                System.Console.WriteLine($"[API Auth] Login rejected: User '{user.Username}' is inactive.");
+                _logger.LogDebug("Login rejected: User {Username} is inactive.", user.Username);
                 return BadRequest("Tài khoản đang bị khóa hoặc ngưng hoạt động.");
             }
 
             if (user.IsLocked && user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
             {
                 double lockTimeRemaining = Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
-                System.Console.WriteLine($"[API Auth] Login rejected: User '{user.Username}' is locked for another {lockTimeRemaining} minutes.");
+                _logger.LogDebug("Login rejected: User {Username} locked for {Minutes} minutes.", user.Username, lockTimeRemaining);
                 return BadRequest($"Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau {lockTimeRemaining} phút.");
             }
 
             string passwordHash = user.PasswordHash ?? string.Empty;
             PasswordVerificationResult passwordResult = _passwordHasher.VerifyHashedPassword(user, passwordHash, request.Password ?? string.Empty);
-            System.Console.WriteLine($"[API Auth] Password verify for '{user.Username}': result={passwordResult}, hashLen={passwordHash.Length}, pwdLen={(request.Password ?? string.Empty).Length}");
+            _logger.LogDebug("Password verify for {Username}: {Result}", user.Username, passwordResult);
             if (passwordResult == PasswordVerificationResult.Failed)
             {
                 user.FailedLoginAttempts++;
-                System.Console.WriteLine($"[API Auth] Login rejected: Incorrect password for user '{user.Username}'. Failed attempts: {user.FailedLoginAttempts}");
+                _logger.LogDebug("Login rejected: Incorrect password for {Username}. Failed attempts: {Attempts}", user.Username, user.FailedLoginAttempts);
                 if (user.FailedLoginAttempts >= 5)
                 {
                     user.IsLocked = true;
                     user.LockedUntil = DateTime.UtcNow.AddMinutes(15);
                     user.FailedLoginAttempts = 0;
                     _ = await _context.SaveChangesAsync(default);
-                    System.Console.WriteLine($"[API Auth] User '{user.Username}' has been locked due to too many failed attempts.");
+                    _logger.LogInformation("User {Username} locked due to too many failed attempts.", user.Username);
                     return BadRequest("Tài khoản của bạn đã bị khóa tạm thời 15 phút do nhập sai mật khẩu quá 5 lần.");
                 }
 
@@ -867,7 +950,46 @@ namespace HrmApi.WebApi.Controllers
             user.LastLoginIp = HttpContext.Connection.RemoteIpAddress?.ToString();
             _ = await _context.SaveChangesAsync(default);
 
-            System.Console.WriteLine($"[API Auth] Login successful for user: '{user.Username}'. Token generated.");
+            string? email = user.Email;
+            string? avatarUrl = null;
+            string? fullName = null;
+            Guid? companyId = user.CompanyId;
+            Guid? branchId = user.BranchId;
+
+            if (user.EmployeeId.HasValue && user.EmployeeId != Guid.Empty)
+            {
+                var empLight = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(e => e.Id == user.EmployeeId.Value && !e.IsDeleted)
+                    .Select(e => new
+                    {
+                        e.Email,
+                        e.CompanyEmail,
+                        e.AvatarUrl,
+                        e.FullName,
+                        e.FirstName,
+                        e.LastName,
+                        e.CompanyId,
+                        e.BranchId,
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (empLight != null)
+                {
+                    companyId = empLight.CompanyId ?? companyId;
+                    branchId = empLight.BranchId ?? branchId;
+                    avatarUrl = empLight.AvatarUrl;
+                    email = empLight.Email ?? empLight.CompanyEmail ?? email;
+                    fullName = string.IsNullOrWhiteSpace(empLight.FullName)
+                        ? $"{empLight.LastName} {empLight.FirstName}".Trim()
+                        : empLight.FullName;
+                    if (string.IsNullOrWhiteSpace(fullName)) fullName = null;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(email))
+                email = $"{user.Username}@hrm.com";
+
+            _logger.LogInformation("Login successful for user {Username}", user.Username);
 
             return new LoginResponse
             {
@@ -876,8 +998,11 @@ namespace HrmApi.WebApi.Controllers
                 Username = user.Username,
                 Type = user.Type,
                 EmployeeId = user.EmployeeId,
-                CompanyId = user.CompanyId,
-                BranchId = user.BranchId,
+                CompanyId = companyId,
+                BranchId = branchId,
+                Email = email,
+                AvatarUrl = avatarUrl,
+                FullName = fullName,
                 MustChangePassword = user.MustChangePassword,
                 TwoFactorEnabled = user.TwoFactorEnabled,
                 Roles = authContext.Roles,

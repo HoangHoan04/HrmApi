@@ -64,10 +64,15 @@ namespace HrmApi.Application.Features.Settings
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
-        public CreateIpAllowlistCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        private readonly IIpAllowlistCache _ipAllowlistCache;
+        public CreateIpAllowlistCommandHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IIpAllowlistCache ipAllowlistCache)
         {
             _context = context;
             _currentUser = currentUser;
+            _ipAllowlistCache = ipAllowlistCache;
         }
 
         public async Task<IpAllowlistEntryDto> Handle(CreateIpAllowlistCommand request, CancellationToken cancellationToken)
@@ -86,6 +91,7 @@ namespace HrmApi.Application.Features.Settings
             };
             _ = _context.IpAllowlistEntryEntities.Add(entity);
             _ = await _context.SaveChangesAsync(cancellationToken);
+            _ipAllowlistCache.Invalidate();
             return GetIpAllowlistPagedQueryHandler.ToDto(entity);
         }
     }
@@ -99,10 +105,15 @@ namespace HrmApi.Application.Features.Settings
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
-        public UpdateIpAllowlistCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        private readonly IIpAllowlistCache _ipAllowlistCache;
+        public UpdateIpAllowlistCommandHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IIpAllowlistCache ipAllowlistCache)
         {
             _context = context;
             _currentUser = currentUser;
+            _ipAllowlistCache = ipAllowlistCache;
         }
 
         public async Task<bool> Handle(UpdateIpAllowlistCommand request, CancellationToken cancellationToken)
@@ -121,6 +132,7 @@ namespace HrmApi.Application.Features.Settings
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
             _ = await _context.SaveChangesAsync(cancellationToken);
+            _ipAllowlistCache.Invalidate();
             return true;
         }
     }
@@ -131,10 +143,15 @@ namespace HrmApi.Application.Features.Settings
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
-        public DeleteIpAllowlistCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        private readonly IIpAllowlistCache _ipAllowlistCache;
+        public DeleteIpAllowlistCommandHandler(
+            IApplicationDbContext context,
+            ICurrentUserService currentUser,
+            IIpAllowlistCache ipAllowlistCache)
         {
             _context = context;
             _currentUser = currentUser;
+            _ipAllowlistCache = ipAllowlistCache;
         }
 
         public async Task<bool> Handle(DeleteIpAllowlistCommand request, CancellationToken cancellationToken)
@@ -146,6 +163,7 @@ namespace HrmApi.Application.Features.Settings
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
             _ = await _context.SaveChangesAsync(cancellationToken);
+            _ipAllowlistCache.Invalidate();
             return true;
         }
     }

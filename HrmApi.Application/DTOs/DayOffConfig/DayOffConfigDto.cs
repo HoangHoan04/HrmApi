@@ -9,7 +9,6 @@ namespace HrmApi.Application.DTOs.DayOffConfig
         public string? Description { get; set; }
         public Guid? CompanyId { get; set; }
         public string? CompanyName { get; set; }
-        public DayOffType DayOffType { get; set; } = DayOffType.ANNUAL;
         public decimal DefaultDaysPerYear { get; set; }
         public bool IsPaid { get; set; }
         public bool DeductBalance { get; set; } = true;
@@ -24,7 +23,6 @@ namespace HrmApi.Application.DTOs.DayOffConfig
         public Guid Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public DayOffType DayOffType { get; set; }
         public Guid? CompanyId { get; set; }
         public bool RequireAttachment { get; set; }
         public bool DeductBalance { get; set; }
