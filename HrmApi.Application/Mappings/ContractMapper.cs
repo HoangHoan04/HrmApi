@@ -114,9 +114,9 @@ namespace HrmApi.Application.Mappings
                     ? null
                     : fields.DecisionNumber.Trim();
             }
-            if (fields.SignDate.HasValue)
+            if (fields.SignDate.HasValue || fields.ClearSignDate == true)
             {
-                entity.SignDate = fields.SignDate;
+                entity.SignDate = fields.ClearSignDate == true ? null : fields.SignDate;
             }
             if (fields.StartDate.HasValue)
             {
@@ -274,6 +274,7 @@ namespace HrmApi.Application.Mappings
         public string? Code { get; set; }
         public string? DecisionNumber { get; set; }
         public DateTime? SignDate { get; set; }
+        public bool? ClearSignDate { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public bool? ClearEndDate { get; set; }

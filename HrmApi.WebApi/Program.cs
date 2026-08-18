@@ -54,13 +54,17 @@ builder.Services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<HrmApi.Application.Common.Interfaces.INotificationRealtimeService, HrmApi.WebApi.Services.NotificationRealtimeService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        _ = policy.WithOrigins("http://localhost:4200")
+        _ = policy.WithOrigins("http://localhost:4200", "http://localhost:4201", "http://localhost:8081", "http://localhost:19006")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -101,4 +105,5 @@ app.UseMiddleware<IpAllowlistMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<HrmApi.WebApi.Hubs.NotificationHub>("/hubs/notifications");
 app.Run();

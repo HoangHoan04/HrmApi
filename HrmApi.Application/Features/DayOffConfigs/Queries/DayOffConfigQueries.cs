@@ -151,6 +151,7 @@ namespace HrmApi.Application.Features.DayOffConfigs.Queries
                     CompanyId = x.CompanyId,
                     RequireAttachment = x.RequireAttachment,
                     DeductBalance = x.DeductBalance,
+                    DefaultDaysPerYear = x.DefaultDaysPerYear,
                 }).ToListAsync(cancellationToken);
         }
     }

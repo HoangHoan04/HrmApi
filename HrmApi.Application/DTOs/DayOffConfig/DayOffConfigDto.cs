@@ -26,5 +26,6 @@ namespace HrmApi.Application.DTOs.DayOffConfig
         public Guid? CompanyId { get; set; }
         public bool RequireAttachment { get; set; }
         public bool DeductBalance { get; set; }
+        public decimal DefaultDaysPerYear { get; set; }
     }
 }

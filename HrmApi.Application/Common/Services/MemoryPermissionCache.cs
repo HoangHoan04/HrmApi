@@ -74,7 +74,6 @@ namespace HrmApi.Application.Common.Services
 
         public void InvalidateAll()
         {
-            // IMemoryCache không enumerate key công khai — Compact gần hết entry.
             if (_cache is MemoryCache mc)
                 mc.Compact(1.0);
         }

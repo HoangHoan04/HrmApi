@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.Features.PartMasters.Commands;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
@@ -53,6 +53,10 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             }
 
             var partMasters = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            var companyDict = await _context.CompanyEntities.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
+            var branchDict = await _context.BranchEntities.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("DanhSachMauToNhom");
@@ -60,11 +64,15 @@ namespace HrmApi.Application.Features.PartMasters.Commands
 
             for (var i = 0; i < partMasters.Count; i++)
             {
-                PartMasterExcelWriter.WritePartMasterRow(worksheet, i + 2, partMasters[i], includeExportOnlyColumns: true);
+                var pm = partMasters[i];
+                string? companyCode = pm.CompanyId.HasValue && companyDict.TryGetValue(pm.CompanyId.Value, out var cc) ? cc : null;
+                string? branchCode = pm.BranchId.HasValue && branchDict.TryGetValue(pm.BranchId.Value, out var bc) ? bc : null;
+
+                PartMasterExcelWriter.WritePartMasterRow(worksheet, i + 2, pm, companyCode, branchCode, includeExportOnlyColumns: true);
             }
 
-            PartMasterExcelWriter.ApplyColumnWidths(worksheet);
-            PartMasterExcelWriter.FreezeHeaderRow(worksheet);
+            ExcelHelper.ApplyColumnWidths(worksheet);
+            ExcelHelper.FreezeHeaderRow(worksheet);
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -78,17 +86,39 @@ namespace HrmApi.Application.Features.PartMasters.Commands
 
     public class DownloadPartMasterExcelTemplateQueryHandler : IRequestHandler<DownloadPartMasterExcelTemplateQuery, byte[]>
     {
-        public Task<byte[]> Handle(DownloadPartMasterExcelTemplateQuery request, CancellationToken cancellationToken)
+        private readonly IApplicationDbContext _context;
+
+        public DownloadPartMasterExcelTemplateQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<byte[]> Handle(DownloadPartMasterExcelTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("MauImport");
+            var worksheet = workbook.Worksheets.Add("MauToNhom");
             PartMasterExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
-            PartMasterExcelWriter.ApplyColumnWidths(worksheet);
-            PartMasterExcelWriter.FreezeHeaderRow(worksheet);
+            PartMasterExcelWriter.WriteTemplateSampleRow(worksheet);
+            ExcelHelper.ApplyColumnWidths(worksheet);
+            ExcelHelper.FreezeHeaderRow(worksheet);
+
+            var companies = await _context.CompanyEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .OrderBy(x => x.Code)
+                .Select(x => new { x.Code, x.Name })
+                .ToListAsync(cancellationToken);
+            ExcelHelper.WriteReferenceSheet(workbook, "CongTy", "Mã công ty", "Tên công ty", companies.Select(x => (x.Code, x.Name)));
+
+            var branches = await _context.BranchEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .OrderBy(x => x.Code)
+                .Select(x => new { x.Code, x.Name })
+                .ToListAsync(cancellationToken);
+            ExcelHelper.WriteReferenceSheet(workbook, "ChiNhanh", "Mã chi nhánh", "Tên chi nhánh", branches.Select(x => (x.Code, x.Name)));
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            return Task.FromResult(stream.ToArray());
+            return stream.ToArray();
         }
     }
 
@@ -127,14 +157,28 @@ namespace HrmApi.Application.Features.PartMasters.Commands
 
             result.TotalRows = rows.Count;
 
+            var companyDict = await _context.CompanyEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
+            var branchDict = await _context.BranchEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
+
             foreach (var row in rows)
             {
                 var rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row);
+                    var command = ReadRow(row, companyDict, branchDict);
                     if (string.IsNullOrWhiteSpace(command.Code) && string.IsNullOrWhiteSpace(command.Name))
                     {
+                        result.TotalRows--;
+                        continue;
+                    }
+
+                    if (command.Code.Equals("MTN001", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.TotalRows--;
                         continue;
                     }
 
@@ -170,49 +214,27 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             return result;
         }
 
-        private static PartMasterCommandFields ReadRow(IXLRangeRow row)
+        private static PartMasterCommandFields ReadRow(
+            IXLRangeRow row,
+            Dictionary<string, Guid> companyDict,
+            Dictionary<string, Guid> branchDict)
         {
+            var companyCode = ExcelHelper.GetCellString(row, 4).Trim().ToLower();
+            var branchCode = ExcelHelper.GetCellString(row, 5).Trim().ToLower();
+
+            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out var cid) ? cid : null;
+            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out var bid) ? bid : null;
+
             return new PartMasterCommandFields
             {
-                Code = GetCellString(row, 1),
-                Name = GetCellString(row, 2),
-                Description = GetCellString(row, 3),
-                CompanyId = ParseGuid(row.Cell(4)),
-                BranchId = ParseGuid(row.Cell(5)),
-                Type = GetCellString(row, 6),
-                IsActive = ParseBool(row.Cell(7)) ?? true,
-                DisplayOrder = ParseInt(row.Cell(8)) ?? 0
-            };
-        }
-
-        private static string GetCellString(IXLRangeRow row, int column) =>
-            row.Cell(column).GetString().Trim();
-
-        private static int? ParseInt(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out int intValue)) return intValue;
-            if (int.TryParse(cell.GetString(), out var parsed)) return parsed;
-            return null;
-        }
-
-        private static Guid? ParseGuid(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            var text = cell.GetString().Trim();
-            return Guid.TryParse(text, out var parsed) ? parsed : null;
-        }
-
-        private static bool? ParseBool(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out bool boolValue)) return boolValue;
-            var text = cell.GetString().Trim().ToLower();
-            return text switch
-            {
-                "1" or "true" or "có" or "co" or "yes" => true,
-                "0" or "false" or "không" or "khong" or "no" => false,
-                _ => null
+                Code = ExcelHelper.GetCellString(row, 1),
+                Name = ExcelHelper.GetCellString(row, 2),
+                Description = ExcelHelper.GetCellString(row, 3),
+                CompanyId = companyId,
+                BranchId = branchId,
+                Type = ExcelHelper.GetCellString(row, 6),
+                IsActive = ExcelHelper.ParseBool(row.Cell(7)) ?? true,
+                DisplayOrder = ExcelHelper.ParseInt(row.Cell(8)) ?? 0
             };
         }
     }
@@ -231,8 +253,8 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             new() { Title = "Mã mẫu tổ/nhóm", Required = true },
             new() { Title = "Tên mẫu tổ/nhóm", Required = true },
             new() { Title = "Mô tả", Required = false },
-            new() { Title = "Id công ty", Required = false },
-            new() { Title = "Id chi nhánh", Required = false },
+            new() { Title = "Mã công ty", Required = false },
+            new() { Title = "Mã chi nhánh", Required = false },
             new() { Title = "Loại tổ/nhóm", Required = false },
             new() { Title = "Kích hoạt", Required = false },
             new() { Title = "Thứ tự hiển thị", Required = false },
@@ -245,9 +267,6 @@ namespace HrmApi.Application.Features.PartMasters.Commands
 
     internal static class PartMasterExcelWriter
     {
-        private static readonly XLColor RequiredHeaderColor = XLColor.FromHtml("#FFC000");
-        private static readonly XLColor OptionalHeaderColor = XLColor.FromHtml("#92D050");
-
         public static void WriteHeaders(IXLWorksheet worksheet, bool includeExportOnlyColumns)
         {
             var columns = PartMasterExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
@@ -255,26 +274,42 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             for (var col = 0; col < columns.Count; col++)
             {
                 var definition = columns[col];
-                var cell = worksheet.Cell(1, col + 1);
-                cell.Value = definition.Required ? $"{definition.Title}*" : definition.Title;
-
-                cell.Style.Font.Bold = true;
-                cell.Style.Font.FontColor = XLColor.Black;
-                cell.Style.Fill.BackgroundColor = definition.Required ? RequiredHeaderColor : OptionalHeaderColor;
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-                cell.Style.Alignment.WrapText = true;
-                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                cell.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
             worksheet.Row(1).Height = 28;
+        }
+
+        public static void WriteTemplateSampleRow(IXLWorksheet worksheet)
+        {
+            var sampleValues = new List<string>
+            {
+                "MTN001",
+                "Tổ Frontend",
+                "Mẫu tổ lập trình Frontend",
+                "CT01",
+                "CN01",
+                "Kỹ thuật",
+                "Có",
+                "1"
+            };
+
+            for (var col = 0; col < sampleValues.Count; col++)
+            {
+                var cell = worksheet.Cell(2, col + 1);
+                cell.Value = sampleValues[col];
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                cell.Style.Font.FontColor = XLColor.DarkGray;
+            }
         }
 
         public static void WritePartMasterRow(
             IXLWorksheet worksheet,
             int row,
             PartMasterEntity partMaster,
+            string? companyCode,
+            string? branchCode,
             bool includeExportOnlyColumns)
         {
             var values = new List<string?>
@@ -282,11 +317,11 @@ namespace HrmApi.Application.Features.PartMasters.Commands
                 partMaster.Code,
                 partMaster.Name,
                 partMaster.Description,
-                partMaster.CompanyId?.ToString(),
-                partMaster.BranchId?.ToString(),
+                companyCode,
+                branchCode,
                 partMaster.Type,
-                partMaster.IsActive.ToString(),
-                partMaster.DisplayOrder.ToString(),
+                partMaster.IsActive ? "Có" : "Không",
+                partMaster.DisplayOrder.ToString()
             };
 
             if (includeExportOnlyColumns)
@@ -301,21 +336,6 @@ namespace HrmApi.Application.Features.PartMasters.Commands
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
-        }
-
-        public static void ApplyColumnWidths(IXLWorksheet worksheet)
-        {
-            var usedColumns = worksheet.ColumnsUsed();
-            foreach (var column in usedColumns)
-            {
-                column.AdjustToContents(8, 60);
-                column.Width = Math.Max(column.Width + 2, 12);
-            }
-        }
-
-        public static void FreezeHeaderRow(IXLWorksheet worksheet)
-        {
-            worksheet.SheetView.FreezeRows(1);
         }
     }
 }

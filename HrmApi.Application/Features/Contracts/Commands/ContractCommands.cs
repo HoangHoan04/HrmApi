@@ -67,7 +67,7 @@ namespace HrmApi.Application.Features.Contracts.Commands
                 {
                     endDate = null;
                 }
-                else if (!endDate.HasValue && contractType.DefaultDurationMonths.HasValue && contractType.DefaultDurationMonths > 0)
+                else if (!endDate.HasValue && request.ClearEndDate != true && contractType.DefaultDurationMonths.HasValue && contractType.DefaultDurationMonths > 0)
                 {
                     endDate = request.StartDate.Value.AddMonths(contractType.DefaultDurationMonths.Value);
                 }
@@ -226,10 +226,6 @@ namespace HrmApi.Application.Features.Contracts.Commands
                 if (type?.IsUnlimited == true)
                 {
                     entity.EndDate = null;
-                }
-                else if (!request.EndDate.HasValue && type?.DefaultDurationMonths is > 0 && request.StartDate.HasValue)
-                {
-                    entity.EndDate = request.StartDate.Value.AddMonths(type.DefaultDurationMonths.Value);
                 }
             }
 

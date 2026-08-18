@@ -324,11 +324,26 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 .FirstOrDefaultAsync(x => x.Id == employeeId && !x.IsDeleted, cancellationToken);
             Guid? companyId = employee?.CompanyId;
 
-            List<DayOffConfigEntity> configs = await _context.DayOffConfigEntities.AsNoTracking()
-                .Where(x => !x.IsDeleted && x.IsActive
-                    && (x.CompanyId == null || (companyId.HasValue && x.CompanyId == companyId)))
-                .OrderBy(x => x.Name)
-                .ToListAsync(cancellationToken);
+            var configQuery = _context.DayOffConfigEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted && x.IsActive);
+
+            List<DayOffConfigEntity> configs;
+            if (companyId.HasValue && companyId.Value != Guid.Empty)
+            {
+                configs = await configQuery
+                    .Where(x => x.CompanyId == null || x.CompanyId == companyId)
+                    .OrderBy(x => x.Name)
+                    .ToListAsync(cancellationToken);
+
+                if (!configs.Any())
+                {
+                    configs = await configQuery.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                configs = await configQuery.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+            }
 
             DateOnly yearStart = new(year, 1, 1);
             DateOnly yearEnd = new(year, 12, 31);
@@ -341,9 +356,40 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                     && (x.Status == DayOffStatus.PENDING || x.Status == DayOffStatus.APPROVED))
                 .ToListAsync(cancellationToken);
 
+            List<DayOffConfigEmployeeEntity> allocations = await _context.DayOffConfigEmployeeEntities.AsNoTracking()
+                .Where(x => x.EmployeeId == employeeId && x.Year == year && !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
             DayOffConfigEntity? annualConfig = configs.FirstOrDefault(x => string.Equals(x.Code, "ANNUAL", StringComparison.OrdinalIgnoreCase))
+                ?? configs.FirstOrDefault(x => string.Equals(x.Code, "PN", StringComparison.OrdinalIgnoreCase))
+                ?? configs.FirstOrDefault(x => string.Equals(x.Code, "PHEP_NAM", StringComparison.OrdinalIgnoreCase))
+                ?? configs.FirstOrDefault(x => allocations.Any(a => a.DayOffConfigId == x.Id))
                 ?? configs.FirstOrDefault(x => x.DeductBalance)
                 ?? configs.FirstOrDefault();
+
+            decimal annualTotal = 0;
+            if (allocations.Any())
+            {
+                var primaryAlloc = annualConfig != null
+                    ? allocations.FirstOrDefault(x => x.DayOffConfigId == annualConfig.Id)
+                    : null;
+
+                if (primaryAlloc != null)
+                {
+                    annualTotal = primaryAlloc.AllocatedDays;
+                }
+                else
+                {
+                    var deductibleAllocs = allocations.Where(a => configs.Any(c => c.Id == a.DayOffConfigId && c.DeductBalance)).ToList();
+                    annualTotal = deductibleAllocs.Any()
+                        ? deductibleAllocs.Sum(a => a.AllocatedDays)
+                        : allocations.Sum(a => a.AllocatedDays);
+                }
+            }
+            else if (annualConfig != null)
+            {
+                annualTotal = annualConfig.DefaultDaysPerYear;
+            }
 
             decimal annualUsed = 0;
             decimal annualPending = 0;
@@ -356,27 +402,15 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                     .Where(x => x.DayOffConfigId == annualConfig.Id && x.Status == DayOffStatus.PENDING)
                     .Sum(x => x.TotalDays);
             }
+            else
+            {
+                annualUsed = yearLeaves.Where(x => x.Status == DayOffStatus.APPROVED).Sum(x => x.TotalDays);
+                annualPending = yearLeaves.Where(x => x.Status == DayOffStatus.PENDING).Sum(x => x.TotalDays);
+            }
 
             decimal otherUsed = yearLeaves
                 .Where(x => annualConfig == null || x.DayOffConfigId != annualConfig.Id)
                 .Sum(x => x.TotalDays);
-
-            decimal annualTotal = 0;
-            DayOffConfigEmployeeEntity? empAllocation = null;
-            if (annualConfig != null)
-            {
-                empAllocation = await _context.DayOffConfigEmployeeEntities.AsNoTracking()
-                    .FirstOrDefaultAsync(x =>
-                        x.EmployeeId == employeeId
-                        && x.DayOffConfigId == annualConfig.Id
-                        && x.Year == year
-                        && !x.IsDeleted, cancellationToken);
-            }
-
-            if (empAllocation != null)
-            {
-                annualTotal = empAllocation.AllocatedDays;
-            }
 
             decimal annualRemaining = Math.Max(0, annualTotal - annualUsed - annualPending);
 

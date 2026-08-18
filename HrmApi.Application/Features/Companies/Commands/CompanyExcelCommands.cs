@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs;
 using HrmApi.Application.Features.Companies.Commands;
@@ -64,8 +65,8 @@ namespace HrmApi.Application.Features.Companies.Commands
                 CompanyExcelWriter.WriteCompanyRow(worksheet, i + 2, companies[i], includeExportOnlyColumns: true);
             }
 
-            CompanyExcelWriter.ApplyColumnWidths(worksheet);
-            CompanyExcelWriter.FreezeHeaderRow(worksheet);
+            ExcelHelper.ApplyColumnWidths(worksheet);
+            ExcelHelper.FreezeHeaderRow(worksheet);
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -84,8 +85,8 @@ namespace HrmApi.Application.Features.Companies.Commands
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("MauImport");
             CompanyExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
-            CompanyExcelWriter.ApplyColumnWidths(worksheet);
-            CompanyExcelWriter.FreezeHeaderRow(worksheet);
+            ExcelHelper.ApplyColumnWidths(worksheet);
+            ExcelHelper.FreezeHeaderRow(worksheet);
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -212,14 +213,36 @@ namespace HrmApi.Application.Features.Companies.Commands
             };
         }
 
-        private static string GetCellString(IXLRangeRow row, int column) =>
-            row.Cell(column).GetString().Trim();
+        private static string GetCellString(IXLRangeRow row, int column)
+        {
+            IXLCell cell = row.Cell(column);
+            if (cell.IsEmpty()) return string.Empty;
+            try
+            {
+                var text = cell.GetFormattedString();
+                if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
+            }
+            catch
+            {
+            }
+            return cell.Value.ToString()?.Trim() ?? string.Empty;
+        }
 
         private static DateTime? ParseDate(IXLCell cell)
         {
             if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out DateTime dateValue)) return dateValue;
-            if (DateTime.TryParse(cell.GetString(), out var parsed)) return parsed;
+            if (cell.TryGetValue(out DateTime dateValue)) return DateTime.SpecifyKind(dateValue, DateTimeKind.Utc);
+            var text = GetCellString(cell.AsRange().FirstRow(), 1);
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            string[] formats = ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"];
+            if (DateTime.TryParseExact(text, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var exact))
+                return DateTime.SpecifyKind(exact, DateTimeKind.Utc);
+            if (DateTime.TryParse(text, System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), System.Globalization.DateTimeStyles.None, out var viDate))
+                return DateTime.SpecifyKind(viDate, DateTimeKind.Utc);
+            if (DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
+                return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            if (DateTime.TryParse(text, out var localParsed))
+                return DateTime.SpecifyKind(localParsed, DateTimeKind.Utc);
             return null;
         }
 
@@ -291,9 +314,6 @@ namespace HrmApi.Application.Features.Companies.Commands
 
     internal static class CompanyExcelWriter
     {
-        private static readonly XLColor RequiredHeaderColor = XLColor.FromHtml("#FFC000");
-        private static readonly XLColor OptionalHeaderColor = XLColor.FromHtml("#92D050");
-
         public static void WriteHeaders(IXLWorksheet worksheet, bool includeExportOnlyColumns)
         {
             var columns = CompanyExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
@@ -301,17 +321,7 @@ namespace HrmApi.Application.Features.Companies.Commands
             for (var col = 0; col < columns.Count; col++)
             {
                 var definition = columns[col];
-                var cell = worksheet.Cell(1, col + 1);
-                cell.Value = definition.Required ? $"{definition.Title}*" : definition.Title;
-
-                cell.Style.Font.Bold = true;
-                cell.Style.Font.FontColor = XLColor.Black;
-                cell.Style.Fill.BackgroundColor = definition.Required ? RequiredHeaderColor : OptionalHeaderColor;
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-                cell.Style.Alignment.WrapText = true;
-                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                cell.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
             worksheet.Row(1).Height = 28;
@@ -373,21 +383,6 @@ namespace HrmApi.Application.Features.Companies.Commands
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
-        }
-
-        public static void ApplyColumnWidths(IXLWorksheet worksheet)
-        {
-            var usedColumns = worksheet.ColumnsUsed();
-            foreach (var column in usedColumns)
-            {
-                column.AdjustToContents(8, 60);
-                column.Width = Math.Max(column.Width + 2, 12);
-            }
-        }
-
-        public static void FreezeHeaderRow(IXLWorksheet worksheet)
-        {
-            worksheet.SheetView.FreezeRows(1);
         }
     }
 }

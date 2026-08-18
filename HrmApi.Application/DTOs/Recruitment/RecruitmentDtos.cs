@@ -332,7 +332,7 @@ namespace HrmApi.Application.DTOs.Recruitment
         public string Status { get; set; } = string.Empty;
     }
 
-            public class CandidateStatusSummaryDto
+    public class CandidateStatusSummaryDto
     {
         public string Status { get; set; } = string.Empty;
         public int Count { get; set; }
@@ -344,7 +344,6 @@ namespace HrmApi.Application.DTOs.Recruitment
         public Guid? RecruitmentRequestId { get; set; }
     }
 
-    /// <summary>Prefill form tạo NV từ ứng viên Hired.</summary>
     public class CandidateHirePrefillDto
     {
         public Guid CandidateId { get; set; }

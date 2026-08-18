@@ -29,9 +29,6 @@ namespace HrmApi.Application.DTOs.Auth
         public List<string> Permissions { get; set; } = [];
     }
 
-    /// <summary>
-    /// Auth shell nhẹ — navbar / cold start / validate session (không attendance stats).
-    /// </summary>
     public class AuthMeDto
     {
         public Guid Id { get; set; }

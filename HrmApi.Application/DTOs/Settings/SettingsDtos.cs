@@ -13,7 +13,6 @@ namespace HrmApi.Application.DTOs.Settings
         public bool? IsActive { get; set; }
     }
 
-    // ── Report Schedule ──────────────────────────────────────
     public class ReportScheduleDto
     {
         public Guid Id { get; set; }
@@ -40,7 +39,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Note { get; set; }
     }
 
-    // ── Compliance ───────────────────────────────────────────
     public class ComplianceSummaryRequest
     {
         public int? WithinDays { get; set; }
@@ -55,7 +53,6 @@ namespace HrmApi.Application.DTOs.Settings
         public int WithinDays { get; set; }
     }
 
-    // ── Legal Rate Config ────────────────────────────────────
     public class LegalRateConfigDto
     {
         public Guid Id { get; set; }
@@ -83,7 +80,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Note { get; set; }
     }
 
-    // ── Notification Template ────────────────────────────────
     public class NotificationTemplateDto
     {
         public Guid Id { get; set; }
@@ -107,7 +103,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Note { get; set; }
     }
 
-    // ── API Client Key ───────────────────────────────────────
     public class ApiClientKeyDto
     {
         public Guid Id { get; set; }
@@ -123,7 +118,6 @@ namespace HrmApi.Application.DTOs.Settings
 
     public class ApiClientKeyCreateResultDto : ApiClientKeyDto
     {
-        /// <summary>Plaintext key — only returned once on create.</summary>
         public string PlaintextKey { get; set; } = string.Empty;
     }
 
@@ -136,7 +130,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Note { get; set; }
     }
 
-    // ── Webhook Subscription ─────────────────────────────────
     public class WebhookSubscriptionDto
     {
         public Guid Id { get; set; }
@@ -160,7 +153,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Note { get; set; }
     }
 
-    // ── System Retention ─────────────────────────────────────
     public class SystemRetentionConfigDto
     {
         public Guid Id { get; set; }
@@ -178,7 +170,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Note { get; set; }
     }
 
-    // ── IP Allowlist ─────────────────────────────────────────
     public class IpAllowlistEntryDto
     {
         public Guid Id { get; set; }
@@ -196,7 +187,6 @@ namespace HrmApi.Application.DTOs.Settings
         public bool? IsActive { get; set; }
     }
 
-    // ── SMS Gateway ──────────────────────────────────────────
     public class SmsGatewayConfigDto
     {
         public Guid Id { get; set; }
@@ -227,7 +217,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Message { get; set; }
     }
 
-    // ── Zalo OA ──────────────────────────────────────────────
     public class ZaloOaConfigDto
     {
         public Guid Id { get; set; }
@@ -260,7 +249,6 @@ namespace HrmApi.Application.DTOs.Settings
         public string? Message { get; set; }
     }
 
-    // ── Integration status ───────────────────────────────────
     public class IntegrationAdapterStatusDto
     {
         public string Code { get; set; } = string.Empty;

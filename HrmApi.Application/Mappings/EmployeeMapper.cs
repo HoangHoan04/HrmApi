@@ -1,5 +1,6 @@
 using HrmApi.Application.DTOs.Employee;
 using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Mappings
 {
@@ -132,7 +133,7 @@ namespace HrmApi.Application.Mappings
             entity.Level = TrimOrNull(fields.Level);
             entity.WorkingMode = TrimOrNull(fields.WorkingMode);
             entity.ContractType = TrimOrNull(fields.ContractType);
-            entity.Status = TrimOrNull(fields.Status);
+            entity.Status = string.IsNullOrWhiteSpace(fields.Status) ? EmployeeWorkStatus.Working : fields.Status.Trim();
             entity.JoinDate = fields.JoinDate;
             entity.ResignationDate = fields.ResignationDate;
             entity.ResignationReason = TrimOrNull(fields.ResignationReason);

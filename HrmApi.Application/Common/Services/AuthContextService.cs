@@ -37,7 +37,6 @@ namespace HrmApi.Application.Common.Services
         {
             var now = DateTime.UtcNow;
 
-            // B2: một round-trip lấy Type + roles (tránh parallel cùng DbContext)
             var userType = await _context.UserEntities.AsNoTracking()
                 .Where(x => x.Id == userId && !x.IsDeleted)
                 .Select(x => x.Type)
@@ -75,7 +74,6 @@ namespace HrmApi.Application.Common.Services
                     roles = [RoleCodes.Admin, .. roles];
                 }
 
-                // Admin: body/cache giữ full catalog; JWT không nhồi (GenerateJwtToken slim)
                 permissions = PermissionCodes.All.OrderBy(x => x).ToList();
             }
             else if (roleIds.Count > 0)

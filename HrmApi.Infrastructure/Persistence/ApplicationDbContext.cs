@@ -6,6 +6,7 @@ using HrmApi.Domain.Entities.Discipline;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.EmployeeMovement;
 using HrmApi.Domain.Entities.Leave;
+using HrmApi.Domain.Entities.Notification;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Entities.Payroll;
 using HrmApi.Domain.Entities.Performance;
@@ -16,6 +17,7 @@ using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Entities.Training;
 using HrmApi.Domain.Entities.Workflow;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace HrmApi.Infrastructure.Persistence
 {
@@ -24,6 +26,10 @@ namespace HrmApi.Infrastructure.Persistence
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
+
+        public DbSet<NotificationEntity> NotificationEntities { get; set; }
+        public DbSet<DeviceTokenEntity> DeviceTokenEntities { get; set; }
+        public DbSet<NotificationSettingEntity> NotificationSettingEntities { get; set; }
 
         public DbSet<CompanyEntity> CompanyEntities { get; set; }
         public DbSet<CompanyAnnouncementEntity> CompanyAnnouncementEntities { get; set; }
@@ -126,7 +132,42 @@ namespace HrmApi.Infrastructure.Persistence
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            EnsureUtcDateTimes();
             return base.SaveChangesAsync(cancellationToken);
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            EnsureUtcDateTimes();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        private void EnsureUtcDateTimes()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State is EntityState.Added or EntityState.Modified)
+                {
+                    foreach (var property in entry.Properties)
+                    {
+                        if (property.CurrentValue is DateTime dt && dt.Kind == DateTimeKind.Unspecified)
+                        {
+                            property.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                        }
+                    }
+                }
+            }
+        }
+
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            base.ConfigureConventions(configurationBuilder);
+
+            configurationBuilder.Properties<DateTime>()
+                .HaveConversion<UtcDateTimeConverter>();
+
+            configurationBuilder.Properties<DateTime?>()
+                .HaveConversion<NullableUtcDateTimeConverter>();
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -1336,6 +1377,44 @@ namespace HrmApi.Infrastructure.Persistence
                 _ = entity.HasIndex(x => x.CreatedById);
                 _ = entity.HasIndex(x => x.EntityId);
             });
+
+            _ = modelBuilder.Entity<NotificationEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAt });
+                _ = entity.HasIndex(x => x.EmployeeId);
+                _ = entity.HasIndex(x => x.Type);
+            });
+
+            _ = modelBuilder.Entity<DeviceTokenEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.UserId);
+                _ = entity.HasIndex(x => x.Token);
+            });
+
+            _ = modelBuilder.Entity<NotificationSettingEntity>(entity =>
+            {
+                _ = entity.HasIndex(x => x.UserId).IsUnique();
+            });
+        }
+    }
+
+    public class UtcDateTimeConverter : ValueConverter<DateTime, DateTime>
+    {
+        public UtcDateTimeConverter()
+            : base(
+                v => v.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(v, DateTimeKind.Utc) : v.ToUniversalTime(),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc))
+        {
+        }
+    }
+
+    public class NullableUtcDateTimeConverter : ValueConverter<DateTime?, DateTime?>
+    {
+        public NullableUtcDateTimeConverter()
+            : base(
+                v => v.HasValue ? (v.Value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v.Value.ToUniversalTime()) : v,
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v)
+        {
         }
     }
 }

@@ -34,6 +34,7 @@ namespace HrmApi.Infrastructure
             services.AddScoped<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
             services.AddScoped<IPasswordHasherService, PasswordHasherService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<INotificationService, NotificationService>();
             services.AddHttpClient(nameof(UploadFileService));
             services.AddScoped<IUploadFileService, UploadFileService>();
 
@@ -59,6 +60,19 @@ namespace HrmApi.Infrastructure
                     ValidAudience = configuration["JwtSettings:Audience"] ?? "HrmAdmin",
                     ValidateLifetime = true,
                     ClockSkew = System.TimeSpan.Zero
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
                 };
             });
 

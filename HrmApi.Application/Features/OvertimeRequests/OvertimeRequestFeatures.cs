@@ -35,17 +35,20 @@ namespace HrmApi.Application.Features.OvertimeRequests
         private readonly ICurrentUserService _currentUser;
         private readonly IActionLogService _actionLog;
         private readonly IWorkflowEngine _workflow;
+        private readonly INotificationService _notificationService;
 
         public CreateOvertimeRequestCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
             IActionLogService actionLog,
-            IWorkflowEngine workflow)
+            IWorkflowEngine workflow,
+            INotificationService notificationService)
         {
             _context = context;
             _currentUser = currentUser;
             _actionLog = actionLog;
             _workflow = workflow;
+            _notificationService = notificationService;
         }
 
         public async Task<Guid> Handle(CreateOvertimeRequestCommand request, CancellationToken cancellationToken)
@@ -106,6 +109,18 @@ namespace HrmApi.Application.Features.OvertimeRequests
             {
                 _ = await _workflow.StartAsync(
                     WorkflowEntityType.Ot, entity.Id, entity.CompanyId, cancellationToken);
+
+                await _notificationService.NotifyAdminsAsync(
+                    title: "Đơn đăng ký tăng ca mới",
+                    content: $"Nhân viên {employee.FullName ?? employee.Code} vừa gửi đơn tăng ca ({request.WorkDate:dd/MM/yyyy}, {minutes} phút).",
+                    type: NotificationType.Overtime,
+                    severity: NotificationSeverity.Info,
+                    targetUrl: "/time-attendance-manager/overtime-request-manager",
+                    targetType: "OVERTIME_REQUEST",
+                    targetId: entity.Id,
+                    companyId: entity.CompanyId,
+                    senderId: _currentUser.UserId,
+                    cancellationToken: cancellationToken);
             }
 
             return entity.Id;
@@ -290,19 +305,22 @@ namespace HrmApi.Application.Features.OvertimeRequests
         private readonly IActionLogService _actionLog;
         private readonly IAttendanceRuleService _rules;
         private readonly IWorkflowEngine _workflow;
+        private readonly INotificationService _notificationService;
 
         public ReviewOvertimeRequestCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
             IActionLogService actionLog,
             IAttendanceRuleService rules,
-            IWorkflowEngine workflow)
+            IWorkflowEngine workflow,
+            INotificationService notificationService)
         {
             _context = context;
             _currentUser = currentUser;
             _actionLog = actionLog;
             _rules = rules;
             _workflow = workflow;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> Handle(ReviewOvertimeRequestCommand request, CancellationToken cancellationToken)
@@ -345,6 +363,19 @@ namespace HrmApi.Application.Features.OvertimeRequests
                     _currentUser.UserId ?? Guid.Empty,
                     _currentUser.EmployeeId,
                     cancellationToken);
+
+                await _notificationService.CreateNotifyForEmployeeAsync(
+                    employeeId: entity.EmployeeId,
+                    title: "Đơn đăng ký tăng ca bị từ chối",
+                    content: $"Đơn tăng ca ngày {entity.WorkDate:dd/MM/yyyy} của bạn đã bị từ chối. Lý do: {request.ApproverNote}",
+                    type: NotificationType.Overtime,
+                    severity: NotificationSeverity.Danger,
+                    targetUrl: "/time-attendance-manager/overtime-request-manager",
+                    targetType: "OVERTIME_REQUEST",
+                    targetId: entity.Id,
+                    senderId: _currentUser.UserId,
+                    cancellationToken: cancellationToken);
+
                 return true;
             }
 
@@ -380,6 +411,18 @@ namespace HrmApi.Application.Features.OvertimeRequests
                 _currentUser.UserId ?? Guid.Empty,
                 _currentUser.EmployeeId,
                 cancellationToken);
+
+            await _notificationService.CreateNotifyForEmployeeAsync(
+                employeeId: entity.EmployeeId,
+                title: "Đơn đăng ký tăng ca đã được duyệt",
+                content: $"Đơn tăng ca ngày {entity.WorkDate:dd/MM/yyyy} ({entity.ApprovedMinutes} phút) của bạn đã được phê duyệt.",
+                type: NotificationType.Overtime,
+                severity: NotificationSeverity.Success,
+                targetUrl: "/time-attendance-manager/overtime-request-manager",
+                targetType: "OVERTIME_REQUEST",
+                targetId: entity.Id,
+                senderId: _currentUser.UserId,
+                cancellationToken: cancellationToken);
 
             return true;
         }

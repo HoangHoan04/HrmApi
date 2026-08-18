@@ -387,7 +387,7 @@ namespace HrmApi.WebApi.Controllers
                 });
             }
 
-            return Ok(await CompleteLoginAsync(user));
+            return await CompleteLoginAsync(user);
         }
 
         [HttpPost("refresh")]
@@ -725,7 +725,7 @@ namespace HrmApi.WebApi.Controllers
             if (!TotpHelper.VerifyCode(user.TwoFactorSecret, request.Code))
                 return BadRequest("Mã xác thực không đúng.");
 
-            return Ok(await CompleteLoginAsync(user));
+            return await CompleteLoginAsync(user);
         }
 
         [HttpGet("sso/status")]
@@ -864,7 +864,7 @@ namespace HrmApi.WebApi.Controllers
                 });
             }
 
-            return Ok(await CompleteLoginAsync(user));
+            return await CompleteLoginAsync(user);
         }
 
         [Authorize]

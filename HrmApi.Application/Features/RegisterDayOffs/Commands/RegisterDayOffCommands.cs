@@ -24,15 +24,18 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IWorkflowEngine _workflow;
+        private readonly INotificationService _notificationService;
 
         public CreateRegisterDayOffCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
-            IWorkflowEngine workflow)
+            IWorkflowEngine workflow,
+            INotificationService notificationService)
         {
             _context = context;
             _currentUser = currentUser;
             _workflow = workflow;
+            _notificationService = notificationService;
         }
 
         public async Task<Guid> Handle(CreateRegisterDayOffCommand request, CancellationToken cancellationToken)
@@ -134,6 +137,19 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
             _ = await _workflow.StartAsync(
                 Domain.Enums.WorkflowEntityType.Leave, entity.Id, entity.CompanyId, cancellationToken);
 
+            await _notificationService.NotifyAdminsAndApproverAsync(
+                approverEmployeeId: requestedApproverId,
+                title: "Đơn xin nghỉ phép mới",
+                content: $"Nhân viên {employee.FullName ?? employee.Code} vừa gửi đơn xin nghỉ phép ({request.FromDate:dd/MM/yyyy} - {request.ToDate:dd/MM/yyyy}, {totalDays:0.##} ngày).",
+                type: NotificationType.Leave,
+                severity: NotificationSeverity.Info,
+                targetUrl: "/operate-manager/leave-manager",
+                targetType: "LEAVE_REQUEST",
+                targetId: entity.Id,
+                companyId: entity.CompanyId,
+                senderId: _currentUser.UserId,
+                cancellationToken: cancellationToken);
+
             return entity.Id;
         }
     }
@@ -150,15 +166,18 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IWorkflowEngine _workflow;
+        private readonly INotificationService _notificationService;
 
         public ApproveRegisterDayOffCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
-            IWorkflowEngine workflow)
+            IWorkflowEngine workflow,
+            INotificationService notificationService)
         {
             _context = context;
             _currentUser = currentUser;
             _workflow = workflow;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> Handle(ApproveRegisterDayOffCommand request, CancellationToken cancellationToken)
@@ -183,7 +202,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                         entity.FromDate.Year, cancellationToken) + entity.TotalDays;
                     if (config.DeductBalance && entity.TotalDays > remaining)
                         throw new InvalidOperationException(
-                            $"Không đủ quỹ phép (còn {remaining:0.##}, yêu cầu {entity.TotalDays:0.##}).");
+                             $"Không đủ quỹ phép (còn {remaining:0.##}, yêu cầu {entity.TotalDays:0.##}).");
                 }
             }
 
@@ -206,6 +225,18 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 _currentUser.UserId ?? Guid.Empty,
                 actorEmployeeId,
                 cancellationToken);
+
+            await _notificationService.CreateNotifyForEmployeeAsync(
+                employeeId: entity.EmployeeId,
+                title: "Đơn xin nghỉ phép đã được duyệt",
+                content: $"Đơn xin nghỉ phép ({entity.FromDate:dd/MM/yyyy} - {entity.ToDate:dd/MM/yyyy}, {entity.TotalDays:0.##} ngày) của bạn đã được phê duyệt.",
+                type: NotificationType.Leave,
+                severity: NotificationSeverity.Success,
+                targetUrl: "/operate-manager/leave-manager",
+                targetType: "LEAVE_REQUEST",
+                targetId: entity.Id,
+                senderId: _currentUser.UserId,
+                cancellationToken: cancellationToken);
 
             return true;
         }
@@ -296,15 +327,18 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
         private readonly IWorkflowEngine _workflow;
+        private readonly INotificationService _notificationService;
 
         public RejectRegisterDayOffCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUser,
-            IWorkflowEngine workflow)
+            IWorkflowEngine workflow,
+            INotificationService notificationService)
         {
             _context = context;
             _currentUser = currentUser;
             _workflow = workflow;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> Handle(RejectRegisterDayOffCommand request, CancellationToken cancellationToken)
@@ -336,6 +370,18 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 _currentUser.UserId ?? Guid.Empty,
                 _currentUser.EmployeeId,
                 cancellationToken);
+
+            await _notificationService.CreateNotifyForEmployeeAsync(
+                employeeId: entity.EmployeeId,
+                title: "Đơn xin nghỉ phép bị từ chối",
+                content: $"Đơn xin nghỉ phép ({entity.FromDate:dd/MM/yyyy} - {entity.ToDate:dd/MM/yyyy}) của bạn đã bị từ chối. Lý do: {request.ApproverNote}",
+                type: NotificationType.Leave,
+                severity: NotificationSeverity.Danger,
+                targetUrl: "/operate-manager/leave-manager",
+                targetType: "LEAVE_REQUEST",
+                targetId: entity.Id,
+                senderId: _currentUser.UserId,
+                cancellationToken: cancellationToken);
 
             return true;
         }

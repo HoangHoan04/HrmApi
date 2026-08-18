@@ -196,7 +196,7 @@ namespace HrmApi.Application.Common.Helpers
                     && x.Year == year
                     && !x.IsDeleted, cancellationToken);
 
-            if (allocation == null)
+            if (allocation == null && config.DefaultDaysPerYear <= 0)
             {
                 throw new InvalidOperationException(
                     "Nhân viên chưa được cấp quỹ phép năm. Vui lòng liên hệ HR cấp phát trước khi đăng ký.");
@@ -225,9 +225,12 @@ namespace HrmApi.Application.Common.Helpers
             DateOnly yearStart = new(year, 1, 1);
             DateOnly yearEnd = new(year, 12, 31);
 
+            Guid? targetConfigId = config?.Id ?? dayOffConfigId;
+
             decimal usedOrPending = await context.RegisterDayOffEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == employeeId
                     && !x.IsDeleted
+                    && (targetConfigId == null || x.DayOffConfigId == targetConfigId)
                     && (x.Status == DayOffStatus.PENDING || x.Status == DayOffStatus.APPROVED)
                     && x.FromDate <= yearEnd
                     && x.ToDate >= yearStart)
@@ -243,12 +246,14 @@ namespace HrmApi.Application.Common.Helpers
                         && x.Year == year
                         && !x.IsDeleted, cancellationToken);
 
-                if (allocation == null)
+                if (allocation != null)
                 {
-                    return 0;
+                    total = allocation.AllocatedDays;
                 }
-
-                total = allocation.AllocatedDays;
+                else
+                {
+                    total = config.DefaultDaysPerYear;
+                }
             }
 
             return Math.Max(0, total - usedOrPending);
@@ -274,8 +279,19 @@ namespace HrmApi.Application.Common.Helpers
 
             if (allocation == null)
             {
-                throw new InvalidOperationException(
-                    "Không thể duyệt: nhân viên chưa có quỹ phép năm. Hãy cấp phát tại Quỹ phép trước.");
+                allocation = new DayOffConfigEmployeeEntity
+                {
+                    Id = Guid.NewGuid(),
+                    EmployeeId = leave.EmployeeId,
+                    DayOffConfigId = config.Id,
+                    Year = year,
+                    AllocatedDays = config.DefaultDaysPerYear,
+                    UsedDays = 0,
+                    RemainingDays = config.DefaultDaysPerYear,
+                    CreatedBy = leave.UpdatedBy ?? Guid.Empty,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _ = context.DayOffConfigEmployeeEntities.Add(allocation);
             }
 
             allocation.UsedDays += leave.TotalDays;
@@ -316,9 +332,9 @@ namespace HrmApi.Application.Common.Helpers
             decimal requestDays,
             int year,
             CancellationToken cancellationToken)
-            => EnsureBalanceForTypeAsync(context, employeeId, companyId, dayOffConfigId, requestDays, year, cancellationToken);
+            => EnsureBalanceForTypeInternalAsync(context, employeeId, companyId, dayOffConfigId, requestDays, year, cancellationToken);
 
-        public static async Task EnsureBalanceForTypeAsync(
+        private static async Task EnsureBalanceForTypeInternalAsync(
             IApplicationDbContext context,
             Guid employeeId,
             Guid? companyId,
@@ -353,17 +369,24 @@ namespace HrmApi.Application.Common.Helpers
                 ? context.DayOffConfigEntities
                 : context.DayOffConfigEntities.AsNoTracking();
 
-            if (dayOffConfigId.HasValue)
+            if (dayOffConfigId.HasValue && dayOffConfigId.Value != Guid.Empty)
             {
                 DayOffConfigEntity? byId = await query
                     .FirstOrDefaultAsync(x => x.Id == dayOffConfigId.Value && !x.IsDeleted, cancellationToken);
                 if (byId != null) return byId;
             }
 
-            return await query
+            var byCompany = await query
                 .Where(x => !x.IsDeleted && x.IsActive
                     && (x.CompanyId == null || (companyId.HasValue && x.CompanyId == companyId)))
                 .OrderByDescending(x => x.CompanyId.HasValue)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (byCompany != null) return byCompany;
+
+            return await query
+                .Where(x => !x.IsDeleted && x.IsActive)
+                .OrderBy(x => x.Name)
                 .FirstOrDefaultAsync(cancellationToken);
         }
     }

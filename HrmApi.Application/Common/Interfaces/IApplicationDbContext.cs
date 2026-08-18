@@ -5,6 +5,7 @@ using HrmApi.Domain.Entities.Discipline;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.EmployeeMovement;
 using HrmApi.Domain.Entities.Leave;
+using HrmApi.Domain.Entities.Notification;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Entities.Payroll;
 using HrmApi.Domain.Entities.Performance;
@@ -20,6 +21,9 @@ namespace HrmApi.Application.Common.Interfaces
 {
     public interface IApplicationDbContext
     {
+        DbSet<NotificationEntity> NotificationEntities { get; }
+        DbSet<DeviceTokenEntity> DeviceTokenEntities { get; }
+        DbSet<NotificationSettingEntity> NotificationSettingEntities { get; }
         DbSet<CompanyEntity> CompanyEntities { get; }
         DbSet<CompanyAnnouncementEntity> CompanyAnnouncementEntities { get; }
         DbSet<BranchEntity> BranchEntities { get; }

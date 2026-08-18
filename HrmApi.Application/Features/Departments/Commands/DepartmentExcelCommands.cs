@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
+using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
@@ -14,7 +15,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HrmApi.Application.Features.Departments.Commands
 {
-
     public class ExportDepartmentsExcelQuery : IRequest<byte[]>
     {
         public string? Code { get; set; }
@@ -59,6 +59,12 @@ namespace HrmApi.Application.Features.Departments.Commands
                 query = query.Where(x => x.CompanyId == request.CompanyId.Value);
 
             var departments = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            var companyDict = await _context.CompanyEntities.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
+            var branchDict = await _context.BranchEntities.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
+            var deptDict = await _context.DepartmentEntities.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
 
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("DanhSachPhongBan");
@@ -66,11 +72,16 @@ namespace HrmApi.Application.Features.Departments.Commands
 
             for (var i = 0; i < departments.Count; i++)
             {
-                DepartmentExcelWriter.WriteDepartmentRow(worksheet, i + 2, departments[i], includeExportOnlyColumns: true);
+                var dept = departments[i];
+                string? companyCode = dept.CompanyId.HasValue && companyDict.TryGetValue(dept.CompanyId.Value, out var cc) ? cc : null;
+                string? branchCode = dept.BranchId.HasValue && branchDict.TryGetValue(dept.BranchId.Value, out var bc) ? bc : null;
+                string? parentDeptCode = dept.ParentDepartmentId.HasValue && deptDict.TryGetValue(dept.ParentDepartmentId.Value, out var pdc) ? pdc : null;
+
+                DepartmentExcelWriter.WriteDepartmentRow(worksheet, i + 2, dept, companyCode, branchCode, parentDeptCode, includeExportOnlyColumns: true);
             }
 
-            DepartmentExcelWriter.ApplyColumnWidths(worksheet);
-            DepartmentExcelWriter.FreezeHeaderRow(worksheet);
+            ExcelHelper.ApplyColumnWidths(worksheet);
+            ExcelHelper.FreezeHeaderRow(worksheet);
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -84,17 +95,46 @@ namespace HrmApi.Application.Features.Departments.Commands
 
     public class DownloadDepartmentExcelTemplateQueryHandler : IRequestHandler<DownloadDepartmentExcelTemplateQuery, byte[]>
     {
-        public Task<byte[]> Handle(DownloadDepartmentExcelTemplateQuery request, CancellationToken cancellationToken)
+        private readonly IApplicationDbContext _context;
+
+        public DownloadDepartmentExcelTemplateQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<byte[]> Handle(DownloadDepartmentExcelTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("MauImport");
+            var worksheet = workbook.Worksheets.Add("PhongBan");
             DepartmentExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
-            DepartmentExcelWriter.ApplyColumnWidths(worksheet);
-            DepartmentExcelWriter.FreezeHeaderRow(worksheet);
+            DepartmentExcelWriter.WriteTemplateSampleRow(worksheet);
+            ExcelHelper.ApplyColumnWidths(worksheet);
+            ExcelHelper.FreezeHeaderRow(worksheet);
+
+            var companies = await _context.CompanyEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .OrderBy(x => x.Code)
+                .Select(x => new { x.Code, x.Name })
+                .ToListAsync(cancellationToken);
+            ExcelHelper.WriteReferenceSheet(workbook, "CongTy", "Mã công ty", "Tên công ty", companies.Select(x => (x.Code, x.Name)));
+
+            var branches = await _context.BranchEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .OrderBy(x => x.Code)
+                .Select(x => new { x.Code, x.Name })
+                .ToListAsync(cancellationToken);
+            ExcelHelper.WriteReferenceSheet(workbook, "ChiNhanh", "Mã chi nhánh", "Tên chi nhánh", branches.Select(x => (x.Code, x.Name)));
+
+            var departments = await _context.DepartmentEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .OrderBy(x => x.Code)
+                .Select(x => new { x.Code, x.Name })
+                .ToListAsync(cancellationToken);
+            ExcelHelper.WriteReferenceSheet(workbook, "PhongBanThamChieu", "Mã phòng ban", "Tên phòng ban", departments.Select(x => (x.Code, x.Name)));
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            return Task.FromResult(stream.ToArray());
+            return stream.ToArray();
         }
     }
 
@@ -133,14 +173,33 @@ namespace HrmApi.Application.Features.Departments.Commands
 
             result.TotalRows = rows.Count;
 
+            var companyDict = await _context.CompanyEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
+            var branchDict = await _context.BranchEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
+            var deptDict = await _context.DepartmentEntities.AsNoTracking()
+                .Where(x => !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
+
             foreach (var row in rows)
             {
                 var rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row);
+                    var command = ReadRow(row, companyDict, branchDict, deptDict);
                     if (string.IsNullOrWhiteSpace(command.Code) && string.IsNullOrWhiteSpace(command.Name))
+                    {
+                        result.TotalRows--;
                         continue;
+                    }
+
+                    if (command.Code.Equals("PB001", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.TotalRows--;
+                        continue;
+                    }
 
                     await CreateDepartmentCommandHandler.ValidateAsync(command, null, cancellationToken, _context);
 
@@ -160,7 +219,7 @@ namespace HrmApi.Application.Features.Departments.Commands
                         department.Id,
                         null,
                         DepartmentMapper.ToLogObject(department),
-                        $"Import Excel - Tạo mới phòng ban {department.Name}");
+                        "Import Excel - Tạo mới phòng ban " + department.Name);
 
                     result.SuccessCount++;
                 }
@@ -174,71 +233,40 @@ namespace HrmApi.Application.Features.Departments.Commands
             return result;
         }
 
-        private static DepartmentCommandFields ReadRow(IXLRangeRow row)
+        private static DepartmentCommandFields ReadRow(
+            IXLRangeRow row,
+            Dictionary<string, Guid> companyDict,
+            Dictionary<string, Guid> branchDict,
+            Dictionary<string, Guid> deptDict)
         {
+            var companyCode = ExcelHelper.GetCellString(row, 6).Trim().ToLower();
+            var branchCode = ExcelHelper.GetCellString(row, 7).Trim().ToLower();
+            var parentDeptCode = ExcelHelper.GetCellString(row, 8).Trim().ToLower();
+
+            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out var cid) ? cid : null;
+            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out var bid) ? bid : null;
+            Guid? parentDeptId = !string.IsNullOrWhiteSpace(parentDeptCode) && deptDict.TryGetValue(parentDeptCode, out var pdid) ? pdid : null;
+
             return new DepartmentCommandFields
             {
-                Code = GetCellString(row, 1),
-                Name = GetCellString(row, 2),
-                ShortName = GetCellString(row, 3),
-                Description = GetCellString(row, 4),
-                Type = GetCellString(row, 5),
-                CompanyId = ParseGuid(row.Cell(6)),
-                BranchId = ParseGuid(row.Cell(7)),
-                ParentDepartmentId = ParseGuid(row.Cell(8)),
-                Level = ParseInt(row.Cell(9)) ?? 1,
-                Limit = ParseInt(row.Cell(10)) ?? 0,
-                CurrentHeadCount = ParseInt(row.Cell(11)),
-                ManagerId = ParseGuid(row.Cell(12)),
-                DeputyManagerId = ParseGuid(row.Cell(13)),
-                Email = GetCellString(row, 14),
-                PhoneExtension = GetCellString(row, 15),
-                CostCenterCode = GetCellString(row, 16),
-                IsActive = ParseBool(row.Cell(17)) ?? true,
-                DisplayOrder = ParseInt(row.Cell(18)) ?? 0,
-                EstablishedDate = ParseDate(row.Cell(19)),
-                DissolvedDate = ParseDate(row.Cell(20)),
-                IsNotifyMarketing = ParseBool(row.Cell(21)) ?? false
-            };
-        }
-
-        private static string GetCellString(IXLRangeRow row, int column) =>
-            row.Cell(column).GetString().Trim();
-
-        private static DateTime? ParseDate(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out DateTime dateValue)) return dateValue;
-            if (DateTime.TryParse(cell.GetString(), out var parsed)) return parsed;
-            return null;
-        }
-
-        private static int? ParseInt(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out int intValue)) return intValue;
-            if (int.TryParse(cell.GetString(), out var parsed)) return parsed;
-            return null;
-        }
-
-        private static Guid? ParseGuid(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            var str = cell.GetString().Trim();
-            if (Guid.TryParse(str, out var guid)) return guid;
-            return null;
-        }
-
-        private static bool? ParseBool(IXLCell cell)
-        {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out bool boolValue)) return boolValue;
-            var text = cell.GetString().Trim().ToLower();
-            return text switch
-            {
-                "1" or "true" or "có" or "co" or "yes" => true,
-                "0" or "false" or "không" or "khong" or "no" => false,
-                _ => null
+                Code = ExcelHelper.GetCellString(row, 1),
+                Name = ExcelHelper.GetCellString(row, 2),
+                ShortName = ExcelHelper.GetCellString(row, 3),
+                Description = ExcelHelper.GetCellString(row, 4),
+                Type = ExcelHelper.GetCellString(row, 5),
+                CompanyId = companyId,
+                BranchId = branchId,
+                ParentDepartmentId = parentDeptId,
+                Level = ExcelHelper.ParseInt(row.Cell(9)) ?? 1,
+                Limit = ExcelHelper.ParseInt(row.Cell(10)),
+                Email = ExcelHelper.GetCellString(row, 11),
+                PhoneExtension = ExcelHelper.GetCellString(row, 12),
+                CostCenterCode = ExcelHelper.GetCellString(row, 13),
+                IsActive = ExcelHelper.ParseBool(row.Cell(14)) ?? true,
+                DisplayOrder = ExcelHelper.ParseInt(row.Cell(15)) ?? 0,
+                EstablishedDate = ExcelHelper.ParseDate(row.Cell(16)),
+                DissolvedDate = ExcelHelper.ParseDate(row.Cell(17)),
+                IsNotifyMarketing = ExcelHelper.ParseBool(row.Cell(18)) ?? false,
             };
         }
     }
@@ -259,14 +287,11 @@ namespace HrmApi.Application.Features.Departments.Commands
             new() { Title = "Tên viết tắt", Required = false },
             new() { Title = "Mô tả", Required = false },
             new() { Title = "Loại phòng ban", Required = false },
-            new() { Title = "CompanyId", Required = false },
-            new() { Title = "BranchId", Required = false },
-            new() { Title = "ParentDepartmentId", Required = false },
+            new() { Title = "Mã công ty", Required = true },
+            new() { Title = "Mã chi nhánh", Required = false },
+            new() { Title = "Mã phòng ban cha", Required = false },
             new() { Title = "Cấp bậc", Required = false },
             new() { Title = "Định biên", Required = false },
-            new() { Title = "Số lượng hiện tại", Required = false },
-            new() { Title = "ManagerId", Required = false },
-            new() { Title = "DeputyManagerId", Required = false },
             new() { Title = "Email", Required = false },
             new() { Title = "SĐT nội bộ", Required = false },
             new() { Title = "Mã Cost Center", Required = false },
@@ -284,9 +309,6 @@ namespace HrmApi.Application.Features.Departments.Commands
 
     internal static class DepartmentExcelWriter
     {
-        private static readonly XLColor RequiredHeaderColor = XLColor.FromHtml("#FFC000");
-        private static readonly XLColor OptionalHeaderColor = XLColor.FromHtml("#92D050");
-
         public static void WriteHeaders(IXLWorksheet worksheet, bool includeExportOnlyColumns)
         {
             var columns = DepartmentExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
@@ -294,56 +316,80 @@ namespace HrmApi.Application.Features.Departments.Commands
             for (var col = 0; col < columns.Count; col++)
             {
                 var definition = columns[col];
-                var cell = worksheet.Cell(1, col + 1);
-                cell.Value = definition.Required ? $"{definition.Title}*" : definition.Title;
-
-                cell.Style.Font.Bold = true;
-                cell.Style.Font.FontColor = XLColor.Black;
-                cell.Style.Fill.BackgroundColor = definition.Required ? RequiredHeaderColor : OptionalHeaderColor;
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-                cell.Style.Alignment.WrapText = true;
-                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                cell.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
             worksheet.Row(1).Height = 28;
         }
 
+        public static void WriteTemplateSampleRow(IXLWorksheet worksheet)
+        {
+            var sampleValues = new List<string>
+            {
+                "PB001",
+                "Phòng Kế toán",
+                "KT",
+                "Phòng quản lý tài chính kế toán",
+                "Phòng ban",
+                "CT01",
+                "CN01",
+                "",
+                "1",
+                "10",
+                "ketoan@company.com",
+                "101",
+                "CC001",
+                "Có",
+                "1",
+                "01/01/2020",
+                "",
+                "Không"
+            };
+
+            for (var col = 0; col < sampleValues.Count; col++)
+            {
+                var cell = worksheet.Cell(2, col + 1);
+                cell.Value = sampleValues[col];
+                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                cell.Style.Font.FontColor = XLColor.DarkGray;
+            }
+        }
+
         public static void WriteDepartmentRow(
             IXLWorksheet worksheet,
             int row,
-            DepartmentEntity department,
+            DepartmentEntity dept,
+            string? companyCode,
+            string? branchCode,
+            string? parentDeptCode,
             bool includeExportOnlyColumns)
         {
             var values = new List<string?>
             {
-                department.Code,
-                department.Name,
-                department.ShortName,
-                department.Description,
-                department.Type,
-                department.CompanyId?.ToString(),
-                department.BranchId?.ToString(),
-                department.ParentDepartmentId?.ToString(),
-                department.Level.ToString(),
-                department.Limit.ToString(),
-                department.CurrentHeadCount?.ToString(),
-                department.ManagerId?.ToString(),
-                department.DeputyManagerId?.ToString(),
-                department.Email,
-                department.PhoneExtension,
-                department.CostCenterCode,
-                department.IsActive.ToString(),
-                department.DisplayOrder.ToString(),
-                department.EstablishedDate?.ToString("yyyy-MM-dd"),
-                department.DissolvedDate?.ToString("yyyy-MM-dd"),
-                department.IsNotifyMarketing.ToString(),
+                dept.Code,
+                dept.Name,
+                dept.ShortName,
+                dept.Description,
+                dept.Type,
+                companyCode,
+                branchCode,
+                parentDeptCode,
+                dept.Level.ToString(),
+                dept.Limit.ToString(),
+                dept.Email,
+                dept.PhoneExtension,
+                dept.CostCenterCode,
+                dept.IsActive ? "Có" : "Không",
+                dept.DisplayOrder.ToString(),
+                dept.EstablishedDate?.ToString("yyyy-MM-dd"),
+                dept.DissolvedDate?.ToString("yyyy-MM-dd"),
+                dept.IsNotifyMarketing ? "Có" : "Không"
             };
 
             if (includeExportOnlyColumns)
             {
-                values.Add(department.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
+                values.Add(dept.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
             }
 
             for (var col = 0; col < values.Count; col++)
@@ -353,21 +399,6 @@ namespace HrmApi.Application.Features.Departments.Commands
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
-        }
-
-        public static void ApplyColumnWidths(IXLWorksheet worksheet)
-        {
-            var usedColumns = worksheet.ColumnsUsed();
-            foreach (var column in usedColumns)
-            {
-                column.AdjustToContents(8, 60);
-                column.Width = Math.Max(column.Width + 2, 12);
-            }
-        }
-
-        public static void FreezeHeaderRow(IXLWorksheet worksheet)
-        {
-            worksheet.SheetView.FreezeRows(1);
         }
     }
 }

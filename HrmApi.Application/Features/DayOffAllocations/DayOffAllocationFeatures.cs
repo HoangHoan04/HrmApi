@@ -130,13 +130,15 @@ namespace HrmApi.Application.Features.DayOffAllocations
                 throw new InvalidOperationException("Nhân viên và loại nghỉ là bắt buộc.");
             if (request.Year < 2000 || request.Year > 2100)
                 throw new InvalidOperationException("Năm không hợp lệ.");
-            if (request.AllocatedDays < 0)
-                throw new InvalidOperationException("Số ngày cấp phải >= 0.");
 
             bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken);
             if (!empOk) throw new InvalidOperationException("Nhân viên không tồn tại.");
-            bool cfgOk = await _context.DayOffConfigEntities.AnyAsync(x => x.Id == request.DayOffConfigId && !x.IsDeleted, cancellationToken);
-            if (!cfgOk) throw new InvalidOperationException("Cấu hình nghỉ không tồn tại.");
+            DayOffConfigEntity? cfg = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.DayOffConfigId && !x.IsDeleted, cancellationToken);
+            if (cfg == null) throw new InvalidOperationException("Cấu hình nghỉ không tồn tại.");
+
+            decimal allocatedDays = request.AllocatedDays > 0 ? request.AllocatedDays : cfg.DefaultDaysPerYear;
+            if (allocatedDays < 0)
+                throw new InvalidOperationException("Số ngày cấp phải >= 0.");
 
             DayOffConfigEmployeeEntity? entity = null;
             if (request.Id.HasValue && request.Id != Guid.Empty)
@@ -165,7 +167,7 @@ namespace HrmApi.Application.Features.DayOffAllocations
                 _ = _context.DayOffConfigEmployeeEntities.Add(entity);
             }
 
-            entity.AllocatedDays = request.AllocatedDays;
+            entity.AllocatedDays = allocatedDays;
             entity.RemainingDays = Math.Max(0, entity.AllocatedDays - entity.UsedDays);
             entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
             entity.UpdatedAt = DateTime.UtcNow;
