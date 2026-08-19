@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Part;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,17 +31,17 @@ namespace HrmApi.Application.Features.Parts.Queries
 
         public async Task<PagedResult<PartDto>> Handle(GetPartsPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PartEntities.AsNoTracking();
+            IQueryable<PartEntity> query = _context.PartEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code != null && x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name != null && x.Name.ToLower().Contains(name));
             }
 
@@ -76,17 +72,17 @@ namespace HrmApi.Application.Features.Parts.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x =>
                     (x.Name != null && x.Name.ToLower().Contains(search)) ||
                     (x.Code != null && x.Code.ToLower().Contains(search)));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
 
             query = ApplySorting(query, request);
 
-            var entities = await query
+            List<PartEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
@@ -97,36 +93,36 @@ namespace HrmApi.Application.Features.Parts.Queries
             var partMasterIds = entities.Where(x => x.PartMasterId.HasValue).Select(x => x.PartMasterId!.Value).Distinct().ToList();
             var managerIds = entities.Where(x => x.ManagerId.HasValue).Select(x => x.ManagerId!.Value).Distinct().ToList();
 
-            var companyMap = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> companyMap = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities
                     .AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var branchMap = branchIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branchMap = branchIds.Count == 0
+                ? []
                 : await _context.BranchEntities
                     .AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var departmentMap = departmentIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> departmentMap = departmentIds.Count == 0
+                ? []
                 : await _context.DepartmentEntities
                     .AsNoTracking()
                     .Where(x => departmentIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var partMasterMap = partMasterIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> partMasterMap = partMasterIds.Count == 0
+                ? []
                 : await _context.PartMasterEntities
                     .AsNoTracking()
                     .Where(x => partMasterIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var managerMap = managerIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> managerMap = managerIds.Count == 0
+                ? []
                 : await _context.EmployeeEntities
                     .AsNoTracking()
                     .Where(x => managerIds.Contains(x.Id))
@@ -137,11 +133,11 @@ namespace HrmApi.Application.Features.Parts.Queries
 
             var items = entities.Select(x =>
             {
-                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cName) ? cName : null;
-                string? branchName = x.BranchId.HasValue && branchMap.TryGetValue(x.BranchId.Value, out var bName) ? bName : null;
-                string? departmentName = x.DepartmentId.HasValue && departmentMap.TryGetValue(x.DepartmentId.Value, out var dName) ? dName : null;
-                string? partMasterName = x.PartMasterId.HasValue && partMasterMap.TryGetValue(x.PartMasterId.Value, out var pmName) ? pmName : null;
-                string? managerName = x.ManagerId.HasValue && managerMap.TryGetValue(x.ManagerId.Value, out var mName) ? mName : null;
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out string? cName) ? cName : null;
+                string? branchName = x.BranchId.HasValue && branchMap.TryGetValue(x.BranchId.Value, out string? bName) ? bName : null;
+                string? departmentName = x.DepartmentId.HasValue && departmentMap.TryGetValue(x.DepartmentId.Value, out string? dName) ? dName : null;
+                string? partMasterName = x.PartMasterId.HasValue && partMasterMap.TryGetValue(x.PartMasterId.Value, out string? pmName) ? pmName : null;
+                string? managerName = x.ManagerId.HasValue && managerMap.TryGetValue(x.ManagerId.Value, out string? mName) ? mName : null;
                 return PartMapper.ToDto(x, companyName, branchName, departmentName, partMasterName, managerName);
             }).ToList();
 
@@ -154,7 +150,7 @@ namespace HrmApi.Application.Features.Parts.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
@@ -191,11 +187,14 @@ namespace HrmApi.Application.Features.Parts.Queries
 
         public async Task<PartDto?> Handle(GetPartByIdQuery request, CancellationToken cancellationToken)
         {
-            var part = await _context.PartEntities
+            PartEntity? part = await _context.PartEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (part == null) return null;
+            if (part == null)
+            {
+                return null;
+            }
 
             string? companyName = null;
             if (part.CompanyId.HasValue)
@@ -272,7 +271,7 @@ namespace HrmApi.Application.Features.Parts.Queries
 
         public async Task<List<PartSelectBoxDto>> Handle(GetPartSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PartEntities
+            IQueryable<PartEntity> query = _context.PartEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
@@ -331,9 +330,11 @@ namespace HrmApi.Application.Features.Parts.Queries
         public async Task<List<PartSelectBoxDto>> Handle(GetPartsByDepartmentQuery request, CancellationToken cancellationToken)
         {
             if (request.DepartmentId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Id phòng ban là bắt buộc.");
+            }
 
-            var query = _context.PartEntities
+            IQueryable<PartEntity> query = _context.PartEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted && x.DepartmentId == request.DepartmentId);
 

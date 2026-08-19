@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Notification;
@@ -32,10 +27,10 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<PagedResult<NotificationDto>> Handle(GetNotificationsPagedQuery request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
             if (currentUserId == Guid.Empty)
             {
-                return new PagedResult<NotificationDto>(new List<NotificationDto>(), 0, request.PageIndex, request.PageSize);
+                return new PagedResult<NotificationDto>([], 0, request.PageIndex, request.PageSize);
             }
 
             IQueryable<NotificationEntity> query = _context.NotificationEntities.AsNoTracking()
@@ -53,12 +48,12 @@ namespace HrmApi.Application.Features.Notifications
 
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
-                var kw = request.Keyword.Trim().ToLower();
+                string kw = request.Keyword.Trim().ToLower();
                 query = query.Where(x => x.Title.ToLower().Contains(kw) || x.Content.ToLower().Contains(kw));
             }
 
-            var total = await query.CountAsync(cancellationToken);
-            var items = await query
+            int total = await query.CountAsync(cancellationToken);
+            List<NotificationDto> items = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
@@ -104,10 +99,10 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<int> Handle(GetUnreadNotificationCountQuery request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
-            if (currentUserId == Guid.Empty) return 0;
-
-            return await _context.NotificationEntities.AsNoTracking()
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
+            return currentUserId == Guid.Empty
+                ? 0
+                : await _context.NotificationEntities.AsNoTracking()
                 .CountAsync(x => !x.IsDeleted && x.UserId == currentUserId && !x.IsRead, cancellationToken);
         }
     }
@@ -131,21 +126,34 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<bool> Handle(MarkNotificationReadCommand request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
-            if (currentUserId == Guid.Empty) return false;
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
+            if (currentUserId == Guid.Empty)
+            {
+                return false;
+            }
 
             var targetIds = new List<Guid>();
-            if (request.Id.HasValue && request.Id != Guid.Empty) targetIds.Add(request.Id.Value);
-            if (request.Ids != null && request.Ids.Count > 0) targetIds.AddRange(request.Ids);
+            if (request.Id.HasValue && request.Id != Guid.Empty)
+            {
+                targetIds.Add(request.Id.Value);
+            }
 
-            if (targetIds.Count == 0) return false;
+            if (request.Ids != null && request.Ids.Count > 0)
+            {
+                targetIds.AddRange(request.Ids);
+            }
 
-            var entities = await _context.NotificationEntities
+            if (targetIds.Count == 0)
+            {
+                return false;
+            }
+
+            List<NotificationEntity> entities = await _context.NotificationEntities
                 .Where(x => !x.IsDeleted && x.UserId == currentUserId && targetIds.Contains(x.Id) && !x.IsRead)
                 .ToListAsync(cancellationToken);
 
-            var now = DateTime.UtcNow;
-            foreach (var entity in entities)
+            DateTime now = DateTime.UtcNow;
+            foreach (NotificationEntity? entity in entities)
             {
                 entity.IsRead = true;
                 entity.ReadAt = now;
@@ -175,15 +183,18 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<int> Handle(MarkAllNotificationsReadCommand request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
-            if (currentUserId == Guid.Empty) return 0;
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
+            if (currentUserId == Guid.Empty)
+            {
+                return 0;
+            }
 
-            var unreadList = await _context.NotificationEntities
+            List<NotificationEntity> unreadList = await _context.NotificationEntities
                 .Where(x => !x.IsDeleted && x.UserId == currentUserId && !x.IsRead)
                 .ToListAsync(cancellationToken);
 
-            var now = DateTime.UtcNow;
-            foreach (var entity in unreadList)
+            DateTime now = DateTime.UtcNow;
+            foreach (NotificationEntity? entity in unreadList)
             {
                 entity.IsRead = true;
                 entity.ReadAt = now;
@@ -214,13 +225,19 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<bool> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
-            if (currentUserId == Guid.Empty) return false;
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
+            if (currentUserId == Guid.Empty)
+            {
+                return false;
+            }
 
-            var entity = await _context.NotificationEntities
+            NotificationEntity? entity = await _context.NotificationEntities
                 .FirstOrDefaultAsync(x => !x.IsDeleted && x.Id == request.Id && x.UserId == currentUserId, cancellationToken);
 
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -269,13 +286,12 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<NotificationSettingDto> Handle(GetNotificationSettingsQuery request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
-            var setting = await _context.NotificationSettingEntities.AsNoTracking()
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
+            NotificationSettingEntity? setting = await _context.NotificationSettingEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => !x.IsDeleted && x.UserId == currentUserId, cancellationToken);
 
-            if (setting == null)
-            {
-                return new NotificationSettingDto
+            return setting == null
+                ? new NotificationSettingDto
                 {
                     UserId = currentUserId,
                     EmailEnabled = true,
@@ -287,22 +303,20 @@ namespace HrmApi.Application.Features.Notifications
                     NotifyOnPayslip = true,
                     NotifyOnContract = true,
                     NotifyOnRecruitment = true,
+                }
+                : new NotificationSettingDto
+                {
+                    UserId = setting.UserId,
+                    EmailEnabled = setting.EmailEnabled,
+                    PushEnabled = setting.PushEnabled,
+                    InAppEnabled = setting.InAppEnabled,
+                    NotifyOnLeave = setting.NotifyOnLeave,
+                    NotifyOnOvertime = setting.NotifyOnOvertime,
+                    NotifyOnAttendance = setting.NotifyOnAttendance,
+                    NotifyOnPayslip = setting.NotifyOnPayslip,
+                    NotifyOnContract = setting.NotifyOnContract,
+                    NotifyOnRecruitment = setting.NotifyOnRecruitment,
                 };
-            }
-
-            return new NotificationSettingDto
-            {
-                UserId = setting.UserId,
-                EmailEnabled = setting.EmailEnabled,
-                PushEnabled = setting.PushEnabled,
-                InAppEnabled = setting.InAppEnabled,
-                NotifyOnLeave = setting.NotifyOnLeave,
-                NotifyOnOvertime = setting.NotifyOnOvertime,
-                NotifyOnAttendance = setting.NotifyOnAttendance,
-                NotifyOnPayslip = setting.NotifyOnPayslip,
-                NotifyOnContract = setting.NotifyOnContract,
-                NotifyOnRecruitment = setting.NotifyOnRecruitment,
-            };
         }
     }
 
@@ -323,10 +337,13 @@ namespace HrmApi.Application.Features.Notifications
 
         public async Task<bool> Handle(UpdateNotificationSettingsCommand request, CancellationToken cancellationToken)
         {
-            var currentUserId = _currentUser.UserId ?? Guid.Empty;
-            if (currentUserId == Guid.Empty) return false;
+            Guid currentUserId = _currentUser.UserId ?? Guid.Empty;
+            if (currentUserId == Guid.Empty)
+            {
+                return false;
+            }
 
-            var setting = await _context.NotificationSettingEntities
+            NotificationSettingEntity? setting = await _context.NotificationSettingEntities
                 .FirstOrDefaultAsync(x => !x.IsDeleted && x.UserId == currentUserId, cancellationToken);
 
             if (setting == null)

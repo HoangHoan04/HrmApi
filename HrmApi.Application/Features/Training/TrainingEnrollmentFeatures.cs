@@ -14,17 +14,29 @@ namespace HrmApi.Application.Features.Training
     public class GetTrainingEnrollmentsPagedQueryHandler : IRequestHandler<GetTrainingEnrollmentsPagedQuery, PagedResult<TrainingEnrollmentDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetTrainingEnrollmentsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetTrainingEnrollmentsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<TrainingEnrollmentDto>> Handle(GetTrainingEnrollmentsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<TrainingEnrollmentEntity> query = _context.TrainingEnrollmentEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CourseId.HasValue && request.CourseId != Guid.Empty)
+            {
                 query = query.Where(x => x.CourseId == request.CourseId);
+            }
+
             if (request.EmployeeId.HasValue && request.EmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -43,9 +55,13 @@ namespace HrmApi.Application.Features.Training
 
         internal async Task<List<TrainingEnrollmentDto>> MapManyAsync(List<TrainingEnrollmentEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
-            var empIds = rows.Select(x => x.EmployeeId).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
+
+            List<Guid> courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
+            List<Guid> empIds = rows.Select(x => x.EmployeeId).Distinct().ToList();
 
             var courses = await _context.TrainingCourseEntities.AsNoTracking()
                 .Where(x => courseIds.Contains(x.Id))
@@ -56,8 +72,8 @@ namespace HrmApi.Application.Features.Training
 
             return rows.Select(e =>
             {
-                courses.TryGetValue(e.CourseId, out var course);
-                emps.TryGetValue(e.EmployeeId, out var emp);
+                _ = courses.TryGetValue(e.CourseId, out var course);
+                _ = emps.TryGetValue(e.EmployeeId, out var emp);
                 return new TrainingEnrollmentDto
                 {
                     Id = e.Id,
@@ -93,8 +109,7 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingEnrollmentEntity? e = await _context.TrainingEnrollmentEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -131,17 +146,31 @@ namespace HrmApi.Application.Features.Training
         internal async Task ValidateAsync(TrainingEnrollmentCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (!request.CourseId.HasValue || request.CourseId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Khóa học (parent) là bắt buộc.");
+            }
+
             if (!request.EmployeeId.HasValue || request.EmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Nhân viên là bắt buộc.");
+            }
+
             if (!await _context.TrainingCourseEntities.AnyAsync(x => x.Id == request.CourseId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Khóa học không tồn tại.");
+            }
+
             if (!await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
+
             if (await _context.TrainingEnrollmentEntities.AnyAsync(
                     x => !x.IsDeleted && x.CourseId == request.CourseId && x.EmployeeId == request.EmployeeId
                          && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+            {
                 throw new InvalidOperationException("Nhân viên đã đăng ký khóa học này.");
+            }
         }
     }
 
@@ -166,7 +195,10 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingEnrollmentEntity? entity = await _context.TrainingEnrollmentEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.CourseId ??= entity.CourseId;
             request.EmployeeId ??= entity.EmployeeId;
@@ -200,7 +232,11 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingEnrollmentEntity? entity = await _context.TrainingEnrollmentEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

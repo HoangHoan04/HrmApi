@@ -22,6 +22,80 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("HrmApi.Domain.Entities.Asset.AssetAssignmentEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConditionOnIssue")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ConditionOnReturn")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("IssuedTicketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ReturnedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReturnedTicketId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("IssuedTicketId");
+
+                    b.HasIndex("ReturnedTicketId");
+
+                    b.ToTable("AssetAssignmentEntities");
+                });
+
             modelBuilder.Entity("HrmApi.Domain.Entities.Asset.AssetEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -50,6 +124,12 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Location")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Model")
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -77,8 +157,14 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Vendor")
+                        .HasColumnType("text");
+
                     b.Property<string>("Version")
                         .HasColumnType("text");
+
+                    b.Property<DateOnly?>("WarrantyExpiryDate")
+                        .HasColumnType("date");
 
                     b.HasKey("Id");
 
@@ -105,12 +191,18 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AssetId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Condition")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -127,6 +219,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("ReturnExpectedDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -139,6 +234,9 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("ToEmployeeId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -153,12 +251,16 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AssetId");
 
+                    b.HasIndex("BranchId");
+
                     b.HasIndex("Code")
                         .IsUnique();
 
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("EmployeeId");
+
+                    b.HasIndex("ToEmployeeId");
 
                     b.HasIndex("Status", "CompanyId");
 
@@ -192,6 +294,12 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSerialRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MaxPerEmployee")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -6283,6 +6391,51 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                     b.ToTable("WorkflowTaskEntities");
                 });
 
+            modelBuilder.Entity("HrmApi.Domain.Entities.Asset.AssetAssignmentEntity", b =>
+                {
+                    b.HasOne("HrmApi.Domain.Entities.Asset.AssetEntity", "Asset")
+                        .WithMany("Assignments")
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HrmApi.Domain.Entities.Organization.BranchEntity", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId");
+
+                    b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HrmApi.Domain.Entities.Asset.AssetTicketEntity", "IssuedTicket")
+                        .WithMany()
+                        .HasForeignKey("IssuedTicketId");
+
+                    b.HasOne("HrmApi.Domain.Entities.Asset.AssetTicketEntity", "ReturnedTicket")
+                        .WithMany()
+                        .HasForeignKey("ReturnedTicketId");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Branch");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("IssuedTicket");
+
+                    b.Navigation("ReturnedTicket");
+                });
+
             modelBuilder.Entity("HrmApi.Domain.Entities.Asset.AssetEntity", b =>
                 {
                     b.HasOne("HrmApi.Domain.Entities.Asset.AssetTypeEntity", "AssetType")
@@ -6317,6 +6470,10 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("HrmApi.Domain.Entities.Organization.BranchEntity", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId");
+
                     b.HasOne("HrmApi.Domain.Entities.Organization.CompanyEntity", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
@@ -6329,11 +6486,19 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("HrmApi.Domain.Entities.Employee.EmployeeEntity", "ToEmployee")
+                        .WithMany()
+                        .HasForeignKey("ToEmployeeId");
+
                     b.Navigation("Asset");
+
+                    b.Navigation("Branch");
 
                     b.Navigation("Company");
 
                     b.Navigation("Employee");
+
+                    b.Navigation("ToEmployee");
                 });
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Asset.AssetTypeEntity", b =>
@@ -7892,6 +8057,8 @@ namespace HrmApi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("HrmApi.Domain.Entities.Asset.AssetEntity", b =>
                 {
+                    b.Navigation("Assignments");
+
                     b.Navigation("Tickets");
                 });
 

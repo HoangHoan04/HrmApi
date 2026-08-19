@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace HrmApi.Application.Common.Interfaces
 {
     public interface IWebhookDeliveryService

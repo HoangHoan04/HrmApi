@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Helpers;
@@ -41,13 +34,13 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.FullName))
             {
-                var fullName = request.FullName.Trim().ToLower();
+                string fullName = request.FullName.Trim().ToLower();
                 query = query.Where(x =>
                     (x.FullName != null && x.FullName.ToLower().Contains(fullName))
                     || x.FirstName.ToLower().Contains(fullName)
@@ -56,7 +49,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             if (!string.IsNullOrWhiteSpace(request.Status))
             {
-                var status = request.Status.Trim().ToLower();
+                string status = request.Status.Trim().ToLower();
                 query = query.Where(x => x.Status != null && x.Status.ToLower() == status);
             }
 
@@ -67,32 +60,32 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             List<EmployeeEntity> employees = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
 
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            Dictionary<Guid, string> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var branchDict = await _context.BranchEntities.AsNoTracking()
+            Dictionary<Guid, string> branchDict = await _context.BranchEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var deptDict = await _context.DepartmentEntities.AsNoTracking()
+            Dictionary<Guid, string> deptDict = await _context.DepartmentEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var partDict = await _context.PartEntities.AsNoTracking()
+            Dictionary<Guid, string> partDict = await _context.PartEntities.AsNoTracking()
                 .Where(x => x.Code != null)
                 .ToDictionaryAsync(x => x.Id, x => x.Code!, cancellationToken);
-            var posDict = await _context.PositionEntities.AsNoTracking()
+            Dictionary<Guid, string> posDict = await _context.PositionEntities.AsNoTracking()
                 .Include(x => x.PositionMaster)
                 .Where(x => x.PositionMaster != null)
                 .ToDictionaryAsync(x => x.Id, x => x.PositionMaster!.Code, cancellationToken);
 
-            using var workbook = new XLWorkbook();
+            using XLWorkbook workbook = new();
             IXLWorksheet worksheet = workbook.Worksheets.Add("DanhSachNhanVien");
             EmployeeExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: true);
 
-            for (var i = 0; i < employees.Count; i++)
+            for (int i = 0; i < employees.Count; i++)
             {
-                var emp = employees[i];
-                string? companyCode = emp.CompanyId.HasValue && companyDict.TryGetValue(emp.CompanyId.Value, out var cc) ? cc : null;
-                string? branchCode = emp.BranchId.HasValue && branchDict.TryGetValue(emp.BranchId.Value, out var bc) ? bc : null;
-                string? deptCode = emp.DepartmentId.HasValue && deptDict.TryGetValue(emp.DepartmentId.Value, out var dc) ? dc : null;
-                string? partCode = emp.PartId.HasValue && partDict.TryGetValue(emp.PartId.Value, out var pc) ? pc : null;
-                string? posCode = emp.PositionId.HasValue && posDict.TryGetValue(emp.PositionId.Value, out var psc) ? psc : null;
+                EmployeeEntity emp = employees[i];
+                string? companyCode = emp.CompanyId.HasValue && companyDict.TryGetValue(emp.CompanyId.Value, out string? cc) ? cc : null;
+                string? branchCode = emp.BranchId.HasValue && branchDict.TryGetValue(emp.BranchId.Value, out string? bc) ? bc : null;
+                string? deptCode = emp.DepartmentId.HasValue && deptDict.TryGetValue(emp.DepartmentId.Value, out string? dc) ? dc : null;
+                string? partCode = emp.PartId.HasValue && partDict.TryGetValue(emp.PartId.Value, out string? pc) ? pc : null;
+                string? posCode = emp.PositionId.HasValue && posDict.TryGetValue(emp.PositionId.Value, out string? psc) ? psc : null;
 
                 EmployeeExcelWriter.WriteEmployeeRow(
                     worksheet,
@@ -109,7 +102,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             ExcelHelper.ApplyColumnWidths(worksheet);
             ExcelHelper.FreezeHeaderRow(worksheet);
 
-            using var stream = new MemoryStream();
+            using MemoryStream stream = new();
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
@@ -130,7 +123,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<byte[]> Handle(DownloadEmployeeExcelTemplateQuery request, CancellationToken cancellationToken)
         {
-            using var workbook = new XLWorkbook();
+            using XLWorkbook workbook = new();
             IXLWorksheet worksheet = workbook.Worksheets.Add("ThongTinNhanVien");
             EmployeeExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
             EmployeeExcelWriter.WriteTemplateSampleRow(worksheet);
@@ -165,15 +158,24 @@ namespace HrmApi.Application.Features.Employees.Commands
                 .ToListAsync(cancellationToken);
             ExcelHelper.WriteReferenceSheet(workbook, "BoPhan", "Mã bộ phận", "Tên bộ phận", parts.Select(x => (x.Code ?? string.Empty, x.Name ?? string.Empty)));
 
-            var positions = await _context.PositionEntities.AsNoTracking()
-                .Include(x => x.PositionMaster)
-                .Where(x => !x.IsDeleted && x.PositionMaster != null && !x.PositionMaster.IsDeleted)
-                .OrderBy(x => x.PositionMaster!.Code)
-                .Select(x => new { Code = x.PositionMaster!.Code, Name = x.PositionMaster!.Name })
+            var positions = await _context.PositionEntities
+                .AsNoTracking()
+                .Where(x =>
+                    !x.IsDeleted &&
+                    x.PositionMaster != null &&
+                    !x.PositionMaster.IsDeleted)
+                .Select(x => new
+                {
+                    Code = x.PositionMaster!.Code.Trim(),
+                    x.PositionMaster.Name
+                })
+                .GroupBy(x => x.Code.ToLower())
+                .Select(g => g.First())
+                .OrderBy(x => x.Code)
                 .ToListAsync(cancellationToken);
             ExcelHelper.WriteReferenceSheet(workbook, "ChucVu", "Mã chức vụ", "Tên chức vụ", positions.Select(x => (x.Code, x.Name)));
 
-            using var stream = new MemoryStream();
+            using MemoryStream stream = new();
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
@@ -210,35 +212,45 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<EmployeeImportResultDto> Handle(ImportEmployeesExcelCommand request, CancellationToken cancellationToken)
         {
-            var result = new EmployeeImportResultDto();
+            EmployeeImportResultDto result = new();
 
-            using var stream = new MemoryStream(request.FileContent);
-            using var workbook = new XLWorkbook(stream);
+            using MemoryStream stream = new(request.FileContent);
+            using XLWorkbook workbook = new(stream);
             IXLWorksheet worksheet = workbook.Worksheet(1);
             List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
 
             result.TotalRows = rows.Count;
 
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            Dictionary<string, Guid> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-            var branchDict = await _context.BranchEntities.AsNoTracking()
+            Dictionary<string, Guid> branchDict = await _context.BranchEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-            var deptDict = await _context.DepartmentEntities.AsNoTracking()
+            Dictionary<string, Guid> deptDict = await _context.DepartmentEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-            var partDict = await _context.PartEntities.AsNoTracking()
+            Dictionary<string, Guid> partDict = await _context.PartEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Code))
                 .ToDictionaryAsync(x => x.Code!.Trim().ToLower(), x => x.Id, cancellationToken);
-            var posDict = await _context.PositionEntities.AsNoTracking()
-                .Include(x => x.PositionMaster)
-                .Where(x => !x.IsDeleted && x.PositionMaster != null && !string.IsNullOrWhiteSpace(x.PositionMaster.Code))
-                .ToDictionaryAsync(x => x.PositionMaster!.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-
+            Dictionary<string, Guid> posDict =
+    await _context.PositionEntities
+        .AsNoTracking()
+        .Where(x =>
+            !x.IsDeleted &&
+            x.PositionMaster != null &&
+            !x.PositionMaster.IsDeleted &&
+            !string.IsNullOrWhiteSpace(x.PositionMaster.Code))
+        .GroupBy(x => x.PositionMaster!.Code.Trim().ToLower())
+        .Select(g => new
+        {
+            Code = g.Key,
+            Id = g.OrderBy(x => x.Id).Select(x => x.Id).First()
+        })
+        .ToDictionaryAsync(x => x.Code, x => x.Id, cancellationToken);
             foreach (IXLRangeRow? row in rows)
             {
-                var rowNumber = row.RowNumber();
+                int rowNumber = row.RowNumber();
                 try
                 {
                     EmployeeCommandFields command = ReadRow(row, companyDict, branchDict, deptDict, partDict, posDict);
@@ -260,7 +272,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
                     await CreateEmployeeCommandHandler.ValidateAsync(command, null, cancellationToken, _context);
 
-                    var employee = new EmployeeEntity
+                    EmployeeEntity employee = new()
                     {
                         IsDeleted = false,
                         CreatedAt = DateTime.UtcNow,
@@ -344,14 +356,14 @@ namespace HrmApi.Application.Features.Employees.Commands
             Dictionary<string, Guid> partDict,
             Dictionary<string, Guid> posDict)
         {
-            var code = ExcelHelper.GetCellString(row, 1);
-            var lastName = ExcelHelper.GetCellString(row, 2);
-            var firstName = ExcelHelper.GetCellString(row, 3);
-            var fullName = ExcelHelper.GetCellString(row, 4);
+            string code = ExcelHelper.GetCellString(row, 1);
+            string lastName = ExcelHelper.GetCellString(row, 2);
+            string firstName = ExcelHelper.GetCellString(row, 3);
+            string fullName = ExcelHelper.GetCellString(row, 4);
 
             if (string.IsNullOrWhiteSpace(firstName) && string.IsNullOrWhiteSpace(lastName) && !string.IsNullOrWhiteSpace(fullName))
             {
-                var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                string[] parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 1)
                 {
                     lastName = parts[0];
@@ -364,22 +376,22 @@ namespace HrmApi.Application.Features.Employees.Commands
                 }
             }
 
-            var dayOfBirth = ExcelHelper.ParseDate(row.Cell(9));
-            var issuanceDate = ExcelHelper.ParseDate(row.Cell(15));
-            var joinDate = ExcelHelper.ParseDate(row.Cell(31));
-            var resignationDate = ExcelHelper.ParseDate(row.Cell(32));
+            DateTime? dayOfBirth = ExcelHelper.ParseDate(row.Cell(9));
+            DateTime? issuanceDate = ExcelHelper.ParseDate(row.Cell(15));
+            DateTime? joinDate = ExcelHelper.ParseDate(row.Cell(31));
+            DateTime? resignationDate = ExcelHelper.ParseDate(row.Cell(32));
 
-            var companyCode = ExcelHelper.GetCellString(row, 34).Trim().ToLower();
-            var branchCode = ExcelHelper.GetCellString(row, 35).Trim().ToLower();
-            var deptCode = ExcelHelper.GetCellString(row, 36).Trim().ToLower();
-            var partCode = ExcelHelper.GetCellString(row, 37).Trim().ToLower();
-            var posCode = ExcelHelper.GetCellString(row, 38).Trim().ToLower();
+            string companyCode = ExcelHelper.GetCellString(row, 34).Trim().ToLower();
+            string branchCode = ExcelHelper.GetCellString(row, 35).Trim().ToLower();
+            string deptCode = ExcelHelper.GetCellString(row, 36).Trim().ToLower();
+            string partCode = ExcelHelper.GetCellString(row, 37).Trim().ToLower();
+            string posCode = ExcelHelper.GetCellString(row, 38).Trim().ToLower();
 
-            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out var cid) ? cid : null;
-            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out var bid) ? bid : null;
-            Guid? deptId = !string.IsNullOrWhiteSpace(deptCode) && deptDict.TryGetValue(deptCode, out var did) ? did : null;
-            Guid? partId = !string.IsNullOrWhiteSpace(partCode) && partDict.TryGetValue(partCode, out var pid) ? pid : null;
-            Guid? posId = !string.IsNullOrWhiteSpace(posCode) && posDict.TryGetValue(posCode, out var psid) ? psid : null;
+            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out Guid cid) ? cid : null;
+            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out Guid bid) ? bid : null;
+            Guid? deptId = !string.IsNullOrWhiteSpace(deptCode) && deptDict.TryGetValue(deptCode, out Guid did) ? did : null;
+            Guid? partId = !string.IsNullOrWhiteSpace(partCode) && partDict.TryGetValue(partCode, out Guid pid) ? pid : null;
+            Guid? posId = !string.IsNullOrWhiteSpace(posCode) && posDict.TryGetValue(posCode, out Guid psid) ? psid : null;
 
             return new EmployeeCommandFields
             {
@@ -431,37 +443,22 @@ namespace HrmApi.Application.Features.Employees.Commands
                 return EmployeeWorkStatus.Working;
             }
 
-            var normalized = statusStr.Trim().ToUpperInvariant();
-            if (normalized == EmployeeWorkStatus.Working || normalized.Contains("ĐANG LÀM VIỆC") || normalized.Contains("DANG LAM VIEC"))
-            {
-                return EmployeeWorkStatus.Working;
-            }
-            if (normalized == EmployeeWorkStatus.Probation || normalized.Contains("THỬ VIỆC") || normalized.Contains("THU VIEC"))
-            {
-                return EmployeeWorkStatus.Probation;
-            }
-            if (normalized == EmployeeWorkStatus.Official || normalized.Contains("CHÍNH THỨC") || normalized.Contains("CHINH THUC"))
-            {
-                return EmployeeWorkStatus.Official;
-            }
-            if (normalized == EmployeeWorkStatus.OnLeave || normalized.Contains("NGHỈ PHÉP") || normalized.Contains("NGHI PHEP"))
-            {
-                return EmployeeWorkStatus.OnLeave;
-            }
-            if (normalized == EmployeeWorkStatus.Suspended || normalized.Contains("ĐÌNH CHỈ") || normalized.Contains("DINH CHI"))
-            {
-                return EmployeeWorkStatus.Suspended;
-            }
-            if (normalized == EmployeeWorkStatus.Resigned || normalized.Contains("NGHỈ VIỆC") || normalized.Contains("NGHI VIEC"))
-            {
-                return EmployeeWorkStatus.Resigned;
-            }
-            if (normalized == EmployeeWorkStatus.Retired || normalized.Contains("NGHỈ HƯU") || normalized.Contains("NGHI HUU"))
-            {
-                return EmployeeWorkStatus.Retired;
-            }
-
-            return statusStr.Trim();
+            string normalized = statusStr.Trim().ToUpperInvariant();
+            return normalized == EmployeeWorkStatus.Working || normalized.Contains("ĐANG LÀM VIỆC") || normalized.Contains("DANG LAM VIEC")
+                ? EmployeeWorkStatus.Working
+                : normalized == EmployeeWorkStatus.Probation || normalized.Contains("THỬ VIỆC") || normalized.Contains("THU VIEC")
+                ? EmployeeWorkStatus.Probation
+                : normalized == EmployeeWorkStatus.Official || normalized.Contains("CHÍNH THỨC") || normalized.Contains("CHINH THUC")
+                ? EmployeeWorkStatus.Official
+                : normalized == EmployeeWorkStatus.OnLeave || normalized.Contains("NGHỈ PHÉP") || normalized.Contains("NGHI PHEP")
+                ? EmployeeWorkStatus.OnLeave
+                : normalized == EmployeeWorkStatus.Suspended || normalized.Contains("ĐÌNH CHỈ") || normalized.Contains("DINH CHI")
+                ? EmployeeWorkStatus.Suspended
+                : normalized == EmployeeWorkStatus.Resigned || normalized.Contains("NGHỈ VIỆC") || normalized.Contains("NGHI VIEC")
+                ? EmployeeWorkStatus.Resigned
+                : normalized == EmployeeWorkStatus.Retired || normalized.Contains("NGHỈ HƯU") || normalized.Contains("NGHI HUU")
+                ? EmployeeWorkStatus.Retired
+                : statusStr.Trim();
         }
     }
 
@@ -527,9 +524,9 @@ namespace HrmApi.Application.Features.Employees.Commands
     {
         public static void WriteHeaders(IXLWorksheet worksheet, bool includeExportOnlyColumns)
         {
-            var columns = EmployeeExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
+            List<EmployeeExcelColumnDefinition> columns = EmployeeExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
 
-            for (var col = 0; col < columns.Count; col++)
+            for (int col = 0; col < columns.Count; col++)
             {
                 EmployeeExcelColumnDefinition definition = columns[col];
                 ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
@@ -540,8 +537,8 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public static void WriteTemplateSampleRow(IXLWorksheet worksheet)
         {
-            var sampleValues = new List<string>
-            {
+            List<string> sampleValues =
+            [
                 "NV0001",
                 "Nguyễn",
                 "Văn An",
@@ -580,9 +577,9 @@ namespace HrmApi.Application.Features.Employees.Commands
                 "PB01",
                 "BP01",
                 "CV01"
-            };
+            ];
 
-            for (var col = 0; col < sampleValues.Count; col++)
+            for (int col = 0; col < sampleValues.Count; col++)
             {
                 IXLCell cell = worksheet.Cell(2, col + 1);
                 cell.Value = sampleValues[col];
@@ -603,8 +600,8 @@ namespace HrmApi.Application.Features.Employees.Commands
             string? posCode,
             bool includeExportOnlyColumns)
         {
-            var values = new List<string?>
-            {
+            List<string?> values =
+            [
                 employee.Code,
                 employee.LastName,
                 employee.FirstName,
@@ -643,14 +640,14 @@ namespace HrmApi.Application.Features.Employees.Commands
                 deptCode,
                 partCode,
                 posCode
-            };
+            ];
 
             if (includeExportOnlyColumns)
             {
                 values.Add(employee.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
             }
 
-            for (var col = 0; col < values.Count; col++)
+            for (int col = 0; col < values.Count; col++)
             {
                 IXLCell cell = worksheet.Cell(row, col + 1);
                 cell.Value = values[col] ?? string.Empty;

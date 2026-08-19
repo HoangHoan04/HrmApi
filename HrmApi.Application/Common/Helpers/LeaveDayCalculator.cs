@@ -22,7 +22,10 @@ namespace HrmApi.Application.Common.Helpers
             for (DateOnly d = from; d <= to; d = d.AddDays(1))
             {
                 decimal weight = DayWeight(d, satPolicy, holidays);
-                if (weight <= 0) continue;
+                if (weight <= 0)
+                {
+                    continue;
+                }
 
                 if (session is LeaveSession.AM or LeaveSession.PM)
                 {
@@ -59,18 +62,21 @@ namespace HrmApi.Application.Common.Helpers
 
         public static decimal DayWeight(DateOnly d, SaturdayPolicy satPolicy, HashSet<DateOnly> holidays)
         {
-            if (holidays.Contains(d)) return 0;
-            if (d.DayOfWeek == DayOfWeek.Sunday) return 0;
-            if (d.DayOfWeek == DayOfWeek.Saturday)
+            if (holidays.Contains(d))
             {
-                return satPolicy switch
+                return 0;
+            }
+
+            return d.DayOfWeek == DayOfWeek.Sunday
+                ? 0
+                : d.DayOfWeek == DayOfWeek.Saturday
+                ? satPolicy switch
                 {
                     SaturdayPolicy.Off => 0,
                     SaturdayPolicy.Half => 0.5m,
                     _ => 1m,
-                };
-            }
-            return 1m;
+                }
+                : 1m;
         }
 
         public static async Task<SaturdayPolicy> ResolveSaturdayPolicyAsync(
@@ -78,7 +84,11 @@ namespace HrmApi.Application.Common.Helpers
             Guid? companyId,
             CancellationToken cancellationToken)
         {
-            if (!companyId.HasValue) return SaturdayPolicy.Work;
+            if (!companyId.HasValue)
+            {
+                return SaturdayPolicy.Work;
+            }
+
             SaturdayPolicy? policy = await context.CompanyEntities.AsNoTracking()
                 .Where(x => x.Id == companyId.Value)
                 .Select(x => (SaturdayPolicy?)x.SaturdayPolicy)
@@ -106,11 +116,13 @@ namespace HrmApi.Application.Common.Helpers
                     if (h.IsRecurringYearly)
                     {
                         if (h.HolidayDate.Month == d.Month && h.HolidayDate.Day == d.Day)
-                            set.Add(d);
+                        {
+                            _ = set.Add(d);
+                        }
                     }
                     else if (h.HolidayDate == d)
                     {
-                        set.Add(d);
+                        _ = set.Add(d);
                     }
                 }
             }
@@ -129,7 +141,10 @@ namespace HrmApi.Application.Common.Helpers
                 .Where(x => x.Id == employeeId && !x.IsDeleted)
                 .Select(x => new { x.PartId, x.DepartmentId, x.BranchId, x.CompanyId })
                 .FirstOrDefaultAsync(cancellationToken);
-            if (emp == null) return null;
+            if (emp == null)
+            {
+                return null;
+            }
 
             if (emp.PartId.HasValue)
             {
@@ -138,7 +153,9 @@ namespace HrmApi.Application.Common.Helpers
                     .Select(x => x.ManagerId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (partMgr.HasValue && partMgr != Guid.Empty && partMgr != employeeId)
+                {
                     return partMgr;
+                }
             }
 
             if (emp.DepartmentId.HasValue)
@@ -148,7 +165,9 @@ namespace HrmApi.Application.Common.Helpers
                     .Select(x => x.ManagerId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (deptMgr.HasValue && deptMgr != Guid.Empty && deptMgr != employeeId)
+                {
                     return deptMgr;
+                }
             }
 
             if (emp.BranchId.HasValue)
@@ -158,7 +177,9 @@ namespace HrmApi.Application.Common.Helpers
                     .Select(x => x.ManagerId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (branchMgr.HasValue && branchMgr != Guid.Empty && branchMgr != employeeId)
+                {
                     return branchMgr;
+                }
             }
             else if (emp.CompanyId.HasValue)
             {
@@ -168,7 +189,9 @@ namespace HrmApi.Application.Common.Helpers
                     .Select(x => x.ManagerId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (hqMgr.HasValue && hqMgr != Guid.Empty && hqMgr != employeeId)
+                {
                     return hqMgr;
+                }
             }
 
             return null;
@@ -187,7 +210,9 @@ namespace HrmApi.Application.Common.Helpers
             CancellationToken cancellationToken)
         {
             if (!config.DeductBalance)
+            {
                 return;
+            }
 
             DayOffConfigEmployeeEntity? allocation = await context.DayOffConfigEmployeeEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x =>
@@ -246,14 +271,7 @@ namespace HrmApi.Application.Common.Helpers
                         && x.Year == year
                         && !x.IsDeleted, cancellationToken);
 
-                if (allocation != null)
-                {
-                    total = allocation.AllocatedDays;
-                }
-                else
-                {
-                    total = config.DefaultDaysPerYear;
-                }
+                total = allocation != null ? allocation.AllocatedDays : config.DefaultDaysPerYear;
             }
 
             return Math.Max(0, total - usedOrPending);
@@ -267,7 +285,9 @@ namespace HrmApi.Application.Common.Helpers
             DayOffConfigEntity? config = await ResolveConfigAsync(
                 context, leave.CompanyId, leave.DayOffConfigId, cancellationToken, track: true);
             if (config == null || !config.DeductBalance)
+            {
                 return;
+            }
 
             int year = leave.FromDate.Year;
             DayOffConfigEmployeeEntity? allocation = await context.DayOffConfigEmployeeEntities
@@ -308,7 +328,9 @@ namespace HrmApi.Application.Common.Helpers
             DayOffConfigEntity? config = await ResolveConfigAsync(
                 context, leave.CompanyId, leave.DayOffConfigId, cancellationToken, track: true);
             if (config == null || !config.DeductBalance)
+            {
                 return;
+            }
 
             int year = leave.FromDate.Year;
             DayOffConfigEmployeeEntity? allocation = await context.DayOffConfigEmployeeEntities
@@ -317,7 +339,10 @@ namespace HrmApi.Application.Common.Helpers
                     && x.DayOffConfigId == config.Id
                     && x.Year == year
                     && !x.IsDeleted, cancellationToken);
-            if (allocation == null) return;
+            if (allocation == null)
+            {
+                return;
+            }
 
             allocation.UsedDays = Math.Max(0, allocation.UsedDays - leave.TotalDays);
             allocation.RemainingDays = Math.Max(0, allocation.AllocatedDays - allocation.UsedDays);
@@ -332,7 +357,9 @@ namespace HrmApi.Application.Common.Helpers
             decimal requestDays,
             int year,
             CancellationToken cancellationToken)
-            => EnsureBalanceForTypeInternalAsync(context, employeeId, companyId, dayOffConfigId, requestDays, year, cancellationToken);
+        {
+            return EnsureBalanceForTypeInternalAsync(context, employeeId, companyId, dayOffConfigId, requestDays, year, cancellationToken);
+        }
 
         private static async Task EnsureBalanceForTypeInternalAsync(
             IApplicationDbContext context,
@@ -345,7 +372,11 @@ namespace HrmApi.Application.Common.Helpers
         {
             DayOffConfigEntity? config = await ResolveConfigAsync(
                 context, companyId, dayOffConfigId, cancellationToken);
-            if (config == null) return;
+            if (config == null)
+            {
+                return;
+            }
+
             await EnsureBalanceAsync(context, employeeId, companyId, config, requestDays, year, cancellationToken);
         }
 
@@ -356,7 +387,9 @@ namespace HrmApi.Application.Common.Helpers
             Guid? dayOffConfigId,
             int year,
             CancellationToken cancellationToken)
-            => GetRemainingAsync(context, employeeId, companyId, dayOffConfigId, year, cancellationToken);
+        {
+            return GetRemainingAsync(context, employeeId, companyId, dayOffConfigId, year, cancellationToken);
+        }
 
         private static async Task<DayOffConfigEntity?> ResolveConfigAsync(
             IApplicationDbContext context,
@@ -373,18 +406,19 @@ namespace HrmApi.Application.Common.Helpers
             {
                 DayOffConfigEntity? byId = await query
                     .FirstOrDefaultAsync(x => x.Id == dayOffConfigId.Value && !x.IsDeleted, cancellationToken);
-                if (byId != null) return byId;
+                if (byId != null)
+                {
+                    return byId;
+                }
             }
 
-            var byCompany = await query
+            DayOffConfigEntity? byCompany = await query
                 .Where(x => !x.IsDeleted && x.IsActive
                     && (x.CompanyId == null || (companyId.HasValue && x.CompanyId == companyId)))
                 .OrderByDescending(x => x.CompanyId.HasValue)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (byCompany != null) return byCompany;
-
-            return await query
+            return byCompany ?? await query
                 .Where(x => !x.IsDeleted && x.IsActive)
                 .OrderBy(x => x.Name)
                 .FirstOrDefaultAsync(cancellationToken);

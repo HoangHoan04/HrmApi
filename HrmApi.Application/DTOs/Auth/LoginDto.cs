@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace HrmApi.Application.DTOs.Auth
 {
     public class LoginRequest

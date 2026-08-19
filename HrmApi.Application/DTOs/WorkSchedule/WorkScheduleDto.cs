@@ -1,5 +1,3 @@
-using System;
-
 namespace HrmApi.Application.DTOs.WorkSchedule
 {
     public class WorkScheduleDto : BaseDto

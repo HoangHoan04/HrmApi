@@ -15,19 +15,33 @@ namespace HrmApi.Application.Features.Workflow
         : IRequestHandler<GetWorkflowDefinitionsPagedQuery, PagedResult<WorkflowDefinitionDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetWorkflowDefinitionsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkflowDefinitionsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<WorkflowDefinitionDto>> Handle(
             GetWorkflowDefinitionsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<WorkflowDefinitionEntity> query = _context.WorkflowDefinitionEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
-            if (request.CompanyId.HasValue) query = query.Where(x => x.CompanyId == request.CompanyId);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
+            if (request.CompanyId.HasValue)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.EntityType))
             {
                 string et = WorkflowEngine.NormalizeEntityType(request.EntityType);
-                if (!string.IsNullOrEmpty(et)) query = query.Where(x => x.EntityType == et);
+                if (!string.IsNullOrEmpty(et))
+                {
+                    query = query.Where(x => x.EntityType == et);
+                }
             }
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -54,26 +68,29 @@ namespace HrmApi.Application.Features.Workflow
             return new PagedResult<WorkflowDefinitionDto>(dtos, total, pageIndex, pageSize);
         }
 
-        internal static WorkflowDefinitionDto ToDto(WorkflowDefinitionEntity e, List<WorkflowStepEntity>? steps) => new()
+        internal static WorkflowDefinitionDto ToDto(WorkflowDefinitionEntity e, List<WorkflowStepEntity>? steps)
         {
-            Id = e.Id,
-            Code = e.Code,
-            Name = e.Name,
-            EntityType = e.EntityType,
-            IsActive = e.IsActive,
-            CompanyId = e.CompanyId,
-            Steps = (steps ?? []).Select(s => new WorkflowStepDto
+            return new()
             {
-                Id = s.Id,
-                StepOrder = s.StepOrder,
-                Name = s.Name,
-                ApproverResolver = s.ApproverResolver,
-                RequiredRoleCode = s.RequiredRoleCode,
-                IsFinal = s.IsFinal,
-            }).ToList(),
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+                Id = e.Id,
+                Code = e.Code,
+                Name = e.Name,
+                EntityType = e.EntityType,
+                IsActive = e.IsActive,
+                CompanyId = e.CompanyId,
+                Steps = (steps ?? []).Select(s => new WorkflowStepDto
+                {
+                    Id = s.Id,
+                    StepOrder = s.StepOrder,
+                    Name = s.Name,
+                    ApproverResolver = s.ApproverResolver,
+                    RequiredRoleCode = s.RequiredRoleCode,
+                    IsFinal = s.IsFinal,
+                }).ToList(),
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetWorkflowDefinitionByIdQuery : WorkflowIdRequest, IRequest<WorkflowDefinitionDto?> { }
@@ -82,14 +99,21 @@ namespace HrmApi.Application.Features.Workflow
         : IRequestHandler<GetWorkflowDefinitionByIdQuery, WorkflowDefinitionDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetWorkflowDefinitionByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkflowDefinitionByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<WorkflowDefinitionDto?> Handle(
             GetWorkflowDefinitionByIdQuery request, CancellationToken cancellationToken)
         {
             WorkflowDefinitionEntity? e = await _context.WorkflowDefinitionEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
+            if (e == null)
+            {
+                return null;
+            }
+
             List<WorkflowStepEntity> steps = await _context.WorkflowStepEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.DefinitionId == e.Id)
                 .OrderBy(x => x.StepOrder)
@@ -117,9 +141,11 @@ namespace HrmApi.Application.Features.Workflow
             string entityType = NormalizeEntityType(request.EntityType);
             if (await _context.WorkflowDefinitionEntities.AnyAsync(
                     x => !x.IsDeleted && x.Code == code, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã workflow đã tồn tại.");
+            }
 
-            var entity = new WorkflowDefinitionEntity
+            WorkflowDefinitionEntity entity = new()
             {
                 Code = code,
                 Name = request.Name!.Trim(),
@@ -137,20 +163,28 @@ namespace HrmApi.Application.Features.Workflow
         internal static void Validate(WorkflowDefinitionCommandFields request)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã workflow là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên workflow là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.EntityType))
+            {
                 throw new InvalidOperationException("EntityType là bắt buộc.");
+            }
         }
 
         internal static string NormalizeEntityType(string? value)
         {
             string t = WorkflowEngine.NormalizeEntityType(value);
-            if (string.IsNullOrEmpty(t))
-                throw new InvalidOperationException(
-                    "EntityType không hợp lệ (LEAVE/OT/TRANSFER/DISCIPLINE/RECRUITMENT_REQUEST/COMPLAINT).");
-            return t;
+            return string.IsNullOrEmpty(t)
+                ? throw new InvalidOperationException(
+                    "EntityType không hợp lệ (LEAVE/OT/TRANSFER/DISCIPLINE/RECRUITMENT_REQUEST/COMPLAINT).")
+                : t;
         }
     }
 
@@ -173,13 +207,18 @@ namespace HrmApi.Application.Features.Workflow
         {
             WorkflowDefinitionEntity? entity = await _context.WorkflowDefinitionEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateWorkflowDefinitionCommandHandler.Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.WorkflowDefinitionEntities.AnyAsync(
                     x => !x.IsDeleted && x.Code == code && x.Id != request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã workflow đã tồn tại.");
+            }
 
             entity.Code = code;
             entity.Name = request.Name!.Trim();
@@ -209,7 +248,11 @@ namespace HrmApi.Application.Features.Workflow
         {
             WorkflowDefinitionEntity? entity = await _context.WorkflowDefinitionEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
@@ -234,15 +277,26 @@ namespace HrmApi.Application.Features.Workflow
         {
             WorkflowDefinitionEntity? def = await _context.WorkflowDefinitionEntities
                 .FirstOrDefaultAsync(x => x.Id == request.DefinitionId && !x.IsDeleted, cancellationToken);
-            if (def == null) return false;
+            if (def == null)
+            {
+                return false;
+            }
+
             if (request.Steps == null || request.Steps.Count == 0)
+            {
                 throw new InvalidOperationException("Cần ít nhất một bước workflow.");
+            }
 
             List<WorkflowStepInputDto> ordered = request.Steps.OrderBy(x => x.StepOrder).ToList();
             if (ordered.Count(x => x.IsFinal) != 1)
+            {
                 throw new InvalidOperationException("Phải có đúng một bước IsFinal.");
+            }
+
             if (!ordered[^1].IsFinal)
+            {
                 throw new InvalidOperationException("Bước cuối phải là IsFinal.");
+            }
 
             DateTime now = DateTime.UtcNow;
             List<WorkflowStepEntity> existing = await _context.WorkflowStepEntities
@@ -262,11 +316,19 @@ namespace HrmApi.Application.Features.Workflow
                     WorkflowApproverResolver.Manager
                     or WorkflowApproverResolver.Hr
                     or WorkflowApproverResolver.Role))
+                {
                     throw new InvalidOperationException("ApproverResolver không hợp lệ (MANAGER/HR/ROLE).");
+                }
+
                 if (resolver == WorkflowApproverResolver.Role && string.IsNullOrWhiteSpace(input.RequiredRoleCode))
+                {
                     throw new InvalidOperationException("ROLE resolver yêu cầu RequiredRoleCode.");
+                }
+
                 if (string.IsNullOrWhiteSpace(input.Name))
+                {
                     throw new InvalidOperationException("Tên bước là bắt buộc.");
+                }
 
                 _ = _context.WorkflowStepEntities.Add(new WorkflowStepEntity
                 {

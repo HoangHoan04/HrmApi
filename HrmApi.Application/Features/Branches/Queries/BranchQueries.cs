@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.Common.Services;
 using HrmApi.Application.DTOs.Branch;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,25 +33,25 @@ namespace HrmApi.Application.Features.Branches.Queries
 
         public async Task<PagedResult<BranchDto>> Handle(GetBranchesPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.BranchEntities.AsNoTracking();
+            IQueryable<BranchEntity> query = _context.BranchEntities.AsNoTracking();
             query = await query.ApplyBranchDataScopeAsync(
                 _dataScope, PermissionCodes.OrgBranchView, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
             if (!string.IsNullOrWhiteSpace(request.ShortName))
             {
-                var shortName = request.ShortName.Trim().ToLower();
+                string shortName = request.ShortName.Trim().ToLower();
                 query = query.Where(x => x.ShortName.ToLower().Contains(shortName));
             }
 
@@ -71,15 +67,15 @@ namespace HrmApi.Application.Features.Branches.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(search) || x.Code.ToLower().Contains(search));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
 
             query = ApplySorting(query, request);
 
-            var entities = await query
+            List<BranchEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
@@ -96,15 +92,15 @@ namespace HrmApi.Application.Features.Branches.Queries
                 .Distinct()
                 .ToList();
 
-            var companyMap = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> companyMap = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities
                     .AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var parentMap = parentIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> parentMap = parentIds.Count == 0
+                ? []
                 : await _context.BranchEntities
                     .AsNoTracking()
                     .Where(x => parentIds.Contains(x.Id))
@@ -112,10 +108,10 @@ namespace HrmApi.Application.Features.Branches.Queries
 
             var items = entities.Select(x =>
             {
-                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cn)
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out string? cn)
                     ? cn
                     : null;
-                string? parentBranchName = x.ParentBranchId.HasValue && parentMap.TryGetValue(x.ParentBranchId.Value, out var pn)
+                string? parentBranchName = x.ParentBranchId.HasValue && parentMap.TryGetValue(x.ParentBranchId.Value, out string? pn)
                     ? pn
                     : null;
                 return BranchMapper.ToDto(x, companyName, parentBranchName);
@@ -130,7 +126,7 @@ namespace HrmApi.Application.Features.Branches.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
@@ -167,16 +163,19 @@ namespace HrmApi.Application.Features.Branches.Queries
 
         public async Task<BranchDto?> Handle(GetBranchByIdQuery request, CancellationToken cancellationToken)
         {
-            var branch = await _context.BranchEntities
+            BranchEntity? branch = await _context.BranchEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (branch == null) return null;
+            if (branch == null)
+            {
+                return null;
+            }
 
             string? companyName = null;
             if (branch.CompanyId.HasValue)
             {
-                var company = await _context.CompanyEntities
+                CompanyEntity? company = await _context.CompanyEntities
                     .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.Id == branch.CompanyId.Value, cancellationToken);
                 companyName = company?.Name;
@@ -185,7 +184,7 @@ namespace HrmApi.Application.Features.Branches.Queries
             string? parentBranchName = null;
             if (branch.ParentBranchId.HasValue)
             {
-                var parentBranch = await _context.BranchEntities
+                BranchEntity? parentBranch = await _context.BranchEntities
                     .AsNoTracking()
                     .FirstOrDefaultAsync(b => b.Id == branch.ParentBranchId.Value, cancellationToken);
                 parentBranchName = parentBranch?.Name;
@@ -214,7 +213,7 @@ namespace HrmApi.Application.Features.Branches.Queries
 
         public async Task<List<BranchSelectBoxDto>> Handle(GetBranchSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.BranchEntities
+            IQueryable<BranchEntity> query = _context.BranchEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
@@ -260,9 +259,11 @@ namespace HrmApi.Application.Features.Branches.Queries
         public async Task<List<BranchSelectBoxDto>> Handle(GetBranchesByCompanyQuery request, CancellationToken cancellationToken)
         {
             if (request.CompanyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Id công ty là bắt buộc.");
+            }
 
-            var query = _context.BranchEntities
+            IQueryable<BranchEntity> query = _context.BranchEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CompanyId == request.CompanyId);
 

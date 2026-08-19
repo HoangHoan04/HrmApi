@@ -8,6 +8,7 @@ using HrmApi.Application.Features.Contracts.Queries;
 using HrmApi.Application.Features.Organization;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Contract;
+using HrmApi.Domain.Entities.Employee;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -54,7 +55,7 @@ namespace HrmApi.Application.Features.Mobile
         public async Task<List<EmployeeFileDto>> Handle(GetMyEmployeeFilesQuery request, CancellationToken cancellationToken)
         {
             Guid employeeId = await MobileEmployeeHelper.ResolveEmployeeIdAsync(_context, _currentUser, cancellationToken);
-            var rows = await _context.EmployeeFileEntities.AsNoTracking()
+            List<EmployeeFileEntity> rows = await _context.EmployeeFileEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.EmployeeId == employeeId)
                 .OrderByDescending(x => x.IsCurrent)
                 .ThenByDescending(x => x.CreatedAt)
@@ -89,16 +90,20 @@ namespace HrmApi.Application.Features.Mobile
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!companyId.HasValue || companyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Nhân viên chưa gắn công ty.");
+            }
 
             int pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
             int pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, 100);
 
-            var query = _context.EmployeeEntities.AsNoTracking()
+            IQueryable<EmployeeEntity> query = _context.EmployeeEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CompanyId == companyId);
 
             if (request.DepartmentId.HasValue && request.DepartmentId != Guid.Empty)
+            {
                 query = query.Where(x => x.DepartmentId == request.DepartmentId);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -127,8 +132,8 @@ namespace HrmApi.Application.Features.Mobile
                 })
                 .ToListAsync(cancellationToken);
 
-            var deptIds = page.Where(x => x.DepartmentId.HasValue).Select(x => x.DepartmentId!.Value).Distinct().ToList();
-            var posIds = page.Where(x => x.PositionId.HasValue).Select(x => x.PositionId!.Value).Distinct().ToList();
+            List<Guid> deptIds = page.Where(x => x.DepartmentId.HasValue).Select(x => x.DepartmentId!.Value).Distinct().ToList();
+            List<Guid> posIds = page.Where(x => x.PositionId.HasValue).Select(x => x.PositionId!.Value).Distinct().ToList();
 
             Dictionary<Guid, string> depts = deptIds.Count == 0
                 ? []
@@ -143,7 +148,7 @@ namespace HrmApi.Application.Features.Mobile
                     .Where(x => posIds.Contains(x.Id))
                     .Select(x => new { x.Id, x.PositionMasterId })
                     .ToListAsync(cancellationToken);
-                var masterIds = posRows.Where(x => x.PositionMasterId.HasValue).Select(x => x.PositionMasterId!.Value).Distinct().ToList();
+                List<Guid> masterIds = posRows.Where(x => x.PositionMasterId.HasValue).Select(x => x.PositionMasterId!.Value).Distinct().ToList();
                 Dictionary<Guid, string> masters = masterIds.Count == 0
                     ? []
                     : await _context.PositionMasterEntities.AsNoTracking()
@@ -152,11 +157,13 @@ namespace HrmApi.Application.Features.Mobile
                 foreach (var row in posRows)
                 {
                     if (row.PositionMasterId.HasValue && masters.TryGetValue(row.PositionMasterId.Value, out var name))
+                    {
                         positions[row.Id] = name;
+                    }
                 }
             }
 
-            var items = page.Select(x => new MobileDirectoryEmployeeDto
+            List<MobileDirectoryEmployeeDto> items = page.Select(x => new MobileDirectoryEmployeeDto
             {
                 Id = x.Id,
                 Code = x.Code,
@@ -204,14 +211,13 @@ namespace HrmApi.Application.Features.Mobile
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
-            if (!companyId.HasValue || companyId == Guid.Empty)
-                throw new InvalidOperationException("Nhân viên chưa gắn công ty.");
-
-            return await _mediator.Send(new GetOrgChartTreeQuery
-            {
-                CompanyId = companyId.Value,
-                IncludeParts = request.IncludeParts,
-            }, cancellationToken);
+            return !companyId.HasValue || companyId == Guid.Empty
+                ? throw new InvalidOperationException("Nhân viên chưa gắn công ty.")
+                : await _mediator.Send(new GetOrgChartTreeQuery
+                {
+                    CompanyId = companyId.Value,
+                    IncludeParts = request.IncludeParts,
+                }, cancellationToken);
         }
     }
 }

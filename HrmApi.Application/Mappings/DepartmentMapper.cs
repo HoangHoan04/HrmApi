@@ -1,5 +1,4 @@
-﻿using HrmApi.Application.DTOs;
-using HrmApi.Application.DTOs.Department;
+﻿using HrmApi.Application.DTOs.Department;
 using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Application.Mappings
@@ -104,8 +103,10 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        private static string? TrimOrNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        private static string? TrimOrNull(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
     }
 
     public class DepartmentCommandFields

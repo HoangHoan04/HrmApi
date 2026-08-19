@@ -73,8 +73,10 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        private static string? TrimOrNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        private static string? TrimOrNull(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
     }
 
     public class PartCommandFields

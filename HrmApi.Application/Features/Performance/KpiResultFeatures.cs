@@ -13,13 +13,19 @@ namespace HrmApi.Application.Features.Performance
     public class GetKpiResultsPagedQueryHandler : IRequestHandler<GetKpiResultsPagedQuery, PagedResult<KpiResultDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetKpiResultsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetKpiResultsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<KpiResultDto>> Handle(GetKpiResultsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<KpiResultEntity> query = _context.KpiResultEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.GoalId.HasValue && request.GoalId != Guid.Empty)
+            {
                 query = query.Where(x => x.GoalId == request.GoalId);
+            }
+
             if (request.CycleId.HasValue && request.CycleId != Guid.Empty)
             {
                 query = from r in query
@@ -46,13 +52,17 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task<List<KpiResultDto>> MapManyAsync(List<KpiResultEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var goalIds = rows.Select(x => x.GoalId).Distinct().ToList();
-            var raterIds = rows.Where(x => x.RatedByEmployeeId.HasValue).Select(x => x.RatedByEmployeeId!.Value).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var goals = await _context.KpiGoalEntities.AsNoTracking()
+            List<Guid> goalIds = rows.Select(x => x.GoalId).Distinct().ToList();
+            List<Guid> raterIds = rows.Where(x => x.RatedByEmployeeId.HasValue).Select(x => x.RatedByEmployeeId!.Value).Distinct().ToList();
+
+            Dictionary<Guid, string> goals = await _context.KpiGoalEntities.AsNoTracking()
                 .Where(x => goalIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Title, cancellationToken);
-            var raters = raterIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> raters = raterIds.Count == 0 ? []
                 : await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => raterIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.FullName ?? (x.LastName + " " + x.FirstName).Trim(), cancellationToken);
@@ -90,8 +100,7 @@ namespace HrmApi.Application.Features.Performance
         {
             KpiResultEntity? e = await _context.KpiResultEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -129,12 +138,20 @@ namespace HrmApi.Application.Features.Performance
         internal async Task ValidateAsync(KpiResultCommandFields request, CancellationToken cancellationToken)
         {
             if (!request.GoalId.HasValue || request.GoalId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Mục tiêu KPI (parent) là bắt buộc.");
+            }
+
             if (!await _context.KpiGoalEntities.AnyAsync(x => x.Id == request.GoalId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Mục tiêu KPI không tồn tại.");
+            }
+
             if (request.RatedByEmployeeId.HasValue && request.RatedByEmployeeId != Guid.Empty
                 && !await _context.EmployeeEntities.AnyAsync(x => x.Id == request.RatedByEmployeeId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Người đánh giá không tồn tại.");
+            }
         }
     }
 
@@ -159,7 +176,10 @@ namespace HrmApi.Application.Features.Performance
         {
             KpiResultEntity? entity = await _context.KpiResultEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.GoalId ??= entity.GoalId;
             await _create.ValidateAsync(request, cancellationToken);
@@ -193,7 +213,11 @@ namespace HrmApi.Application.Features.Performance
         {
             KpiResultEntity? entity = await _context.KpiResultEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

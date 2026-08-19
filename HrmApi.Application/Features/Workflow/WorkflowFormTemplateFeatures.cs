@@ -14,7 +14,10 @@ namespace HrmApi.Application.Features.Workflow
         : IRequestHandler<GetWorkflowFormTemplatesPagedQuery, PagedResult<WorkflowFormTemplateDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetWorkflowFormTemplatesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkflowFormTemplatesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<WorkflowFormTemplateDto>> Handle(
             GetWorkflowFormTemplatesPagedQuery request, CancellationToken cancellationToken)
@@ -24,7 +27,10 @@ namespace HrmApi.Application.Features.Workflow
             if (!string.IsNullOrWhiteSpace(request.EntityType))
             {
                 string et = WorkflowEngine.NormalizeEntityType(request.EntityType);
-                if (!string.IsNullOrEmpty(et)) query = query.Where(x => x.EntityType == et);
+                if (!string.IsNullOrEmpty(et))
+                {
+                    query = query.Where(x => x.EntityType == et);
+                }
             }
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -40,15 +46,18 @@ namespace HrmApi.Application.Features.Workflow
             return new PagedResult<WorkflowFormTemplateDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static WorkflowFormTemplateDto ToDto(WorkflowFormTemplateEntity e) => new()
+        internal static WorkflowFormTemplateDto ToDto(WorkflowFormTemplateEntity e)
         {
-            Id = e.Id,
-            EntityType = e.EntityType,
-            Name = e.Name,
-            SchemaJson = e.SchemaJson,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                EntityType = e.EntityType,
+                Name = e.Name,
+                SchemaJson = e.SchemaJson,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetWorkflowFormTemplateByIdQuery : WorkflowIdRequest, IRequest<WorkflowFormTemplateDto?> { }
@@ -57,7 +66,10 @@ namespace HrmApi.Application.Features.Workflow
         : IRequestHandler<GetWorkflowFormTemplateByIdQuery, WorkflowFormTemplateDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetWorkflowFormTemplateByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkflowFormTemplateByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<WorkflowFormTemplateDto?> Handle(
             GetWorkflowFormTemplateByIdQuery request, CancellationToken cancellationToken)
@@ -84,7 +96,7 @@ namespace HrmApi.Application.Features.Workflow
         {
             Validate(request);
             string entityType = CreateWorkflowDefinitionCommandHandler.NormalizeEntityType(request.EntityType);
-            var entity = new WorkflowFormTemplateEntity
+            WorkflowFormTemplateEntity entity = new()
             {
                 EntityType = entityType,
                 Name = request.Name!.Trim(),
@@ -100,9 +112,14 @@ namespace HrmApi.Application.Features.Workflow
         internal static void Validate(WorkflowFormTemplateCommandFields request)
         {
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên form template là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.EntityType))
+            {
                 throw new InvalidOperationException("EntityType là bắt buộc.");
+            }
         }
     }
 
@@ -125,7 +142,10 @@ namespace HrmApi.Application.Features.Workflow
         {
             WorkflowFormTemplateEntity? entity = await _context.WorkflowFormTemplateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateWorkflowFormTemplateCommandHandler.Validate(request);
             entity.EntityType = CreateWorkflowDefinitionCommandHandler.NormalizeEntityType(request.EntityType);
@@ -154,7 +174,11 @@ namespace HrmApi.Application.Features.Workflow
         {
             WorkflowFormTemplateEntity? entity = await _context.WorkflowFormTemplateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

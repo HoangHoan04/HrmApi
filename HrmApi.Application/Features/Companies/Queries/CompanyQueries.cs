@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Company;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,17 +28,17 @@ namespace HrmApi.Application.Features.Companies.Queries
 
         public async Task<PagedResult<CompanyDto>> Handle(GetCompaniesPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.CompanyEntities.AsNoTracking();
+            IQueryable<CompanyEntity> query = _context.CompanyEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
@@ -58,15 +54,15 @@ namespace HrmApi.Application.Features.Companies.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(search) || x.Code.ToLower().Contains(search));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
 
             query = ApplySorting(query, request);
 
-            var entities = await query
+            List<CompanyEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
@@ -77,8 +73,8 @@ namespace HrmApi.Application.Features.Companies.Queries
                 .Distinct()
                 .ToList();
 
-            var parentMap = parentIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> parentMap = parentIds.Count == 0
+                ? []
                 : await _context.CompanyEntities
                     .AsNoTracking()
                     .Where(x => parentIds.Contains(x.Id))
@@ -86,7 +82,7 @@ namespace HrmApi.Application.Features.Companies.Queries
 
             var items = entities.Select(x =>
             {
-                string? parentName = x.ParentId.HasValue && parentMap.TryGetValue(x.ParentId.Value, out var name)
+                string? parentName = x.ParentId.HasValue && parentMap.TryGetValue(x.ParentId.Value, out string? name)
                     ? name
                     : null;
                 return CompanyMapper.ToDto(x, parentName);
@@ -101,7 +97,7 @@ namespace HrmApi.Application.Features.Companies.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
@@ -138,11 +134,14 @@ namespace HrmApi.Application.Features.Companies.Queries
 
         public async Task<CompanyDto?> Handle(GetCompanyByIdQuery request, CancellationToken cancellationToken)
         {
-            var company = await _context.CompanyEntities
+            CompanyEntity? company = await _context.CompanyEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (company == null) return null;
+            if (company == null)
+            {
+                return null;
+            }
 
             string? parentName = null;
             if (company.ParentId.HasValue)
@@ -176,7 +175,7 @@ namespace HrmApi.Application.Features.Companies.Queries
 
         public async Task<List<CompanySelectBoxDto>> Handle(GetCompanySelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.CompanyEntities
+            IQueryable<CompanyEntity> query = _context.CompanyEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 

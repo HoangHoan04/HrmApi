@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Position;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,62 +29,82 @@ namespace HrmApi.Application.Features.Positions.Queries
 
         public async Task<PagedResult<PositionDto>> Handle(GetPositionsPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PositionEntities.AsNoTracking();
+            IQueryable<PositionEntity> query = _context.PositionEntities.AsNoTracking();
 
             if (request.IsDeleted.HasValue)
+            {
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
+            }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
 
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
 
             if (request.DepartmentId.HasValue && request.DepartmentId != Guid.Empty)
+            {
                 query = query.Where(x => x.DepartmentId == request.DepartmentId);
+            }
 
             if (request.PartId.HasValue && request.PartId != Guid.Empty)
+            {
                 query = query.Where(x => x.PartId == request.PartId);
+            }
 
             if (request.PositionMasterId.HasValue && request.PositionMasterId != Guid.Empty)
+            {
                 query = query.Where(x => x.PositionMasterId == request.PositionMasterId);
+            }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
             query = ApplySorting(query, request);
 
-            var entities = await query
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+            List<PositionEntity> entities = await query
+              .Skip((request.PageIndex - 1) * request.PageSize)
+              .Take(request.PageSize)
+              .ToListAsync(cancellationToken);
 
-            var masterIds = entities.Where(x => x.PositionMasterId.HasValue).Select(x => x.PositionMasterId!.Value).Distinct().ToList();
-            var departmentIds = entities.Where(x => x.DepartmentId.HasValue).Select(x => x.DepartmentId!.Value).Distinct().ToList();
-            var companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            List<Guid> masterIds = entities.Where(x => x.PositionMasterId.HasValue).Select(x => x.PositionMasterId!.Value).Distinct().ToList();
+            List<Guid> departmentIds = entities.Where(x => x.DepartmentId.HasValue).Select(x => x.DepartmentId!.Value).Distinct().ToList();
+            List<Guid> companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            List<Guid> branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
 
-            var masterMap = masterIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> masterMap = masterIds.Count == 0
+                ? []
                 : await _context.PositionMasterEntities.AsNoTracking()
                     .Where(x => masterIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var departmentMap = departmentIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> departmentMap = departmentIds.Count == 0
+                ? []
                 : await _context.DepartmentEntities.AsNoTracking()
                     .Where(x => departmentIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var companyMap = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> companyMap = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities.AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var items = entities.Select(x =>
+            Dictionary<Guid, string> branchMap = branchIds.Count == 0
+                ? []
+                : await _context.BranchEntities.AsNoTracking()
+                    .Where(x => branchIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+            List<PositionDto> items = entities.Select(x =>
             {
-                string? masterName = x.PositionMasterId.HasValue && masterMap.TryGetValue(x.PositionMasterId.Value, out var mName) ? mName : null;
-                string? departmentName = x.DepartmentId.HasValue && departmentMap.TryGetValue(x.DepartmentId.Value, out var dName) ? dName : null;
-                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cName) ? cName : null;
-                return PositionMapper.ToDto(x, companyName, null, departmentName, null, masterName);
+                string? masterName = x.PositionMasterId.HasValue && masterMap.TryGetValue(x.PositionMasterId.Value, out string? mName) ? mName : null;
+                string? departmentName = x.DepartmentId.HasValue && departmentMap.TryGetValue(x.DepartmentId.Value, out string? dName) ? dName : null;
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out string? cName) ? cName : null;
+                string? branchName = x.BranchId.HasValue && branchMap.TryGetValue(x.BranchId.Value, out string? bName) ? bName : null;
+                return PositionMapper.ToDto(x, companyName, branchName, departmentName, null, masterName);
             }).ToList();
 
             return new PagedResult<PositionDto>(items, totalCount, request.PageIndex, request.PageSize);
@@ -100,7 +116,7 @@ namespace HrmApi.Application.Features.Positions.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "status" or "isdeleted" => isDesc ? query.OrderByDescending(x => x.IsDeleted) : query.OrderBy(x => x.IsDeleted),
@@ -129,11 +145,14 @@ namespace HrmApi.Application.Features.Positions.Queries
 
         public async Task<PositionDto?> Handle(GetPositionByIdQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _context.PositionEntities
+            PositionEntity? entity = await _context.PositionEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             string? masterName = null;
             if (entity.PositionMasterId.HasValue)
@@ -165,7 +184,27 @@ namespace HrmApi.Application.Features.Positions.Queries
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
-            return PositionMapper.ToDto(entity, companyName, null, departmentName, null, masterName);
+            string? branchName = null;
+            if (entity.BranchId.HasValue)
+            {
+                branchName = await _context.BranchEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == entity.BranchId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            string? partName = null;
+            if (entity.PartId.HasValue)
+            {
+                partName = await _context.PartEntities
+                    .AsNoTracking()
+                    .Where(x => x.Id == entity.PartId.Value)
+                    .Select(x => x.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            return PositionMapper.ToDto(entity, companyName, branchName, departmentName, partName, masterName);
         }
     }
 
@@ -187,18 +226,24 @@ namespace HrmApi.Application.Features.Positions.Queries
 
         public async Task<List<PositionSelectBoxDto>> Handle(GetPositionSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PositionEntities
+            IQueryable<PositionEntity> query = _context.PositionEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
             if (request.ExcludeId.HasValue && request.ExcludeId != Guid.Empty)
+            {
                 query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
 
             if (request.DepartmentId.HasValue && request.DepartmentId != Guid.Empty)
+            {
                 query = query.Where(x => x.DepartmentId == request.DepartmentId);
+            }
 
             if (request.PositionMasterId.HasValue && request.PositionMasterId != Guid.Empty)
+            {
                 query = query.Where(x => x.PositionMasterId == request.PositionMasterId);
+            }
 
             return await query
                 .OrderBy(x => x.DisplayOrder)

@@ -29,13 +29,17 @@ namespace HrmApi.Application.Features.Mobile
         public async Task<MobileTeamMonthDto> Handle(GetMobileTeamMonthQuery request, CancellationToken cancellationToken)
         {
             if (request.Year < 2000 || request.Month < 1 || request.Month > 12)
+            {
                 throw new InvalidOperationException("Năm/tháng không hợp lệ.");
+            }
 
             bool allowed = _currentUser.IsAdmin
                 || _currentUser.HasPermission(PermissionCodes.OperateLeaveApprove)
                 || _currentUser.HasPermission(PermissionCodes.OperateTimekeepingView);
             if (!allowed)
+            {
                 throw new InvalidOperationException("Bạn không có quyền xem công đội nhóm.");
+            }
 
             Guid managerId = await MobileEmployeeHelper.ResolveEmployeeIdAsync(_context, _currentUser, cancellationToken);
             DateOnly from = new(request.Year, request.Month, 1);
@@ -46,8 +50,11 @@ namespace HrmApi.Application.Features.Mobile
                 .OrderBy(x => x.Code)
                 .ToListAsync(cancellationToken);
 
-            var result = new MobileTeamMonthDto { Year = request.Year, Month = request.Month };
-            if (reports.Count == 0) return result;
+            MobileTeamMonthDto result = new() { Year = request.Year, Month = request.Month };
+            if (reports.Count == 0)
+            {
+                return result;
+            }
 
             List<Guid> empIds = reports.Select(x => x.Id).ToList();
             List<TimekeepingEntity> records = await _context.TimekeepingEntities.AsNoTracking()
@@ -58,11 +65,11 @@ namespace HrmApi.Application.Features.Mobile
                 .OrderBy(x => x.WorkDate)
                 .ToListAsync(cancellationToken);
 
-            var byEmp = records.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+            Dictionary<Guid, List<TimekeepingEntity>> byEmp = records.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
 
             foreach (EmployeeEntity emp in reports)
             {
-                List<TimekeepingEntity> days = byEmp.TryGetValue(emp.Id, out var list) ? list : [];
+                List<TimekeepingEntity> days = byEmp.TryGetValue(emp.Id, out List<TimekeepingEntity>? list) ? list : [];
                 List<MobileMonthDayDto> dayDtos = days.Select(TimekeepingMapper.ToMonthDayDto).ToList();
                 result.Members.Add(new MobileTeamMemberMonthDto
                 {
@@ -109,7 +116,10 @@ namespace HrmApi.Application.Features.Mobile
                 .Where(x => !x.IsDeleted && x.EmployeeId == employeeId);
 
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim());
+            }
+
             if (request.Year.HasValue)
             {
                 DateOnly from = new(request.Year.Value, 1, 1);
@@ -123,7 +133,10 @@ namespace HrmApi.Application.Features.Mobile
                 .Take(500)
                 .ToListAsync(cancellationToken);
 
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
             var emp = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => x.Id == employeeId)

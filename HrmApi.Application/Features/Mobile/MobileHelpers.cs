@@ -11,7 +11,9 @@ namespace HrmApi.Application.Features.Mobile
             CancellationToken cancellationToken)
         {
             if (currentUser.EmployeeId.HasValue && currentUser.EmployeeId != Guid.Empty)
+            {
                 return currentUser.EmployeeId.Value;
+            }
 
             if (currentUser.UserId.HasValue)
             {
@@ -20,7 +22,9 @@ namespace HrmApi.Application.Features.Mobile
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");

@@ -1,7 +1,7 @@
-using System.Reflection;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Services;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace HrmApi.Application
 {
@@ -9,22 +9,22 @@ namespace HrmApi.Application
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
-            services.AddMediatR(cfg =>
+            _ = services.AddMediatR(cfg =>
             {
-                cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+                _ = cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
             });
 
-            services.AddMemoryCache();
-            services.AddSingleton<IPermissionCache, MemoryPermissionCache>();
-            services.AddSingleton<IIpAllowlistCache, MemoryIpAllowlistCache>();
+            _ = services.AddMemoryCache();
+            _ = services.AddSingleton<IPermissionCache, MemoryPermissionCache>();
+            _ = services.AddSingleton<IIpAllowlistCache, MemoryIpAllowlistCache>();
 
-            services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
-            services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();
-            services.AddScoped<IAuthContextService, AuthContextService>();
-            services.AddScoped<IDataScopeService, DataScopeService>();
-            services.AddScoped<IWorkflowEngine, WorkflowEngine>();
-            services.AddHttpClient(nameof(WebhookDeliveryService));
-            services.AddScoped<IWebhookDeliveryService, WebhookDeliveryService>();
+            _ = services.AddScoped<IActionLogService, HrmApi.Application.Services.ActionLogService>();
+            _ = services.AddScoped<IAttendanceRuleService, AttendanceRuleService>();
+            _ = services.AddScoped<IAuthContextService, AuthContextService>();
+            _ = services.AddScoped<IDataScopeService, DataScopeService>();
+            _ = services.AddScoped<IWorkflowEngine, WorkflowEngine>();
+            _ = services.AddHttpClient(nameof(WebhookDeliveryService));
+            _ = services.AddScoped<IWebhookDeliveryService, WebhookDeliveryService>();
 
             return services;
         }

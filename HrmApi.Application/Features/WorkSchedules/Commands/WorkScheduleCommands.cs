@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Timekeeping;
@@ -27,7 +24,7 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
         {
             await ValidateAsync(request, null, cancellationToken);
 
-            var entity = new WorkScheduledEmployeeEntity
+            WorkScheduledEmployeeEntity entity = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
@@ -36,8 +33,8 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
             };
             WorkScheduleMapper.ApplyCommandFields(entity, request);
 
-            _context.WorkScheduledEmployeeEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.WorkScheduledEmployeeEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -53,48 +50,66 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
         internal async Task ValidateAsync(WorkScheduleCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (request.EmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Nhân viên là bắt buộc.");
-            if (request.WorkDate == default)
-                throw new InvalidOperationException("Ngày làm việc là bắt buộc.");
-            if (!request.ShiftMasterId.HasValue && !request.ShiftId.HasValue)
-                throw new InvalidOperationException("Cần chọn ca làm việc (ShiftMaster hoặc Shift).");
+            }
 
-            var employeeExists = await _context.EmployeeEntities
+            if (request.WorkDate == default)
+            {
+                throw new InvalidOperationException("Ngày làm việc là bắt buộc.");
+            }
+
+            if (!request.ShiftMasterId.HasValue && !request.ShiftId.HasValue)
+            {
+                throw new InvalidOperationException("Cần chọn ca làm việc (ShiftMaster hoặc Shift).");
+            }
+
+            bool employeeExists = await _context.EmployeeEntities
                 .AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken);
             if (!employeeExists)
+            {
                 throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
 
             if (request.ShiftMasterId.HasValue)
             {
-                var smExists = await _context.ShiftMasterEntities
+                bool smExists = await _context.ShiftMasterEntities
                     .AnyAsync(x => x.Id == request.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
                 if (!smExists)
+                {
                     throw new InvalidOperationException("Mẫu ca không tồn tại.");
+                }
             }
 
             if (request.ShiftId.HasValue)
             {
-                var shiftExists = await _context.ShiftEntities
+                bool shiftExists = await _context.ShiftEntities
                     .AnyAsync(x => x.Id == request.ShiftId.Value && !x.IsDeleted, cancellationToken);
                 if (!shiftExists)
+                {
                     throw new InvalidOperationException("Ca làm việc không tồn tại.");
+                }
             }
 
             if (request.BranchId.HasValue)
             {
-                var branchExists = await _context.BranchEntities
+                bool branchExists = await _context.BranchEntities
                     .AnyAsync(x => x.Id == request.BranchId.Value && !x.IsDeleted, cancellationToken);
                 if (!branchExists)
+                {
                     throw new InvalidOperationException("Chi nhánh không tồn tại.");
+                }
             }
 
-            var duplicate = await _context.WorkScheduledEmployeeEntities
+            bool duplicate = await _context.WorkScheduledEmployeeEntities
                 .AnyAsync(x => x.EmployeeId == request.EmployeeId
                     && x.WorkDate == request.WorkDate
                     && !x.IsDeleted
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
             if (duplicate)
+            {
                 throw new InvalidOperationException("Nhân viên đã có lịch làm việc trong ngày này.");
+            }
         }
     }
 
@@ -120,13 +135,16 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
         {
             var entity = await _context.WorkScheduledEmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await _createHandler.ValidateAsync(request, request.Id, cancellationToken);
-            var oldValue = WorkScheduleMapper.ToLogObject(entity);
+            object oldValue = WorkScheduleMapper.ToLogObject(entity);
             WorkScheduleMapper.ApplyCommandFields(entity, request);
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -160,11 +178,14 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
         {
             var entity = await _context.WorkScheduledEmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -209,16 +230,27 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
     public class BulkCreateWorkScheduleCommandHandler : IRequestHandler<BulkCreateWorkScheduleCommand, BulkWorkScheduleResult>
     {
         private readonly IApplicationDbContext _context;
-        public BulkCreateWorkScheduleCommandHandler(IApplicationDbContext context) => _context = context;
+        public BulkCreateWorkScheduleCommandHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<BulkWorkScheduleResult> Handle(BulkCreateWorkScheduleCommand request, CancellationToken cancellationToken)
         {
             if (request.EmployeeIds.Count == 0)
+            {
                 throw new InvalidOperationException("Chọn ít nhất 1 nhân viên.");
+            }
+
             if (request.ToDate < request.FromDate)
+            {
                 throw new InvalidOperationException("Đến ngày phải >= Từ ngày.");
+            }
+
             if (!request.ShiftMasterId.HasValue && !request.ShiftId.HasValue)
+            {
                 throw new InvalidOperationException("Cần chọn ca làm việc.");
+            }
 
             BulkWorkScheduleResult result = new();
             foreach (Guid employeeId in request.EmployeeIds.Distinct())
@@ -274,12 +306,17 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
     public class CopyWorkScheduleWeekCommandHandler : IRequestHandler<CopyWorkScheduleWeekCommand, BulkWorkScheduleResult>
     {
         private readonly IApplicationDbContext _context;
-        public CopyWorkScheduleWeekCommandHandler(IApplicationDbContext context) => _context = context;
+        public CopyWorkScheduleWeekCommandHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<BulkWorkScheduleResult> Handle(CopyWorkScheduleWeekCommand request, CancellationToken cancellationToken)
         {
             if (request.EmployeeIds.Count == 0)
+            {
                 throw new InvalidOperationException("Chọn ít nhất 1 nhân viên.");
+            }
 
             DateOnly sourceEnd = request.SourceWeekStart.AddDays(6);
             DateOnly targetEnd = request.TargetWeekStart.AddDays(6);
@@ -296,7 +333,10 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
             foreach (WorkScheduledEmployeeEntity src in source)
             {
                 DateOnly targetDate = src.WorkDate.AddDays(offsetDays);
-                if (targetDate < request.TargetWeekStart || targetDate > targetEnd) continue;
+                if (targetDate < request.TargetWeekStart || targetDate > targetEnd)
+                {
+                    continue;
+                }
 
                 WorkScheduledEmployeeEntity? existing = await _context.WorkScheduledEmployeeEntities
                     .FirstOrDefaultAsync(x => x.EmployeeId == src.EmployeeId && x.WorkDate == targetDate && !x.IsDeleted, cancellationToken);

@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.PositionMaster;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,53 +28,59 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
 
         public async Task<PagedResult<PositionMasterDto>> Handle(GetPositionMastersPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PositionMasterEntities.AsNoTracking();
+            IQueryable<PositionMasterEntity> query = _context.PositionMasterEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
             if (request.IsDeleted.HasValue)
+            {
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
+            }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
 
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(search) || x.Code.ToLower().Contains(search));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
             query = ApplySorting(query, request);
 
-            var entities = await query
+            List<PositionMasterEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
             var companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
-            var companyMap = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> companyMap = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities.AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             var items = entities.Select(x =>
             {
-                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cName) ? cName : null;
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out string? cName) ? cName : null;
                 return PositionMasterMapper.ToDto(x, companyName);
             }).ToList();
 
@@ -91,7 +93,7 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
@@ -122,11 +124,14 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
 
         public async Task<PositionMasterDto?> Handle(GetPositionMasterByIdQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _context.PositionMasterEntities
+            PositionMasterEntity? entity = await _context.PositionMasterEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             string? companyName = null;
             if (entity.CompanyId.HasValue)
@@ -160,18 +165,24 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
 
         public async Task<List<PositionMasterSelectBoxDto>> Handle(GetPositionMasterSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PositionMasterEntities
+            IQueryable<PositionMasterEntity> query = _context.PositionMasterEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
             if (request.ExcludeId.HasValue && request.ExcludeId != Guid.Empty)
+            {
                 query = query.Where(x => x.Id != request.ExcludeId.Value);
+            }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
 
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
 
             return await query
                 .OrderBy(x => x.Name)
@@ -205,7 +216,7 @@ namespace HrmApi.Application.Features.PositionMasters.Queries
 
         public async Task<List<PositionMasterSelectBoxDto>> Handle(GetPositionMastersByScopeQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PositionMasterEntities
+            IQueryable<PositionMasterEntity> query = _context.PositionMasterEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 

@@ -20,7 +20,10 @@ namespace HrmApi.Application.Features.SalaryConfigs.Queries
     public class GetSalaryConfigsPagedQueryHandler : IRequestHandler<GetSalaryConfigsPagedQuery, PagedResult<SalaryConfigDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetSalaryConfigsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSalaryConfigsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<SalaryConfigDto>> Handle(GetSalaryConfigsPagedQuery request, CancellationToken cancellationToken)
         {
@@ -40,9 +43,15 @@ namespace HrmApi.Application.Features.SalaryConfigs.Queries
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.IsActive == request.IsActive.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string search = request.Search.Trim().ToLower();
@@ -82,13 +91,19 @@ namespace HrmApi.Application.Features.SalaryConfigs.Queries
     public class GetSalaryConfigByIdQueryHandler : IRequestHandler<GetSalaryConfigByIdQuery, SalaryConfigDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetSalaryConfigByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSalaryConfigByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<SalaryConfigDto?> Handle(GetSalaryConfigByIdQuery request, CancellationToken cancellationToken)
         {
             SalaryConfigEntity? entity = await _context.SalaryConfigEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             string? companyName = null;
             if (entity.CompanyId.HasValue)
@@ -111,16 +126,24 @@ namespace HrmApi.Application.Features.SalaryConfigs.Queries
     public class GetSalaryConfigSelectBoxQueryHandler : IRequestHandler<GetSalaryConfigSelectBoxQuery, List<SalaryConfigSelectBoxDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetSalaryConfigSelectBoxQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSalaryConfigSelectBoxQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<SalaryConfigSelectBoxDto>> Handle(GetSalaryConfigSelectBoxQuery request, CancellationToken cancellationToken)
         {
             IQueryable<SalaryConfigEntity> query = _context.SalaryConfigEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted);
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.IsActive == request.IsActive.Value);
+            }
+
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == null || x.CompanyId == request.CompanyId);
+            }
 
             List<SalaryConfigEntity> entities = await query
                 .OrderBy(x => x.DisplayOrder)

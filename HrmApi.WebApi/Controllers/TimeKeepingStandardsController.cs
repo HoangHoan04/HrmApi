@@ -78,5 +78,42 @@ namespace HrmApi.WebApi.Controllers
         [RequirePermission(PermissionCodes.OperateTimekeepingStandardView)]
         public async Task<ActionResult<List<TimeKeepingStandardSelectBoxDto>>> GetSelectBox([FromBody] GetTimeKeepingStandardSelectBoxQuery query)
             => Ok(await _mediator.Send(query));
+
+        [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OperateTimekeepingStandardImportExcel)]
+        public async Task<IActionResult> DownloadExcelTemplate()
+        {
+            byte[] content = await _mediator.Send(new DownloadTimeKeepingStandardExcelTemplateQuery());
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Mau_Import_Chuan_Cham_Cong.xlsx");
+        }
+
+        [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OperateTimekeepingStandardExportExcel)]
+        public async Task<IActionResult> ExportExcel([FromBody] ExportTimeKeepingStandardsExcelQuery query)
+        {
+            byte[] content = await _mediator.Send(query);
+            string fileName = $"Danh_Sach_Chuan_Cham_Cong_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OperateTimekeepingStandardImportExcel)]
+        public async Task<ActionResult<TimeKeepingStandardImportResultDto>> ImportExcel(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file Excel hợp lệ.");
+            }
+
+            using MemoryStream memoryStream = new();
+            await file.CopyToAsync(memoryStream);
+
+            TimeKeepingStandardImportResultDto result = await _mediator.Send(new ImportTimeKeepingStandardsExcelCommand
+            {
+                FileContent = memoryStream.ToArray()
+            });
+
+            return Ok(result);
+        }
     }
 }

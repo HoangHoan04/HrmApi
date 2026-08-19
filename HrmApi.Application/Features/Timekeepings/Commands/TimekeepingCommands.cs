@@ -1,10 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
 using MediatR;
@@ -32,15 +29,29 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
 
         public async Task<bool> Handle(ManualAdjustTimekeepingCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.TimekeepingEntities
+            TimekeepingEntity? entity = await _context.TimekeepingEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
-            var oldValue = TimekeepingMapper.ToLogObject(entity);
+            object oldValue = TimekeepingMapper.ToLogObject(entity);
 
-            if (request.CheckInAt.HasValue) entity.CheckInAt = request.CheckInAt;
-            if (request.CheckOutAt.HasValue) entity.CheckOutAt = request.CheckOutAt;
-            if (request.Note != null) entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+            if (request.CheckInAt.HasValue)
+            {
+                entity.CheckInAt = request.CheckInAt;
+            }
+
+            if (request.CheckOutAt.HasValue)
+            {
+                entity.CheckOutAt = request.CheckOutAt;
+            }
+
+            if (request.Note != null)
+            {
+                entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+            }
 
             if (request.Status.HasValue)
             {
@@ -48,16 +59,16 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
             }
             else
             {
-                var employee = await _rules.ResolveEmployeeAsync(entity.EmployeeId, cancellationToken);
-                var window = await _rules.ResolveWorkWindowAsync(employee, entity.WorkDate, cancellationToken);
-                var standard = await _rules.ResolveStandardAsync(entity.BranchId ?? employee.BranchId, employee.CompanyId, cancellationToken);
+                EmployeeEntity employee = await _rules.ResolveEmployeeAsync(entity.EmployeeId, cancellationToken);
+                WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, entity.WorkDate, cancellationToken);
+                AttendanceStandardResult standard = await _rules.ResolveStandardAsync(entity.BranchId ?? employee.BranchId, employee.CompanyId, cancellationToken);
                 _rules.ComputeStatus(entity, window, standard);
                 await _rules.FinalizeOtAndNightAsync(entity, window, standard, cancellationToken);
             }
 
             entity.IsManualAdjusted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -98,18 +109,20 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
         public async Task<int> Handle(SummarizeMonthTimekeepingCommand request, CancellationToken cancellationToken)
         {
             if (request.Year < 2000 || request.Month < 1 || request.Month > 12)
+            {
                 throw new InvalidOperationException("Năm/tháng không hợp lệ.");
+            }
 
             var from = new DateOnly(request.Year, request.Month, 1);
-            var to = from.AddMonths(1).AddDays(-1);
+            DateOnly to = from.AddMonths(1).AddDays(-1);
 
-            var scheduleEmpIds = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+            List<Guid> scheduleEmpIds = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                 .Select(x => x.EmployeeId)
                 .Distinct()
                 .ToListAsync(cancellationToken);
 
-            var tkEmpIds = await _context.TimekeepingEntities.AsNoTracking()
+            List<Guid> tkEmpIds = await _context.TimekeepingEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                 .Select(x => x.EmployeeId)
                 .Distinct()
@@ -119,60 +132,74 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
 
             if (request.CompanyId.HasValue || request.BranchId.HasValue)
             {
-                var filtered = _context.EmployeeEntities.AsNoTracking().Where(e => employeeIds.Contains(e.Id));
+                IQueryable<EmployeeEntity> filtered = _context.EmployeeEntities.AsNoTracking().Where(e => employeeIds.Contains(e.Id));
                 if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+                {
                     filtered = filtered.Where(e => e.CompanyId == request.CompanyId);
+                }
+
                 if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+                {
                     filtered = filtered.Where(e => e.BranchId == request.BranchId);
+                }
+
                 employeeIds = await filtered.Select(e => e.Id).ToListAsync(cancellationToken);
             }
 
-            var holidays = await _context.PublicHolidayEntities.AsNoTracking()
+            List<PublicHolidayEntity> holidays = await _context.PublicHolidayEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.IsActive)
                 .ToListAsync(cancellationToken);
 
             var holidayDates = new HashSet<DateOnly>();
-            for (var d = from; d <= to; d = d.AddDays(1))
+            for (DateOnly d = from; d <= to; d = d.AddDays(1))
             {
-                foreach (var h in holidays)
+                foreach (PublicHolidayEntity? h in holidays)
                 {
                     if (h.IsRecurringYearly)
                     {
                         if (h.HolidayDate.Month == d.Month && h.HolidayDate.Day == d.Day)
-                            holidayDates.Add(d);
+                        {
+                            _ = holidayDates.Add(d);
+                        }
                     }
                     else if (h.HolidayDate == d)
                     {
-                        holidayDates.Add(d);
+                        _ = holidayDates.Add(d);
                     }
                 }
             }
 
-            var summarized = 0;
-            foreach (var employeeId in employeeIds)
+            int summarized = 0;
+            foreach (Guid employeeId in employeeIds)
             {
-                var employee = await _context.EmployeeEntities
+                EmployeeEntity? employee = await _context.EmployeeEntities
                     .FirstOrDefaultAsync(x => x.Id == employeeId && !x.IsDeleted, cancellationToken);
-                if (employee == null) continue;
+                if (employee == null)
+                {
+                    continue;
+                }
 
-                var scheduleDates = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+                List<DateOnly> scheduleDates = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
                     .Where(x => x.EmployeeId == employeeId && !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                     .Select(x => x.WorkDate)
                     .Distinct()
                     .ToListAsync(cancellationToken);
 
-                foreach (var workDate in scheduleDates)
+                foreach (DateOnly workDate in scheduleDates)
                 {
-                    if (holidayDates.Contains(workDate)) continue;
+                    if (holidayDates.Contains(workDate))
+                    {
+                        continue;
+                    }
 
-                    var existing = await _context.TimekeepingEntities
+                    TimekeepingEntity? existing = await _context.TimekeepingEntities
                         .FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.WorkDate == workDate && !x.IsDeleted, cancellationToken);
 
                     if (existing == null)
                     {
-                        var onLeave = await _rules.HasApprovedLeaveAsync(employeeId, workDate, cancellationToken);
-                        var window = await _rules.ResolveWorkWindowAsync(employee, workDate, cancellationToken);
-                        _context.TimekeepingEntities.Add(new TimekeepingEntity
+                        bool onLeave = await _rules.HasApprovedLeaveAsync(employeeId, workDate, cancellationToken);
+                        WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, workDate, cancellationToken);
+                        _ = _context.TimekeepingEntities.Add(new TimekeepingEntity
                         {
                             EmployeeId = employeeId,
                             CompanyId = employee.CompanyId,
@@ -190,19 +217,19 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                              && existing.Status != AttendanceStatus.ABSENT
                              && !existing.IsManualAdjusted)
                     {
-                        var onLeave = await _rules.HasApprovedLeaveAsync(employeeId, workDate, cancellationToken);
+                        bool onLeave = await _rules.HasApprovedLeaveAsync(employeeId, workDate, cancellationToken);
                         existing.Status = onLeave ? AttendanceStatus.LEAVE : AttendanceStatus.ABSENT;
                         existing.UpdatedAt = DateTime.UtcNow;
                     }
                 }
 
-                await _context.SaveChangesAsync(cancellationToken);
+                _ = await _context.SaveChangesAsync(cancellationToken);
 
-                var records = await _context.TimekeepingEntities.AsNoTracking()
+                List<TimekeepingEntity> records = await _context.TimekeepingEntities.AsNoTracking()
                     .Where(x => x.EmployeeId == employeeId && !x.IsDeleted && x.WorkDate >= from && x.WorkDate <= to)
                     .ToListAsync(cancellationToken);
 
-                var summary = await _context.TimekeepingSummaryEntities
+                TimekeepingSummaryEntity? summary = await _context.TimekeepingSummaryEntities
                     .FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.Year == request.Year && x.Month == request.Month && !x.IsDeleted, cancellationToken);
 
                 if (summary == null)
@@ -215,7 +242,7 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                         CreatedAt = DateTime.UtcNow,
                         IsDeleted = false
                     };
-                    _context.TimekeepingSummaryEntities.Add(summary);
+                    _ = _context.TimekeepingSummaryEntities.Add(summary);
                 }
 
                 summary.CompanyId = employee.CompanyId;
@@ -227,9 +254,9 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                 summary.AbsentDays = records.Count(r => r.Status == AttendanceStatus.ABSENT);
                 summary.IncompleteDays = records.Count(r => r.Status == AttendanceStatus.INCOMPLETE);
                 summary.WorkingDays = records.Count(r =>
-                    r.Status == AttendanceStatus.ON_TIME
-                    || r.Status == AttendanceStatus.LATE
-                    || r.Status == AttendanceStatus.EARLY);
+                    r.Status is AttendanceStatus.ON_TIME
+                    or AttendanceStatus.LATE
+                    or AttendanceStatus.EARLY);
                 summary.TotalWorkedMinutes = records.Sum(r => r.WorkedMinutes);
                 summary.TotalLateMinutes = records.Sum(r => r.LateMinutes);
                 summary.TotalEarlyMinutes = records.Sum(r => r.EarlyMinutes);
@@ -237,7 +264,7 @@ namespace HrmApi.Application.Features.Timekeepings.Commands
                 summary.TotalNightMinutes = records.Sum(r => r.NightMinutes);
                 summary.UpdatedAt = DateTime.UtcNow;
 
-                await _context.SaveChangesAsync(cancellationToken);
+                _ = await _context.SaveChangesAsync(cancellationToken);
                 summarized++;
             }
 

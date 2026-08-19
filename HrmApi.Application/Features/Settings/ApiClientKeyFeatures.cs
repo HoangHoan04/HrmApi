@@ -1,11 +1,11 @@
-using System.Security.Cryptography;
-using System.Text;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Settings;
 using HrmApi.Domain.Entities.Settings;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace HrmApi.Application.Features.Settings
 {
@@ -14,12 +14,19 @@ namespace HrmApi.Application.Features.Settings
     public class GetApiClientKeysPagedQueryHandler : IRequestHandler<GetApiClientKeysPagedQuery, PagedResult<ApiClientKeyDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetApiClientKeysPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetApiClientKeysPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<ApiClientKeyDto>> Handle(GetApiClientKeysPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<ApiClientKeyEntity> query = _context.ApiClientKeyEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -34,18 +41,21 @@ namespace HrmApi.Application.Features.Settings
             return new PagedResult<ApiClientKeyDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static ApiClientKeyDto ToDto(ApiClientKeyEntity e) => new()
+        internal static ApiClientKeyDto ToDto(ApiClientKeyEntity e)
         {
-            Id = e.Id,
-            Name = e.Name,
-            KeyPrefix = e.KeyPrefix,
-            CompanyId = e.CompanyId,
-            IsActive = e.IsActive,
-            ExpiresAt = e.ExpiresAt,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Name = e.Name,
+                KeyPrefix = e.KeyPrefix,
+                CompanyId = e.CompanyId,
+                IsActive = e.IsActive,
+                ExpiresAt = e.ExpiresAt,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetApiClientKeyByIdQuery : SettingsIdRequest, IRequest<ApiClientKeyDto?> { }
@@ -53,7 +63,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetApiClientKeyByIdQueryHandler : IRequestHandler<GetApiClientKeyByIdQuery, ApiClientKeyDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetApiClientKeyByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetApiClientKeyByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<ApiClientKeyDto?> Handle(GetApiClientKeyByIdQuery request, CancellationToken cancellationToken)
         {
@@ -78,16 +91,21 @@ namespace HrmApi.Application.Features.Settings
         public async Task<ApiClientKeyCreateResultDto> Handle(CreateApiClientKeyCommand request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên API key là bắt buộc.");
+            }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
                 bool companyOk = await _context.CompanyEntities.AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken);
-                if (!companyOk) throw new InvalidOperationException("Công ty không tồn tại.");
+                if (!companyOk)
+                {
+                    throw new InvalidOperationException("Công ty không tồn tại.");
+                }
             }
 
             string plaintext = "hrm_" + Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
-            string prefix = plaintext.Substring(0, Math.Min(12, plaintext.Length));
+            string prefix = plaintext[..Math.Min(12, plaintext.Length)];
             string hash = HashKey(plaintext);
 
             ApiClientKeyEntity entity = new()
@@ -147,9 +165,15 @@ namespace HrmApi.Application.Features.Settings
         {
             ApiClientKeyEntity? entity = await _context.ApiClientKeyEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên API key là bắt buộc.");
+            }
 
             entity.Name = request.Name!.Trim();
             entity.CompanyId = request.CompanyId;
@@ -179,7 +203,11 @@ namespace HrmApi.Application.Features.Settings
         {
             ApiClientKeyEntity? entity = await _context.ApiClientKeyEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;

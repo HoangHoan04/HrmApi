@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.Role;
@@ -22,11 +17,14 @@ namespace HrmApi.Application.Features.UserRoles
     {
         private readonly IApplicationDbContext _context;
 
-        public GetUserRolesByUserQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetUserRolesByUserQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<UserRoleItemDto>> Handle(GetUserRolesByUserQuery request, CancellationToken cancellationToken)
         {
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
             return await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
                 join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
@@ -79,23 +77,27 @@ namespace HrmApi.Application.Features.UserRoles
             bool userExists = await _context.UserEntities.AsNoTracking()
                 .AnyAsync(x => x.Id == request.UserId && !x.IsDeleted, cancellationToken);
             if (!userExists)
+            {
                 throw new InvalidOperationException("Không tìm thấy người dùng.");
+            }
 
-            var roleIds = (request.RoleIds ?? []).Where(x => x != Guid.Empty).Distinct().ToList();
+            List<Guid> roleIds = (request.RoleIds ?? []).Where(x => x != Guid.Empty).Distinct().ToList();
             if (roleIds.Count > 0)
             {
                 int found = await _context.RoleEntities.AsNoTracking()
                     .CountAsync(x => roleIds.Contains(x.Id) && !x.IsDeleted && x.IsActive, cancellationToken);
                 if (found != roleIds.Count)
+                {
                     throw new InvalidOperationException("Có vai trò không tồn tại hoặc đã ngưng hoạt động.");
+                }
             }
 
-            var existing = await _context.UserRoleEntities
+            List<UserRoleEntity> existing = await _context.UserRoleEntities
                 .Where(x => x.UserId == request.UserId)
                 .ToListAsync(cancellationToken);
 
-            var keep = roleIds.ToHashSet();
-            foreach (var ur in existing.Where(x => !x.IsDeleted && !keep.Contains(x.RoleId)))
+            HashSet<Guid> keep = roleIds.ToHashSet();
+            foreach (UserRoleEntity? ur in existing.Where(x => !x.IsDeleted && !keep.Contains(x.RoleId)))
             {
                 ur.IsDeleted = true;
                 ur.UpdatedAt = DateTime.UtcNow;
@@ -104,19 +106,22 @@ namespace HrmApi.Application.Features.UserRoles
 
             foreach (Guid roleId in roleIds)
             {
-                var match = existing.FirstOrDefault(x => x.RoleId == roleId);
+                UserRoleEntity? match = existing.FirstOrDefault(x => x.RoleId == roleId);
                 if (match != null)
                 {
                     match.IsDeleted = false;
                     match.EffectiveTo = null;
                     if (!match.EffectiveFrom.HasValue)
+                    {
                         match.EffectiveFrom = DateTime.UtcNow;
+                    }
+
                     match.UpdatedAt = DateTime.UtcNow;
                     match.UpdatedBy = _currentUser.UserId;
                 }
                 else
                 {
-                    _context.UserRoleEntities.Add(new UserRoleEntity
+                    _ = _context.UserRoleEntities.Add(new UserRoleEntity
                     {
                         UserId = request.UserId,
                         RoleId = roleId,
@@ -127,7 +132,7 @@ namespace HrmApi.Application.Features.UserRoles
                 }
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             _permissionCache.InvalidateUser(request.UserId);
 
             await _actionLog.LogActionAsync(
@@ -157,7 +162,10 @@ namespace HrmApi.Application.Features.UserRoles
     {
         private readonly IApplicationDbContext _context;
 
-        public GetUsersPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetUsersPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<UserListItemDto>> Handle(GetUsersPagedQuery request, CancellationToken cancellationToken)
         {
@@ -190,11 +198,20 @@ namespace HrmApi.Application.Features.UserRoles
                 query = query.Where(x => x.User.Type.ToUpper() == type);
             }
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.User.IsActive == request.IsActive.Value);
+            }
+
             if (request.IsLocked.HasValue)
+            {
                 query = query.Where(x => x.User.IsLocked == request.IsLocked.Value);
+            }
+
             if (request.CompanyId.HasValue)
+            {
                 query = query.Where(x => x.User.CompanyId == request.CompanyId.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.CompanyCode))
             {
                 string companyCode = request.CompanyCode.Trim().ToLower();
@@ -244,10 +261,10 @@ namespace HrmApi.Application.Features.UserRoles
                 })
                 .ToListAsync(cancellationToken);
 
-            var userIds = users.Select(x => x.Id).ToList();
+            List<Guid> userIds = users.Select(x => x.Id).ToList();
 
-            var roleRows = userIds.Count == 0
-                ? new List<(Guid UserId, Guid RoleId, string Code)>()
+            List<(Guid UserId, Guid RoleId, string Code)> roleRows = userIds.Count == 0
+                ? []
                 : (await (
                     from ur in _context.UserRoleEntities.AsNoTracking()
                     join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
@@ -257,19 +274,19 @@ namespace HrmApi.Application.Features.UserRoles
                 .Select(x => (x.UserId, x.RoleId, x.Code))
                 .ToList();
 
-            var roleCodeMap = roleRows
+            Dictionary<Guid, List<string>> roleCodeMap = roleRows
                 .GroupBy(x => x.UserId)
                 .ToDictionary(
                     g => g.Key,
                     g => g.Select(x => x.Code).Distinct().OrderBy(c => c).ToList());
 
-            var roleIdMap = roleRows
+            Dictionary<Guid, List<Guid>> roleIdMap = roleRows
                 .GroupBy(x => x.UserId)
                 .ToDictionary(
                     g => g.Key,
                     g => g.Select(x => x.RoleId).Distinct().ToList());
 
-            var items = users.Select(u => new UserListItemDto
+            List<UserListItemDto> items = users.Select(u => new UserListItemDto
             {
                 Id = u.Id,
                 Username = u.Username,
@@ -301,7 +318,10 @@ namespace HrmApi.Application.Features.UserRoles
     {
         private readonly IApplicationDbContext _context;
 
-        public GetUserRolesByEmployeeQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetUserRolesByEmployeeQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<UserRoleItemDto>> Handle(GetUserRolesByEmployeeQuery request, CancellationToken cancellationToken)
         {

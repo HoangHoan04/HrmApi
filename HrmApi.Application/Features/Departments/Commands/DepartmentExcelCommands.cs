@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
@@ -35,47 +29,53 @@ namespace HrmApi.Application.Features.Departments.Commands
 
         public async Task<byte[]> Handle(ExportDepartmentsExcelQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.DepartmentEntities.AsNoTracking();
+            IQueryable<DepartmentEntity> query = _context.DepartmentEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
             if (request.IsDeleted.HasValue)
+            {
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
+            }
 
             if (request.BranchId.HasValue)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId.Value);
+            }
 
             if (request.CompanyId.HasValue)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId.Value);
+            }
 
-            var departments = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            List<DepartmentEntity> departments = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            Dictionary<Guid, string> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var branchDict = await _context.BranchEntities.AsNoTracking()
+            Dictionary<Guid, string> branchDict = await _context.BranchEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var deptDict = await _context.DepartmentEntities.AsNoTracking()
+            Dictionary<Guid, string> deptDict = await _context.DepartmentEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("DanhSachPhongBan");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("DanhSachPhongBan");
             DepartmentExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: true);
 
-            for (var i = 0; i < departments.Count; i++)
+            for (int i = 0; i < departments.Count; i++)
             {
-                var dept = departments[i];
-                string? companyCode = dept.CompanyId.HasValue && companyDict.TryGetValue(dept.CompanyId.Value, out var cc) ? cc : null;
-                string? branchCode = dept.BranchId.HasValue && branchDict.TryGetValue(dept.BranchId.Value, out var bc) ? bc : null;
-                string? parentDeptCode = dept.ParentDepartmentId.HasValue && deptDict.TryGetValue(dept.ParentDepartmentId.Value, out var pdc) ? pdc : null;
+                DepartmentEntity dept = departments[i];
+                string? companyCode = dept.CompanyId.HasValue && companyDict.TryGetValue(dept.CompanyId.Value, out string? cc) ? cc : null;
+                string? branchCode = dept.BranchId.HasValue && branchDict.TryGetValue(dept.BranchId.Value, out string? bc) ? bc : null;
+                string? parentDeptCode = dept.ParentDepartmentId.HasValue && deptDict.TryGetValue(dept.ParentDepartmentId.Value, out string? pdc) ? pdc : null;
 
                 DepartmentExcelWriter.WriteDepartmentRow(worksheet, i + 2, dept, companyCode, branchCode, parentDeptCode, includeExportOnlyColumns: true);
             }
@@ -105,7 +105,7 @@ namespace HrmApi.Application.Features.Departments.Commands
         public async Task<byte[]> Handle(DownloadDepartmentExcelTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("PhongBan");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("PhongBan");
             DepartmentExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
             DepartmentExcelWriter.WriteTemplateSampleRow(worksheet);
             ExcelHelper.ApplyColumnWidths(worksheet);
@@ -148,7 +148,7 @@ namespace HrmApi.Application.Features.Departments.Commands
         public int TotalRows { get; set; }
         public int SuccessCount { get; set; }
         public int ErrorCount { get; set; }
-        public List<string> Errors { get; set; } = new();
+        public List<string> Errors { get; set; } = [];
     }
 
     public class ImportDepartmentsExcelCommandHandler : IRequestHandler<ImportDepartmentsExcelCommand, DepartmentImportResultDto>
@@ -168,27 +168,27 @@ namespace HrmApi.Application.Features.Departments.Commands
 
             using var stream = new MemoryStream(request.FileContent);
             using var workbook = new XLWorkbook(stream);
-            var worksheet = workbook.Worksheet(1);
-            var rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? new List<IXLRangeRow>();
+            IXLWorksheet worksheet = workbook.Worksheet(1);
+            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
 
             result.TotalRows = rows.Count;
 
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            Dictionary<string, Guid> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-            var branchDict = await _context.BranchEntities.AsNoTracking()
+            Dictionary<string, Guid> branchDict = await _context.BranchEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-            var deptDict = await _context.DepartmentEntities.AsNoTracking()
+            Dictionary<string, Guid> deptDict = await _context.DepartmentEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
 
-            foreach (var row in rows)
+            foreach (IXLRangeRow? row in rows)
             {
-                var rowNumber = row.RowNumber();
+                int rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row, companyDict, branchDict, deptDict);
+                    DepartmentCommandFields command = ReadRow(row, companyDict, branchDict, deptDict);
                     if (string.IsNullOrWhiteSpace(command.Code) && string.IsNullOrWhiteSpace(command.Name))
                     {
                         result.TotalRows--;
@@ -210,8 +210,8 @@ namespace HrmApi.Application.Features.Departments.Commands
                     };
                     DepartmentMapper.ApplyCommandFields(department, command);
 
-                    _context.DepartmentEntities.Add(department);
-                    await _context.SaveChangesAsync(cancellationToken);
+                    _ = _context.DepartmentEntities.Add(department);
+                    _ = await _context.SaveChangesAsync(cancellationToken);
 
                     await _actionLog.LogActionAsync(
                         ActionType.CREATE,
@@ -239,13 +239,13 @@ namespace HrmApi.Application.Features.Departments.Commands
             Dictionary<string, Guid> branchDict,
             Dictionary<string, Guid> deptDict)
         {
-            var companyCode = ExcelHelper.GetCellString(row, 6).Trim().ToLower();
-            var branchCode = ExcelHelper.GetCellString(row, 7).Trim().ToLower();
-            var parentDeptCode = ExcelHelper.GetCellString(row, 8).Trim().ToLower();
+            string companyCode = ExcelHelper.GetCellString(row, 6).Trim().ToLower();
+            string branchCode = ExcelHelper.GetCellString(row, 7).Trim().ToLower();
+            string parentDeptCode = ExcelHelper.GetCellString(row, 8).Trim().ToLower();
 
-            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out var cid) ? cid : null;
-            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out var bid) ? bid : null;
-            Guid? parentDeptId = !string.IsNullOrWhiteSpace(parentDeptCode) && deptDict.TryGetValue(parentDeptCode, out var pdid) ? pdid : null;
+            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out Guid cid) ? cid : null;
+            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out Guid bid) ? bid : null;
+            Guid? parentDeptId = !string.IsNullOrWhiteSpace(parentDeptCode) && deptDict.TryGetValue(parentDeptCode, out Guid pdid) ? pdid : null;
 
             return new DepartmentCommandFields
             {
@@ -303,8 +303,10 @@ namespace HrmApi.Application.Features.Departments.Commands
             new() { Title = "Trạng thái hệ thống", Required = false, ExportOnly = true },
         };
 
-        public static IEnumerable<DepartmentExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns) =>
-            Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        public static IEnumerable<DepartmentExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns)
+        {
+            return Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        }
     }
 
     internal static class DepartmentExcelWriter
@@ -313,9 +315,9 @@ namespace HrmApi.Application.Features.Departments.Commands
         {
             var columns = DepartmentExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
 
-            for (var col = 0; col < columns.Count; col++)
+            for (int col = 0; col < columns.Count; col++)
             {
-                var definition = columns[col];
+                DepartmentExcelColumnDefinition definition = columns[col];
                 ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
@@ -346,9 +348,9 @@ namespace HrmApi.Application.Features.Departments.Commands
                 "Không"
             };
 
-            for (var col = 0; col < sampleValues.Count; col++)
+            for (int col = 0; col < sampleValues.Count; col++)
             {
-                var cell = worksheet.Cell(2, col + 1);
+                IXLCell cell = worksheet.Cell(2, col + 1);
                 cell.Value = sampleValues[col];
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -392,9 +394,9 @@ namespace HrmApi.Application.Features.Departments.Commands
                 values.Add(dept.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
             }
 
-            for (var col = 0; col < values.Count; col++)
+            for (int col = 0; col < values.Count; col++)
             {
-                var cell = worksheet.Cell(row, col + 1);
+                IXLCell cell = worksheet.Cell(row, col + 1);
                 cell.Value = values[col] ?? string.Empty;
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;

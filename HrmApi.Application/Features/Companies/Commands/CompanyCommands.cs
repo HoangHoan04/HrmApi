@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
@@ -30,7 +27,7 @@ namespace HrmApi.Application.Features.Companies.Commands
         {
             await ValidateAsync(request, null, cancellationToken, _context);
 
-            var company = new CompanyEntity
+            CompanyEntity company = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -38,8 +35,8 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             CompanyMapper.ApplyCommandFields(company, request);
 
-            _context.CompanyEntities.Add(company);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.CompanyEntities.Add(company);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -59,28 +56,38 @@ namespace HrmApi.Application.Features.Companies.Commands
             IApplicationDbContext context)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã công ty là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên công ty là bắt buộc.");
+            }
 
-            var exists = await context.CompanyEntities
+            bool exists = await context.CompanyEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
             if (exists)
+            {
                 throw new InvalidOperationException("Mã công ty đã tồn tại trong hệ thống.");
+            }
 
             if (request.ParentId.HasValue)
             {
                 if (excludeId.HasValue && request.ParentId.Value == excludeId.Value)
+                {
                     throw new InvalidOperationException("Công ty không thể là công ty mẹ của chính nó.");
+                }
 
-                var parentExists = await context.CompanyEntities
+                bool parentExists = await context.CompanyEntities
                     .AnyAsync(x => x.Id == request.ParentId.Value, cancellationToken);
 
                 if (!parentExists)
+                {
                     throw new InvalidOperationException("Công ty mẹ không tồn tại.");
+                }
             }
         }
     }
@@ -108,18 +115,21 @@ namespace HrmApi.Application.Features.Companies.Commands
             var company = await _context.CompanyEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (company == null) return false;
+            if (company == null)
+            {
+                return false;
+            }
 
             await CreateCompanyCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            var oldValue = CompanyMapper.ToLogObject(company);
+            object oldValue = CompanyMapper.ToLogObject(company);
 
             CompanyMapper.ApplyCommandFields(company, request);
             company.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
-            var newValue = CompanyMapper.ToLogObject(company);
+            object newValue = CompanyMapper.ToLogObject(company);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -156,12 +166,15 @@ namespace HrmApi.Application.Features.Companies.Commands
             var company = await _context.CompanyEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (company == null) return false;
+            if (company == null)
+            {
+                return false;
+            }
 
             company.IsDeleted = false;
             company.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
@@ -198,12 +211,15 @@ namespace HrmApi.Application.Features.Companies.Commands
             var company = await _context.CompanyEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (company == null) return false;
+            if (company == null)
+            {
+                return false;
+            }
 
             company.IsDeleted = true;
             company.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,

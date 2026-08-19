@@ -1,9 +1,7 @@
-using System;
+using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.DTOs.Timekeeping
 {
-    using HrmApi.Domain.Enums;
-
     public class MobilePunchRequest
     {
         public double Latitude { get; set; }
@@ -51,7 +49,7 @@ namespace HrmApi.Application.DTOs.Timekeeping
     {
         public int Year { get; set; }
         public int Month { get; set; }
-        public List<MobileMonthDayDto> Days { get; set; } = new();
+        public List<MobileMonthDayDto> Days { get; set; } = [];
         public int OnTimeDays { get; set; }
         public int LateDays { get; set; }
         public int EarlyDays { get; set; }

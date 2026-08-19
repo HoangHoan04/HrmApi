@@ -1,4 +1,4 @@
-﻿using HrmApi.Domain.Common;
+using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Domain.Entities.Asset
@@ -10,6 +10,8 @@ namespace HrmApi.Domain.Entities.Asset
         public Guid? CompanyId { get; set; }
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsSerialRequired { get; set; } = true;
+        public int? MaxPerEmployee { get; set; }
 
         public CompanyEntity? Company { get; set; }
         public List<AssetEntity> Assets { get; set; } = [];

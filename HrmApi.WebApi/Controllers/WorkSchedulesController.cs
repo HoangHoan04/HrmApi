@@ -79,5 +79,42 @@ namespace HrmApi.WebApi.Controllers
             try { return Ok(await _mediator.Send(command)); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
+
+        [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleImportExcel)]
+        public async Task<IActionResult> DownloadExcelTemplate()
+        {
+            byte[] content = await _mediator.Send(new DownloadWorkScheduleExcelTemplateQuery());
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Mau_Import_Lich_Lam_Viec.xlsx");
+        }
+
+        [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleExportExcel)]
+        public async Task<IActionResult> ExportExcel([FromBody] ExportWorkSchedulesExcelQuery query)
+        {
+            byte[] content = await _mediator.Send(query);
+            string fileName = $"Danh_Sach_Lich_Lam_Viec_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OperateWorkScheduleImportExcel)]
+        public async Task<ActionResult<WorkScheduleImportResultDto>> ImportExcel(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file Excel hợp lệ.");
+            }
+
+            using MemoryStream memoryStream = new();
+            await file.CopyToAsync(memoryStream);
+
+            WorkScheduleImportResultDto result = await _mediator.Send(new ImportWorkSchedulesExcelCommand
+            {
+                FileContent = memoryStream.ToArray()
+            });
+
+            return Ok(result);
+        }
     }
 }

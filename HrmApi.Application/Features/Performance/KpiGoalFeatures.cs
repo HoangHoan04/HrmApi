@@ -13,15 +13,24 @@ namespace HrmApi.Application.Features.Performance
     public class GetKpiGoalsPagedQueryHandler : IRequestHandler<GetKpiGoalsPagedQuery, PagedResult<KpiGoalDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetKpiGoalsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetKpiGoalsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<KpiGoalDto>> Handle(GetKpiGoalsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<KpiGoalEntity> query = _context.KpiGoalEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CycleId.HasValue && request.CycleId != Guid.Empty)
+            {
                 query = query.Where(x => x.CycleId == request.CycleId);
+            }
+
             if (request.EmployeeId.HasValue && request.EmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -40,11 +49,15 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task<List<KpiGoalDto>> MapManyAsync(List<KpiGoalEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
-            var empIds = rows.Select(x => x.EmployeeId).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
+            List<Guid> cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
+            List<Guid> empIds = rows.Select(x => x.EmployeeId).Distinct().ToList();
+
+            Dictionary<Guid, string> cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
                 .Where(x => cycleIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var emps = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => empIds.Contains(x.Id))
@@ -52,7 +65,7 @@ namespace HrmApi.Application.Features.Performance
 
             return rows.Select(e =>
             {
-                emps.TryGetValue(e.EmployeeId, out var emp);
+                _ = emps.TryGetValue(e.EmployeeId, out var emp);
                 return new KpiGoalDto
                 {
                     Id = e.Id,
@@ -88,8 +101,7 @@ namespace HrmApi.Application.Features.Performance
         {
             KpiGoalEntity? e = await _context.KpiGoalEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -127,15 +139,29 @@ namespace HrmApi.Application.Features.Performance
         internal async Task ValidateAsync(KpiGoalCommandFields request, CancellationToken cancellationToken)
         {
             if (!request.CycleId.HasValue || request.CycleId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Chu kỳ đánh giá (parent) là bắt buộc.");
+            }
+
             if (!request.EmployeeId.HasValue || request.EmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Nhân viên là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Title))
+            {
                 throw new InvalidOperationException("Tiêu đề mục tiêu là bắt buộc.");
+            }
+
             if (!await _context.PerformanceReviewCycleEntities.AnyAsync(x => x.Id == request.CycleId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Chu kỳ đánh giá không tồn tại.");
+            }
+
             if (!await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
         }
     }
 
@@ -160,7 +186,10 @@ namespace HrmApi.Application.Features.Performance
         {
             KpiGoalEntity? entity = await _context.KpiGoalEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.CycleId ??= entity.CycleId;
             request.EmployeeId ??= entity.EmployeeId;
@@ -196,7 +225,11 @@ namespace HrmApi.Application.Features.Performance
         {
             KpiGoalEntity? entity = await _context.KpiGoalEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

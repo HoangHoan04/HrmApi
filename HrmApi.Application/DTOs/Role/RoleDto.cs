@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace HrmApi.Application.DTOs.Role
 {
     public class RoleListItemDto

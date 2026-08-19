@@ -45,16 +45,21 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
     {
         private readonly IApplicationDbContext _context;
 
-        public GetLeaveCalendarRangeQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetLeaveCalendarRangeQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<LeaveCalendarEventDto>> Handle(
             GetLeaveCalendarRangeQuery request,
             CancellationToken cancellationToken)
         {
             if (request.ToDate < request.FromDate)
+            {
                 throw new InvalidOperationException("Đến ngày phải >= Từ ngày.");
+            }
 
-            var events = new List<LeaveCalendarEventDto>();
+            List<LeaveCalendarEventDto> events = [];
 
             IQueryable<RegisterDayOffEntity> leaveQuery = _context.RegisterDayOffEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted
@@ -67,16 +72,24 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             }
             else
             {
-                var statuses = new List<DayOffStatus> { DayOffStatus.APPROVED };
+                List<DayOffStatus> statuses = [DayOffStatus.APPROVED];
                 if (request.IncludePending)
+                {
                     statuses.Add(DayOffStatus.PENDING);
+                }
+
                 leaveQuery = leaveQuery.Where(x => statuses.Contains(x.Status));
             }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 leaveQuery = leaveQuery.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 leaveQuery = leaveQuery.Where(x => x.BranchId == request.BranchId);
+            }
 
             List<RegisterDayOffEntity> leaves = await leaveQuery
                 .OrderBy(x => x.FromDate)
@@ -94,9 +107,9 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
 
             if (leaves.Count > 0)
             {
-                var empIds = leaves.Select(x => x.EmployeeId).Distinct().ToList();
-                var branchIds = leaves.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
-                var cfgIds = leaves.Where(x => x.DayOffConfigId.HasValue).Select(x => x.DayOffConfigId!.Value).Distinct().ToList();
+                List<Guid> empIds = leaves.Select(x => x.EmployeeId).Distinct().ToList();
+                List<Guid> branchIds = leaves.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+                List<Guid> cfgIds = leaves.Where(x => x.DayOffConfigId.HasValue).Select(x => x.DayOffConfigId!.Value).Distinct().ToList();
 
                 var empMap = await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => empIds.Contains(x.Id))
@@ -105,21 +118,21 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                         x => new { x.Code, Name = x.FullName ?? ((x.FirstName ?? "") + " " + (x.LastName ?? "")).Trim() },
                         cancellationToken);
 
-                var branchMap = branchIds.Count == 0
-                    ? new Dictionary<Guid, string>()
+                Dictionary<Guid, string> branchMap = branchIds.Count == 0
+                    ? []
                     : await _context.BranchEntities.AsNoTracking()
                         .Where(x => branchIds.Contains(x.Id))
                         .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-                var cfgMap = cfgIds.Count == 0
-                    ? new Dictionary<Guid, string>()
+                Dictionary<Guid, string> cfgMap = cfgIds.Count == 0
+                    ? []
                     : await _context.DayOffConfigEntities.AsNoTracking()
                         .Where(x => cfgIds.Contains(x.Id))
                         .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-                foreach (var leave in leaves)
+                foreach (RegisterDayOffEntity leave in leaves)
                 {
-                    empMap.TryGetValue(leave.EmployeeId, out var emp);
+                    _ = empMap.TryGetValue(leave.EmployeeId, out var emp);
                     string? branchName = leave.BranchId.HasValue && branchMap.TryGetValue(leave.BranchId.Value, out var bn) ? bn : null;
                     string? cfgName = leave.DayOffConfigId.HasValue && cfgMap.TryGetValue(leave.DayOffConfigId.Value, out var cn) ? cn : null;
                     string empLabel = emp != null
@@ -151,22 +164,27 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
 
             if (request.IncludeHolidays)
             {
-                var holidays = await _context.PublicHolidayEntities.AsNoTracking()
+                List<PublicHolidayEntity> holidays = await _context.PublicHolidayEntities.AsNoTracking()
                     .Where(x => !x.IsDeleted && x.IsActive)
                     .ToListAsync(cancellationToken);
 
                 for (DateOnly d = request.FromDate; d <= request.ToDate; d = d.AddDays(1))
                 {
-                    foreach (var h in holidays)
+                    foreach (PublicHolidayEntity? h in holidays)
                     {
                         if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty
                             && h.CompanyId.HasValue && h.CompanyId != request.CompanyId)
+                        {
                             continue;
+                        }
 
                         bool match = h.IsRecurringYearly
                             ? h.HolidayDate.Month == d.Month && h.HolidayDate.Day == d.Day
                             : h.HolidayDate == d;
-                        if (!match) continue;
+                        if (!match)
+                        {
+                            continue;
+                        }
 
                         events.Add(new LeaveCalendarEventDto
                         {

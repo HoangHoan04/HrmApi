@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.WorkSchedule;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Timekeeping;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,39 +22,53 @@ namespace HrmApi.Application.Features.WorkSchedules.Queries
     {
         private readonly IApplicationDbContext _context;
 
-        public GetWorkSchedulesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkSchedulesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<WorkScheduleDto>> Handle(GetWorkSchedulesPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.WorkScheduledEmployeeEntities.AsNoTracking();
+            IQueryable<WorkScheduledEmployeeEntity> query = _context.WorkScheduledEmployeeEntities.AsNoTracking();
 
-            if (request.IsDeleted.HasValue)
-                query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
-            else
-                query = query.Where(x => !x.IsDeleted);
+            query = request.IsDeleted.HasValue ? query.Where(x => x.IsDeleted == request.IsDeleted.Value) : query.Where(x => !x.IsDeleted);
 
             if (request.EmployeeId.HasValue && request.EmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.EmployeeId == request.EmployeeId);
-            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
-                query = query.Where(x => x.BranchId == request.BranchId);
-            if (request.ShiftMasterId.HasValue && request.ShiftMasterId != Guid.Empty)
-                query = query.Where(x => x.ShiftMasterId == request.ShiftMasterId);
-            if (request.FromDate.HasValue)
-                query = query.Where(x => x.WorkDate >= request.FromDate.Value);
-            if (request.ToDate.HasValue)
-                query = query.Where(x => x.WorkDate <= request.ToDate.Value);
+            }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
+            if (request.ShiftMasterId.HasValue && request.ShiftMasterId != Guid.Empty)
+            {
+                query = query.Where(x => x.ShiftMasterId == request.ShiftMasterId);
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(x => x.WorkDate >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(x => x.WorkDate <= request.ToDate.Value);
+            }
+
+            int totalCount = await query.CountAsync(cancellationToken);
             query = string.Equals(request.SortOrder, "ascend", StringComparison.OrdinalIgnoreCase)
                 ? query.OrderBy(x => x.WorkDate)
                 : query.OrderByDescending(x => x.WorkDate);
 
-            var entities = await query
+            List<WorkScheduledEmployeeEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            var items = await MapDtosAsync(entities, cancellationToken);
+            List<WorkScheduleDto> items = await MapDtosAsync(entities, cancellationToken);
             return new PagedResult<WorkScheduleDto>(items, totalCount, request.PageIndex, request.PageSize);
         }
 
@@ -70,39 +80,41 @@ namespace HrmApi.Application.Features.WorkSchedules.Queries
             var shiftMasterIds = entities.Where(x => x.ShiftMasterId.HasValue).Select(x => x.ShiftMasterId!.Value).Distinct().ToList();
             var branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
 
-            var employees = employeeIds.Count == 0
-                ? new Dictionary<Guid, (string? Name, string Code)>()
+            Dictionary<Guid, (string? Name, string Code)> employees = employeeIds.Count == 0
+                ? []
                 : await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => employeeIds.Contains(x.Id))
                     .ToDictionaryAsync(
                         x => x.Id,
-                        x => (Name: (string?)(x.FullName ?? $"{x.LastName} {x.FirstName}".Trim()), Code: x.Code),
+                        x => (Name: (string?)(x.FullName ?? $"{x.LastName} {x.FirstName}".Trim()), x.Code),
                         cancellationToken);
 
-            var shiftMasters = shiftMasterIds.Count == 0
-                ? new Dictionary<Guid, (string Name, string Code)>()
+            Dictionary<Guid, (string Name, string Code)> shiftMasters = shiftMasterIds.Count == 0
+                ? []
                 : await _context.ShiftMasterEntities.AsNoTracking()
                     .Where(x => shiftMasterIds.Contains(x.Id))
-                    .ToDictionaryAsync(x => x.Id, x => (Name: x.Name, Code: x.Code), cancellationToken);
+                    .ToDictionaryAsync(x => x.Id, x => (x.Name, x.Code), cancellationToken);
 
-            var branches = branchIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branches = branchIds.Count == 0
+                ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             return entities.Select(x =>
             {
-                employees.TryGetValue(x.EmployeeId, out var emp);
+                _ = employees.TryGetValue(x.EmployeeId, out (string? Name, string Code) emp);
                 string? smName = null, smCode = null;
-                if (x.ShiftMasterId.HasValue && shiftMasters.TryGetValue(x.ShiftMasterId.Value, out var sm))
+                if (x.ShiftMasterId.HasValue && shiftMasters.TryGetValue(x.ShiftMasterId.Value, out (string Name, string Code) sm))
                 {
                     smName = sm.Name;
                     smCode = sm.Code;
                 }
                 string? branchName = null;
-                if (x.BranchId.HasValue && branches.TryGetValue(x.BranchId.Value, out var bn))
+                if (x.BranchId.HasValue && branches.TryGetValue(x.BranchId.Value, out string? bn))
+                {
                     branchName = bn;
+                }
 
                 return WorkScheduleMapper.ToDto(x, emp.Name, emp.Code, smName, smCode, branchName);
             }).ToList();
@@ -117,13 +129,19 @@ namespace HrmApi.Application.Features.WorkSchedules.Queries
     public class GetWorkScheduleByIdQueryHandler : IRequestHandler<GetWorkScheduleByIdQuery, WorkScheduleDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetWorkScheduleByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkScheduleByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<WorkScheduleDto?> Handle(GetWorkScheduleByIdQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
+            WorkScheduledEmployeeEntity? entity = await _context.WorkScheduledEmployeeEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             var emp = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => x.Id == entity.EmployeeId)

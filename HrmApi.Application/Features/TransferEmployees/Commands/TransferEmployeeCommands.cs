@@ -3,6 +3,7 @@ using HrmApi.Application.DTOs.TransferEmployee;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.EmployeeMovement;
+using HrmApi.Domain.Entities.Permission;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -128,7 +129,9 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
         }
 
         private static Guid? NullIfEmpty(Guid? value)
-            => value.HasValue && value.Value != Guid.Empty ? value : null;
+        {
+            return value.HasValue && value.Value != Guid.Empty ? value : null;
+        }
 
         internal async Task ValidateOrgFksAsync(List<TransferEmployeePositionInputDto> details, CancellationToken cancellationToken)
         {
@@ -541,15 +544,34 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
 
             foreach (TransferEmployeePositionEntity d in entity.TransferDetails.Where(x => !x.IsDeleted).OrderBy(x => x.CreatedAt))
             {
-                if (d.NewCompanyId.HasValue) employee.CompanyId = d.NewCompanyId;
-                if (d.NewBranchId.HasValue) employee.BranchId = d.NewBranchId;
-                if (d.NewDepartmentId.HasValue) employee.DepartmentId = d.NewDepartmentId;
-                if (d.NewPartId.HasValue) employee.PartId = d.NewPartId;
-                if (d.NewPositionId.HasValue) employee.PositionId = d.NewPositionId;
+                if (d.NewCompanyId.HasValue)
+                {
+                    employee.CompanyId = d.NewCompanyId;
+                }
+
+                if (d.NewBranchId.HasValue)
+                {
+                    employee.BranchId = d.NewBranchId;
+                }
+
+                if (d.NewDepartmentId.HasValue)
+                {
+                    employee.DepartmentId = d.NewDepartmentId;
+                }
+
+                if (d.NewPartId.HasValue)
+                {
+                    employee.PartId = d.NewPartId;
+                }
+
+                if (d.NewPositionId.HasValue)
+                {
+                    employee.PositionId = d.NewPositionId;
+                }
             }
             employee.UpdatedAt = DateTime.UtcNow;
 
-            var user = await _context.UserEntities
+            UserEntity? user = await _context.UserEntities
                 .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id && !x.IsDeleted, cancellationToken);
             if (user != null)
             {
@@ -660,7 +682,7 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
 
         public async Task<List<Guid>> Handle(BulkCreateTransferEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var ids = request.EmployeeIds.Where(x => x != Guid.Empty).Distinct().ToList();
+            List<Guid> ids = request.EmployeeIds.Where(x => x != Guid.Empty).Distinct().ToList();
             if (ids.Count == 0)
             {
                 throw new InvalidOperationException("Cần chọn ít nhất một nhân viên.");
@@ -685,7 +707,7 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
                 throw new InvalidOperationException("Cần ít nhất một giá trị tổ chức mới (công ty/CN/PB/bộ phận/chức vụ).");
             }
 
-            var employees = await _context.EmployeeEntities.AsNoTracking()
+            List<EmployeeEntity> employees = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => ids.Contains(x.Id) && !x.IsDeleted)
                 .ToListAsync(cancellationToken);
             if (employees.Count == 0)
@@ -696,15 +718,15 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
             var prefix = string.IsNullOrWhiteSpace(request.CodePrefix)
                 ? $"DC-{DateTime.UtcNow:yyyyMMdd}"
                 : request.CodePrefix.Trim();
-            var created = new List<Guid>();
+            List<Guid> created = new();
             var seq = 1;
 
-            foreach (var employee in employees)
+            foreach (EmployeeEntity? employee in employees)
             {
                 var code = $"{prefix}-{seq:D3}";
                 seq++;
 
-                var detail = new TransferEmployeePositionInputDto
+                TransferEmployeePositionInputDto detail = new()
                 {
                     OldCompanyId = employee.CompanyId,
                     OldBranchId = employee.BranchId,
@@ -720,12 +742,27 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
                     ChangeType = TransferChangeType.Mixed,
                 };
 
-                if (!request.NewBranchId.HasValue) detail.NewBranchId = employee.BranchId;
-                if (!request.NewDepartmentId.HasValue) detail.NewDepartmentId = employee.DepartmentId;
-                if (!request.NewPartId.HasValue) detail.NewPartId = employee.PartId;
-                if (!request.NewPositionId.HasValue) detail.NewPositionId = employee.PositionId;
+                if (!request.NewBranchId.HasValue)
+                {
+                    detail.NewBranchId = employee.BranchId;
+                }
 
-                var id = await _mediator.Send(new CreateTransferEmployeeCommand
+                if (!request.NewDepartmentId.HasValue)
+                {
+                    detail.NewDepartmentId = employee.DepartmentId;
+                }
+
+                if (!request.NewPartId.HasValue)
+                {
+                    detail.NewPartId = employee.PartId;
+                }
+
+                if (!request.NewPositionId.HasValue)
+                {
+                    detail.NewPositionId = employee.PositionId;
+                }
+
+                Guid id = await _mediator.Send(new CreateTransferEmployeeCommand
                 {
                     EmployeeId = employee.Id,
                     Code = code,

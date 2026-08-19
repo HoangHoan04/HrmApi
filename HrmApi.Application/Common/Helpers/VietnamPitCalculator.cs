@@ -21,18 +21,31 @@ namespace HrmApi.Application.Common.Helpers
 
         public static decimal ComputeMonthlyTax(decimal taxableIncome)
         {
-            if (taxableIncome <= 0) return 0;
+            if (taxableIncome <= 0)
+            {
+                return 0;
+            }
 
             decimal tax = 0;
             decimal prev = 0;
-            foreach (var (ceiling, rate) in Brackets)
+            foreach ((decimal ceiling, decimal rate) in Brackets)
             {
-                if (taxableIncome <= prev) break;
+                if (taxableIncome <= prev)
+                {
+                    break;
+                }
+
                 decimal slice = Math.Min(taxableIncome, ceiling) - prev;
                 if (slice > 0)
+                {
                     tax += slice * rate;
+                }
+
                 prev = ceiling;
-                if (taxableIncome <= ceiling) break;
+                if (taxableIncome <= ceiling)
+                {
+                    break;
+                }
             }
 
             return Math.Round(tax, 0, MidpointRounding.AwayFromZero);
@@ -52,11 +65,15 @@ namespace HrmApi.Application.Common.Helpers
     {
         public static Domain.Entities.Payroll.SalaryLineItemEntity Income(
             string code, string name, decimal amount, int order, string? note = null)
-            => Line(SalaryItemType.Income, code, name, amount, order, note);
+        {
+            return Line(SalaryItemType.Income, code, name, amount, order, note);
+        }
 
         public static Domain.Entities.Payroll.SalaryLineItemEntity Deduction(
             string code, string name, decimal amount, int order, string? note = null)
-            => Line(SalaryItemType.Deduction, code, name, amount, order, note);
+        {
+            return Line(SalaryItemType.Deduction, code, name, amount, order, note);
+        }
 
         private static Domain.Entities.Payroll.SalaryLineItemEntity Line(
             string type, string code, string name, decimal amount, int order, string? note)

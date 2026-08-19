@@ -14,17 +14,29 @@ namespace HrmApi.Application.Features.Performance
     public class GetPerformance360ReviewsPagedQueryHandler : IRequestHandler<GetPerformance360ReviewsPagedQuery, PagedResult<Performance360ReviewDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetPerformance360ReviewsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetPerformance360ReviewsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<Performance360ReviewDto>> Handle(GetPerformance360ReviewsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<Performance360ReviewEntity> query = _context.Performance360ReviewEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CycleId.HasValue && request.CycleId != Guid.Empty)
+            {
                 query = query.Where(x => x.CycleId == request.CycleId);
+            }
+
             if (request.SubjectEmployeeId.HasValue && request.SubjectEmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.SubjectEmployeeId == request.SubjectEmployeeId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.ReviewerType))
+            {
                 query = query.Where(x => x.ReviewerType == request.ReviewerType.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -43,11 +55,15 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task<List<Performance360ReviewDto>> MapManyAsync(List<Performance360ReviewEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
-            var employeeIds = rows.SelectMany(x => new[] { x.SubjectEmployeeId, x.ReviewerEmployeeId }).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
+            List<Guid> cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
+            List<Guid> employeeIds = rows.SelectMany(x => new[] { x.SubjectEmployeeId, x.ReviewerEmployeeId }).Distinct().ToList();
+
+            Dictionary<Guid, string> cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
                 .Where(x => cycleIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var employees = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => employeeIds.Contains(x.Id))
@@ -58,8 +74,8 @@ namespace HrmApi.Application.Features.Performance
 
             return rows.Select(e =>
             {
-                employees.TryGetValue(e.SubjectEmployeeId, out var subject);
-                employees.TryGetValue(e.ReviewerEmployeeId, out var reviewer);
+                _ = employees.TryGetValue(e.SubjectEmployeeId, out var subject);
+                _ = employees.TryGetValue(e.ReviewerEmployeeId, out var reviewer);
                 return new Performance360ReviewDto
                 {
                     Id = e.Id,
@@ -98,8 +114,7 @@ namespace HrmApi.Application.Features.Performance
         {
             Performance360ReviewEntity? e = await _context.Performance360ReviewEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -138,32 +153,57 @@ namespace HrmApi.Application.Features.Performance
         internal async Task ValidateAsync(Performance360ReviewCommandFields request, CancellationToken cancellationToken)
         {
             if (!request.CycleId.HasValue || request.CycleId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Chu kỳ đánh giá là bắt buộc.");
+            }
+
             if (!await _context.PerformanceReviewCycleEntities.AnyAsync(x => x.Id == request.CycleId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Chu kỳ đánh giá không tồn tại.");
+            }
+
             if (!request.SubjectEmployeeId.HasValue || request.SubjectEmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Nhân viên được đánh giá là bắt buộc.");
+            }
+
             if (!await _context.EmployeeEntities.AnyAsync(x => x.Id == request.SubjectEmployeeId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Nhân viên được đánh giá không tồn tại.");
+            }
+
             if (!request.ReviewerEmployeeId.HasValue || request.ReviewerEmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Người đánh giá là bắt buộc.");
+            }
+
             if (!await _context.EmployeeEntities.AnyAsync(x => x.Id == request.ReviewerEmployeeId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Người đánh giá không tồn tại.");
+            }
 
             string reviewerType = NormalizeReviewerType(request.ReviewerType);
             if (reviewerType is not (Performance360ReviewerType.Self or Performance360ReviewerType.Peer or Performance360ReviewerType.Manager))
+            {
                 throw new InvalidOperationException("Loại người đánh giá không hợp lệ (SELF/PEER/MANAGER).");
+            }
 
             string status = NormalizeStatus(request.Status);
             if (status is not (Performance360Status.Draft or Performance360Status.Submitted))
+            {
                 throw new InvalidOperationException("Trạng thái không hợp lệ (DRAFT/SUBMITTED).");
+            }
         }
 
         internal static string NormalizeReviewerType(string? value)
-            => string.IsNullOrWhiteSpace(value) ? Performance360ReviewerType.Self : value.Trim().ToUpperInvariant();
+        {
+            return string.IsNullOrWhiteSpace(value) ? Performance360ReviewerType.Self : value.Trim().ToUpperInvariant();
+        }
 
         internal static string NormalizeStatus(string? value)
-            => string.IsNullOrWhiteSpace(value) ? Performance360Status.Draft : value.Trim().ToUpperInvariant();
+        {
+            return string.IsNullOrWhiteSpace(value) ? Performance360Status.Draft : value.Trim().ToUpperInvariant();
+        }
     }
 
     public class UpdatePerformance360ReviewCommand : Performance360ReviewCommandFields, IRequest<bool>
@@ -187,7 +227,10 @@ namespace HrmApi.Application.Features.Performance
         {
             Performance360ReviewEntity? entity = await _context.Performance360ReviewEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.CycleId ??= entity.CycleId;
             request.SubjectEmployeeId ??= entity.SubjectEmployeeId;
@@ -226,7 +269,11 @@ namespace HrmApi.Application.Features.Performance
         {
             Performance360ReviewEntity? entity = await _context.Performance360ReviewEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

@@ -129,5 +129,42 @@ namespace HrmApi.WebApi.Controllers
             if (result == null) return NotFound("Không tìm thấy nhân viên.");
             return Ok(result);
         }
+
+        [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.HrTransferImportExcel)]
+        public async Task<IActionResult> DownloadExcelTemplate()
+        {
+            byte[] content = await _mediator.Send(new DownloadTransferEmployeeExcelTemplateQuery());
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Mau_Import_Dieu_Chuyen_Nhan_Su.xlsx");
+        }
+
+        [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.HrTransferExportExcel)]
+        public async Task<IActionResult> ExportExcel([FromBody] ExportTransferEmployeesExcelQuery query)
+        {
+            byte[] content = await _mediator.Send(query);
+            string fileName = $"Danh_Sach_Dieu_Chuyen_Nhan_Su_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.HrTransferImportExcel)]
+        public async Task<ActionResult<TransferEmployeeImportResultDto>> ImportExcel(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file Excel hợp lệ.");
+            }
+
+            using MemoryStream memoryStream = new();
+            await file.CopyToAsync(memoryStream);
+
+            TransferEmployeeImportResultDto result = await _mediator.Send(new ImportTransferEmployeesExcelCommand
+            {
+                FileContent = memoryStream.ToArray()
+            });
+
+            return Ok(result);
+        }
     }
 }

@@ -49,18 +49,21 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        public static object ToLogObject(AttendanceComplaintEntity entity) => new
+        public static object ToLogObject(AttendanceComplaintEntity entity)
         {
-            entity.Id,
-            entity.EmployeeId,
-            entity.WorkDate,
-            entity.ComplaintType,
-            entity.RequestedCheckInTime,
-            entity.RequestedCheckOutTime,
-            entity.Reason,
-            entity.Status,
-            entity.ApproverNote,
-            entity.TimekeepingId
-        };
+            return new
+            {
+                entity.Id,
+                entity.EmployeeId,
+                entity.WorkDate,
+                entity.ComplaintType,
+                entity.RequestedCheckInTime,
+                entity.RequestedCheckOutTime,
+                entity.Reason,
+                entity.Status,
+                entity.ApproverNote,
+                entity.TimekeepingId
+            };
+        }
     }
 }

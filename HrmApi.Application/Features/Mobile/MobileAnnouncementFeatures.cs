@@ -33,7 +33,9 @@ namespace HrmApi.Application.Features.Mobile
             }
 
             if (!companyId.HasValue || companyId == Guid.Empty)
+            {
                 return [];
+            }
 
             DateTime now = DateTime.UtcNow;
             return await _context.CompanyAnnouncementEntities.AsNoTracking()
@@ -76,12 +78,19 @@ namespace HrmApi.Application.Features.Mobile
                 || _currentUser.HasPermission(PermissionCodes.SystemSettingsManage)
                 || _currentUser.HasPermission(PermissionCodes.OrgManage);
             if (!allowed)
+            {
                 throw new InvalidOperationException("Bạn không có quyền tạo thông báo.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Title))
+            {
                 throw new InvalidOperationException("Tiêu đề là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Body))
+            {
                 throw new InvalidOperationException("Nội dung là bắt buộc.");
+            }
 
             Guid companyId = request.CompanyId ?? _currentUser.CompanyId ?? Guid.Empty;
             if (companyId == Guid.Empty)
@@ -94,9 +103,11 @@ namespace HrmApi.Application.Features.Mobile
             }
 
             if (companyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("CompanyId là bắt buộc.");
+            }
 
-            var entity = new CompanyAnnouncementEntity
+            CompanyAnnouncementEntity entity = new()
             {
                 CompanyId = companyId,
                 Title = request.Title.Trim(),
@@ -106,8 +117,8 @@ namespace HrmApi.Application.Features.Mobile
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = _currentUser.UserId ?? Guid.Empty,
             };
-            _context.CompanyAnnouncementEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.CompanyAnnouncementEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             return entity.Id;
         }
     }

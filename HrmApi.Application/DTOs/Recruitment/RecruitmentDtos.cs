@@ -1,5 +1,4 @@
 using HrmApi.Application.Common.Models;
-using HrmApi.Application.DTOs;
 
 namespace HrmApi.Application.DTOs.Recruitment
 {

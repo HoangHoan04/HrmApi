@@ -14,13 +14,19 @@ namespace HrmApi.Application.Features.Training
     public class GetTrainingResultsPagedQueryHandler : IRequestHandler<GetTrainingResultsPagedQuery, PagedResult<TrainingResultDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetTrainingResultsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetTrainingResultsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<TrainingResultDto>> Handle(GetTrainingResultsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<TrainingResultEntity> query = _context.TrainingResultEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.EnrollmentId.HasValue && request.EnrollmentId != Guid.Empty)
+            {
                 query = query.Where(x => x.EnrollmentId == request.EnrollmentId);
+            }
+
             if (request.CourseId.HasValue && request.CourseId != Guid.Empty)
             {
                 query = from r in query
@@ -48,24 +54,28 @@ namespace HrmApi.Application.Features.Training
 
         internal async Task<List<TrainingResultDto>> MapManyAsync(List<TrainingResultEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var enrollmentIds = rows.Select(x => x.EnrollmentId).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
+
+            List<Guid> enrollmentIds = rows.Select(x => x.EnrollmentId).Distinct().ToList();
             var enrollments = await _context.TrainingEnrollmentEntities.AsNoTracking()
                 .Where(x => enrollmentIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => new { x.CourseId, x.EmployeeId }, cancellationToken);
 
-            var courseIds = enrollments.Values.Select(x => x.CourseId).Distinct().ToList();
-            var empIds = enrollments.Values.Select(x => x.EmployeeId).Distinct().ToList();
+            List<Guid> courseIds = enrollments.Values.Select(x => x.CourseId).Distinct().ToList();
+            List<Guid> empIds = enrollments.Values.Select(x => x.EmployeeId).Distinct().ToList();
 
-            var courses = await _context.TrainingCourseEntities.AsNoTracking()
+            Dictionary<Guid, string> courses = await _context.TrainingCourseEntities.AsNoTracking()
                 .Where(x => courseIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-            var emps = await _context.EmployeeEntities.AsNoTracking()
+            Dictionary<Guid, string> emps = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => empIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.FullName ?? (x.LastName + " " + x.FirstName).Trim(), cancellationToken);
 
             return rows.Select(e =>
             {
-                enrollments.TryGetValue(e.EnrollmentId, out var enr);
+                _ = enrollments.TryGetValue(e.EnrollmentId, out var enr);
                 return new TrainingResultDto
                 {
                     Id = e.Id,
@@ -100,8 +110,7 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingResultEntity? e = await _context.TrainingResultEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -140,20 +149,36 @@ namespace HrmApi.Application.Features.Training
         internal async Task ValidateAsync(TrainingResultCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (!request.EnrollmentId.HasValue || request.EnrollmentId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Đăng ký đào tạo (parent) là bắt buộc.");
+            }
+
             if (!await _context.TrainingEnrollmentEntities.AnyAsync(x => x.Id == request.EnrollmentId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Đăng ký đào tạo không tồn tại.");
+            }
+
             if (await _context.TrainingResultEntities.AnyAsync(
                     x => !x.IsDeleted && x.EnrollmentId == request.EnrollmentId && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+            {
                 throw new InvalidOperationException("Đăng ký này đã có kết quả đào tạo.");
+            }
         }
 
         internal async Task MaybeCompleteEnrollmentAsync(Guid enrollmentId, DateTime? completedAt, CancellationToken cancellationToken)
         {
-            if (!completedAt.HasValue) return;
+            if (!completedAt.HasValue)
+            {
+                return;
+            }
+
             TrainingEnrollmentEntity? enrollment = await _context.TrainingEnrollmentEntities
                 .FirstOrDefaultAsync(x => x.Id == enrollmentId && !x.IsDeleted, cancellationToken);
-            if (enrollment == null) return;
+            if (enrollment == null)
+            {
+                return;
+            }
+
             enrollment.Status = TrainingEnrollmentStatus.Completed;
             enrollment.UpdatedAt = DateTime.UtcNow;
             enrollment.UpdatedBy = _currentUser.UserId;
@@ -181,7 +206,10 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingResultEntity? entity = await _context.TrainingResultEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.EnrollmentId ??= entity.EnrollmentId;
             await _create.ValidateAsync(request, request.Id, cancellationToken);
@@ -217,7 +245,11 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingResultEntity? entity = await _context.TrainingResultEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

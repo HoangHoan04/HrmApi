@@ -1,7 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +18,10 @@ namespace HrmApi.Application.Common.Services
             _scopeFactory = scopeFactory;
         }
 
-        private static string Key(Guid userId) => $"auth:perm:{userId:N}";
+        private static string Key(Guid userId)
+        {
+            return $"auth:perm:{userId:N}";
+        }
 
         public bool TryGet(Guid userId, out AuthContextDto? context)
         {
@@ -42,12 +41,12 @@ namespace HrmApi.Application.Common.Services
 
         public void Set(Guid userId, AuthContextDto context)
         {
-            var copy = new AuthContextDto
+            AuthContextDto copy = new()
             {
                 Roles = [.. context.Roles],
                 Permissions = [.. context.Permissions],
             };
-            _cache.Set(
+            _ = _cache.Set(
                 Key(userId),
                 copy,
                 new MemoryCacheEntryOptions
@@ -56,26 +55,33 @@ namespace HrmApi.Application.Common.Services
                 });
         }
 
-        public void InvalidateUser(Guid userId) => _cache.Remove(Key(userId));
+        public void InvalidateUser(Guid userId)
+        {
+            _cache.Remove(Key(userId));
+        }
 
         public async Task InvalidateByRoleAsync(Guid roleId, CancellationToken cancellationToken = default)
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
             IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-            var userIds = await db.UserRoleEntities.AsNoTracking()
+            List<Guid> userIds = await db.UserRoleEntities.AsNoTracking()
                 .Where(x => x.RoleId == roleId && !x.IsDeleted)
                 .Select(x => x.UserId)
                 .Distinct()
                 .ToListAsync(cancellationToken);
 
             foreach (Guid userId in userIds)
+            {
                 InvalidateUser(userId);
+            }
         }
 
         public void InvalidateAll()
         {
             if (_cache is MemoryCache mc)
+            {
                 mc.Compact(1.0);
+            }
         }
     }
 }

@@ -30,14 +30,7 @@ namespace HrmApi.Application.Features.ContractType.Queries
         {
             IQueryable<ContractTypeEntity> query = _context.ContractTypeEntities.AsNoTracking();
 
-            if (request.IsDeleted.HasValue)
-            {
-                query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
-            }
-            else
-            {
-                query = query.Where(x => !x.IsDeleted);
-            }
+            query = request.IsDeleted.HasValue ? query.Where(x => x.IsDeleted == request.IsDeleted.Value) : query.Where(x => !x.IsDeleted);
 
             if (request.IsActive.HasValue)
             {

@@ -1,14 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.DTOs;
-using HrmApi.Application.Features.Companies.Commands;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
@@ -35,17 +27,17 @@ namespace HrmApi.Application.Features.Companies.Commands
 
         public async Task<byte[]> Handle(ExportCompaniesExcelQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.CompanyEntities.AsNoTracking();
+            IQueryable<CompanyEntity> query = _context.CompanyEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
@@ -54,13 +46,13 @@ namespace HrmApi.Application.Features.Companies.Commands
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
             }
 
-            var companies = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            List<CompanyEntity> companies = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("DanhSachCongTy");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("DanhSachCongTy");
             CompanyExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: true);
 
-            for (var i = 0; i < companies.Count; i++)
+            for (int i = 0; i < companies.Count; i++)
             {
                 CompanyExcelWriter.WriteCompanyRow(worksheet, i + 2, companies[i], includeExportOnlyColumns: true);
             }
@@ -83,7 +75,7 @@ namespace HrmApi.Application.Features.Companies.Commands
         public Task<byte[]> Handle(DownloadCompanyExcelTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("MauImport");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("MauImport");
             CompanyExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
             ExcelHelper.ApplyColumnWidths(worksheet);
             ExcelHelper.FreezeHeaderRow(worksheet);
@@ -104,7 +96,7 @@ namespace HrmApi.Application.Features.Companies.Commands
         public int TotalRows { get; set; }
         public int SuccessCount { get; set; }
         public int ErrorCount { get; set; }
-        public List<string> Errors { get; set; } = new();
+        public List<string> Errors { get; set; } = [];
     }
 
     public class ImportCompaniesExcelCommandHandler : IRequestHandler<ImportCompaniesExcelCommand, CompanyImportResultDto>
@@ -124,17 +116,17 @@ namespace HrmApi.Application.Features.Companies.Commands
 
             using var stream = new MemoryStream(request.FileContent);
             using var workbook = new XLWorkbook(stream);
-            var worksheet = workbook.Worksheet(1);
-            var rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? new List<IXLRangeRow>();
+            IXLWorksheet worksheet = workbook.Worksheet(1);
+            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
 
             result.TotalRows = rows.Count;
 
-            foreach (var row in rows)
+            foreach (IXLRangeRow? row in rows)
             {
-                var rowNumber = row.RowNumber();
+                int rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row);
+                    CompanyCommandFields command = ReadRow(row);
                     if (string.IsNullOrWhiteSpace(command.Code) && string.IsNullOrWhiteSpace(command.Name))
                     {
                         continue;
@@ -149,8 +141,8 @@ namespace HrmApi.Application.Features.Companies.Commands
                     };
                     CompanyMapper.ApplyCommandFields(company, command);
 
-                    _context.CompanyEntities.Add(company);
-                    await _context.SaveChangesAsync(cancellationToken);
+                    _ = _context.CompanyEntities.Add(company);
+                    _ = await _context.SaveChangesAsync(cancellationToken);
 
                     await _actionLog.LogActionAsync(
                         ActionType.CREATE,
@@ -216,11 +208,18 @@ namespace HrmApi.Application.Features.Companies.Commands
         private static string GetCellString(IXLRangeRow row, int column)
         {
             IXLCell cell = row.Cell(column);
-            if (cell.IsEmpty()) return string.Empty;
+            if (cell.IsEmpty())
+            {
+                return string.Empty;
+            }
+
             try
             {
-                var text = cell.GetFormattedString();
-                if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
+                string text = cell.GetFormattedString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text.Trim();
+                }
             }
             catch
             {
@@ -230,27 +229,51 @@ namespace HrmApi.Application.Features.Companies.Commands
 
         private static DateTime? ParseDate(IXLCell cell)
         {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out DateTime dateValue)) return DateTime.SpecifyKind(dateValue, DateTimeKind.Utc);
-            var text = GetCellString(cell.AsRange().FirstRow(), 1);
-            if (string.IsNullOrWhiteSpace(text)) return null;
+            if (cell.IsEmpty())
+            {
+                return null;
+            }
+
+            if (cell.TryGetValue(out DateTime dateValue))
+            {
+                return DateTime.SpecifyKind(dateValue, DateTimeKind.Utc);
+            }
+
+            string text = GetCellString(cell.AsRange().FirstRow(), 1);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+
             string[] formats = ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"];
-            if (DateTime.TryParseExact(text, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var exact))
+            if (DateTime.TryParseExact(text, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime exact))
+            {
                 return DateTime.SpecifyKind(exact, DateTimeKind.Utc);
-            if (DateTime.TryParse(text, System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), System.Globalization.DateTimeStyles.None, out var viDate))
+            }
+
+            if (DateTime.TryParse(text, System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), System.Globalization.DateTimeStyles.None, out DateTime viDate))
+            {
                 return DateTime.SpecifyKind(viDate, DateTimeKind.Utc);
-            if (DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
-                return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
-            if (DateTime.TryParse(text, out var localParsed))
-                return DateTime.SpecifyKind(localParsed, DateTimeKind.Utc);
-            return null;
+            }
+
+            return DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime parsed)
+                ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                : DateTime.TryParse(text, out DateTime localParsed) ? DateTime.SpecifyKind(localParsed, DateTimeKind.Utc) : null;
         }
 
         private static bool? ParseBool(IXLCell cell)
         {
-            if (cell.IsEmpty()) return null;
-            if (cell.TryGetValue(out bool boolValue)) return boolValue;
-            var text = cell.GetString().Trim().ToLower();
+            if (cell.IsEmpty())
+            {
+                return null;
+            }
+
+            if (cell.TryGetValue(out bool boolValue))
+            {
+                return boolValue;
+            }
+
+            string text = cell.GetString().Trim().ToLower();
             return text switch
             {
                 "1" or "true" or "có" or "co" or "yes" => true,
@@ -308,8 +331,10 @@ namespace HrmApi.Application.Features.Companies.Commands
             new() { Title = "Trạng thái hệ thống", Required = false, ExportOnly = true },
         };
 
-        public static IEnumerable<CompanyExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns) =>
-            Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        public static IEnumerable<CompanyExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns)
+        {
+            return Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        }
     }
 
     internal static class CompanyExcelWriter
@@ -318,9 +343,9 @@ namespace HrmApi.Application.Features.Companies.Commands
         {
             var columns = CompanyExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
 
-            for (var col = 0; col < columns.Count; col++)
+            for (int col = 0; col < columns.Count; col++)
             {
-                var definition = columns[col];
+                CompanyExcelColumnDefinition definition = columns[col];
                 ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
@@ -376,9 +401,9 @@ namespace HrmApi.Application.Features.Companies.Commands
                 values.Add(company.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
             }
 
-            for (var col = 0; col < values.Count; col++)
+            for (int col = 0; col < values.Count; col++)
             {
-                var cell = worksheet.Cell(row, col + 1);
+                IXLCell cell = worksheet.Cell(row, col + 1);
                 cell.Value = values[col] ?? string.Empty;
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;

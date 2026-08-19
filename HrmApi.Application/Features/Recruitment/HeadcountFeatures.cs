@@ -1,6 +1,7 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Recruitment;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,28 +13,38 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetHeadcountTreeQueryHandler : IRequestHandler<GetHeadcountTreeQuery, List<HeadcountNodeDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetHeadcountTreeQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetHeadcountTreeQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<HeadcountNodeDto>> Handle(GetHeadcountTreeQuery request, CancellationToken cancellationToken)
         {
-            var companiesQuery = _context.CompanyEntities.AsNoTracking().Where(x => !x.IsDeleted);
+            IQueryable<CompanyEntity> companiesQuery = _context.CompanyEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 companiesQuery = companiesQuery.Where(x => x.Id == request.CompanyId);
+            }
 
-            var companies = await companiesQuery.OrderBy(x => x.Code).ToListAsync(cancellationToken);
-            if (companies.Count == 0) return [];
+            List<CompanyEntity> companies = await companiesQuery.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            if (companies.Count == 0)
+            {
+                return [];
+            }
 
             List<Guid> companyIds = companies.Select(x => x.Id).ToList();
 
-            var branchesQuery = _context.BranchEntities.AsNoTracking()
+            IQueryable<BranchEntity> branchesQuery = _context.BranchEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CompanyId.HasValue && companyIds.Contains(x.CompanyId.Value));
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 branchesQuery = branchesQuery.Where(x => x.Id == request.BranchId);
+            }
 
-            var branches = await branchesQuery.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            List<BranchEntity> branches = await branchesQuery.OrderBy(x => x.Code).ToListAsync(cancellationToken);
             List<Guid> branchIds = branches.Select(x => x.Id).ToList();
 
-            var departments = await _context.DepartmentEntities.AsNoTracking()
+            List<DepartmentEntity> departments = await _context.DepartmentEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CompanyId.HasValue && companyIds.Contains(x.CompanyId.Value)
                     && (
                         (x.BranchId.HasValue && branchIds.Contains(x.BranchId.Value))
@@ -49,13 +60,13 @@ namespace HrmApi.Application.Features.Recruitment
 
             List<Guid> departmentIds = departments.Select(x => x.Id).ToList();
 
-            var parts = await _context.PartEntities.AsNoTracking()
+            List<PartEntity> parts = await _context.PartEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.DepartmentId.HasValue && departmentIds.Contains(x.DepartmentId.Value))
                 .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Code)
                 .ToListAsync(cancellationToken);
             List<Guid> partIds = parts.Select(x => x.Id).ToList();
 
-            var positions = await _context.PositionEntities.AsNoTracking()
+            List<PositionEntity> positions = await _context.PositionEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && (
                     (x.PartId.HasValue && partIds.Contains(x.PartId.Value))
                     || (x.DepartmentId.HasValue && departmentIds.Contains(x.DepartmentId.Value) && !x.PartId.HasValue)))
@@ -67,8 +78,8 @@ namespace HrmApi.Application.Features.Recruitment
                 .Select(x => x.PositionMasterId!.Value)
                 .Distinct()
                 .ToList();
-            var masters = masterIds.Count == 0
-                ? new Dictionary<Guid, (string Code, string Name)>()
+            Dictionary<Guid, (string Code, string Name)> masters = masterIds.Count == 0
+                ? []
                 : await _context.PositionMasterEntities.AsNoTracking()
                     .Where(x => masterIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => (x.Code, x.Name), cancellationToken);
@@ -78,8 +89,8 @@ namespace HrmApi.Application.Features.Recruitment
                 .Select(x => x.PartMasterId!.Value)
                 .Distinct()
                 .ToList();
-            var partMasters = partMasterIds.Count == 0
-                ? new Dictionary<Guid, (string Code, string Name)>()
+            Dictionary<Guid, (string Code, string Name)> partMasters = partMasterIds.Count == 0
+                ? []
                 : await _context.PartMasterEntities.AsNoTracking()
                     .Where(x => partMasterIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => (x.Code, x.Name), cancellationToken);
@@ -114,9 +125,9 @@ namespace HrmApi.Application.Features.Recruitment
 
             List<HeadcountNodeDto> result = [];
 
-            foreach (var company in companies)
+            foreach (CompanyEntity? company in companies)
             {
-                var companyBranches = branches.Where(b => b.CompanyId == company.Id).ToList();
+                List<BranchEntity> companyBranches = branches.Where(b => b.CompanyId == company.Id).ToList();
                 bool hasBranches = companyBranches.Count > 0;
                 int companyCount = companyActual.GetValueOrDefault(company.Id);
 
@@ -154,7 +165,7 @@ namespace HrmApi.Application.Features.Recruitment
 
                 if (hasBranches)
                 {
-                    foreach (var branch in companyBranches)
+                    foreach (BranchEntity? branch in companyBranches)
                     {
                         int branchCount = branchActual.GetValueOrDefault(branch.Id);
                         result.Add(Node(
@@ -212,7 +223,7 @@ namespace HrmApi.Application.Features.Recruitment
             Dictionary<Guid, int> partActual,
             Dictionary<Guid, int> positionActual)
         {
-            foreach (var dept in depts)
+            foreach (DepartmentEntity dept in depts)
             {
                 int deptCount = deptActual.GetValueOrDefault(dept.Id);
                 result.Add(Node(
@@ -225,17 +236,17 @@ namespace HrmApi.Application.Features.Recruitment
                     deptCount,
                     deptDepth));
 
-                var deptParts = parts.Where(p => p.DepartmentId == dept.Id).ToList();
-                foreach (var part in deptParts)
+                List<PartEntity> deptParts = parts.Where(p => p.DepartmentId == dept.Id).ToList();
+                foreach (PartEntity? part in deptParts)
                 {
                     string partCode = !string.IsNullOrWhiteSpace(part.Code)
                         ? part.Code!
-                        : (part.PartMasterId.HasValue && partMasters.TryGetValue(part.PartMasterId.Value, out var pmc)
+                        : (part.PartMasterId.HasValue && partMasters.TryGetValue(part.PartMasterId.Value, out (string Code, string Name) pmc)
                             ? pmc.Code
                             : part.Id.ToString("N")[..8]);
                     string partName = !string.IsNullOrWhiteSpace(part.Name)
                         ? part.Name!
-                        : (part.PartMasterId.HasValue && partMasters.TryGetValue(part.PartMasterId.Value, out var pmn)
+                        : (part.PartMasterId.HasValue && partMasters.TryGetValue(part.PartMasterId.Value, out (string Code, string Name) pmn)
                             ? pmn.Name
                             : partCode);
                     int partCount = partActual.GetValueOrDefault(part.Id);
@@ -249,13 +260,13 @@ namespace HrmApi.Application.Features.Recruitment
                         partCount,
                         deptDepth + 1));
 
-                    foreach (var pos in positions.Where(p => p.PartId == part.Id))
+                    foreach (PositionEntity? pos in positions.Where(p => p.PartId == part.Id))
                     {
                         result.Add(PositionNode(pos, part.Id, masters, positionActual, deptDepth + 2));
                     }
                 }
 
-                foreach (var pos in positions.Where(p => p.DepartmentId == dept.Id && !p.PartId.HasValue))
+                foreach (PositionEntity? pos in positions.Where(p => p.DepartmentId == dept.Id && !p.PartId.HasValue))
                 {
                     result.Add(PositionNode(pos, dept.Id, masters, positionActual, deptDepth + 1));
                 }
@@ -269,9 +280,9 @@ namespace HrmApi.Application.Features.Recruitment
             Dictionary<Guid, int> positionActual,
             int depth)
         {
-            string code = pos.PositionMasterId.HasValue && masters.TryGetValue(pos.PositionMasterId.Value, out var m)
+            string code = pos.PositionMasterId.HasValue && masters.TryGetValue(pos.PositionMasterId.Value, out (string Code, string Name) m)
                 ? m.Code : pos.Id.ToString("N")[..8];
-            string name = pos.PositionMasterId.HasValue && masters.TryGetValue(pos.PositionMasterId.Value, out var mn)
+            string name = pos.PositionMasterId.HasValue && masters.TryGetValue(pos.PositionMasterId.Value, out (string Code, string Name) mn)
                 ? mn.Name : code;
             int count = positionActual.GetValueOrDefault(pos.Id);
             return Node(HeadcountNodeType.Position, pos.Id, parentId, code, name, pos.QuantityStandard, count, depth);
@@ -289,7 +300,8 @@ namespace HrmApi.Application.Features.Recruitment
             bool isEditable = true,
             bool isAggregated = false,
             int childBranchCount = 0)
-            => new()
+        {
+            return new()
             {
                 NodeType = nodeType,
                 Id = id,
@@ -305,6 +317,7 @@ namespace HrmApi.Application.Features.Recruitment
                 IsAggregated = isAggregated,
                 ChildBranchCount = childBranchCount,
             };
+        }
     }
 
     public class UpsertHeadcountRowCommand : UpsertHeadcountRowFields, IRequest<bool> { }
@@ -322,11 +335,19 @@ namespace HrmApi.Application.Features.Recruitment
         public async Task<bool> Handle(UpsertHeadcountRowCommand request, CancellationToken cancellationToken)
         {
             if (request.Id == Guid.Empty)
+            {
                 throw new InvalidOperationException("Id là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.NodeType))
+            {
                 throw new InvalidOperationException("NodeType là bắt buộc.");
+            }
+
             if (request.PlannedLimit.HasValue && request.PlannedLimit.Value < 0)
+            {
                 throw new InvalidOperationException("Định biên phải >= 0.");
+            }
 
             string nodeType = request.NodeType.Trim().ToUpperInvariant();
             DateTime now = DateTime.UtcNow;
@@ -336,7 +357,7 @@ namespace HrmApi.Application.Features.Recruitment
             {
                 case HeadcountNodeType.Company:
                     {
-                        var entity = await _context.CompanyEntities
+                        CompanyEntity entity = await _context.CompanyEntities
                             .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                             ?? throw new InvalidOperationException("Công ty không tồn tại.");
 
@@ -357,7 +378,7 @@ namespace HrmApi.Application.Features.Recruitment
                     }
                 case HeadcountNodeType.Branch:
                     {
-                        var entity = await _context.BranchEntities
+                        BranchEntity entity = await _context.BranchEntities
                             .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                             ?? throw new InvalidOperationException("Chi nhánh không tồn tại.");
                         entity.MaxEmployeeCapacity = request.PlannedLimit;
@@ -367,7 +388,7 @@ namespace HrmApi.Application.Features.Recruitment
                     }
                 case HeadcountNodeType.Department:
                     {
-                        var entity = await _context.DepartmentEntities
+                        DepartmentEntity entity = await _context.DepartmentEntities
                             .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                             ?? throw new InvalidOperationException("Phòng ban không tồn tại.");
                         entity.Limit = request.PlannedLimit ?? 0;
@@ -377,7 +398,7 @@ namespace HrmApi.Application.Features.Recruitment
                     }
                 case HeadcountNodeType.Part:
                     {
-                        var entity = await _context.PartEntities
+                        PartEntity entity = await _context.PartEntities
                             .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                             ?? throw new InvalidOperationException("Tổ/nhóm không tồn tại.");
                         entity.Limit = request.PlannedLimit;
@@ -387,7 +408,7 @@ namespace HrmApi.Application.Features.Recruitment
                     }
                 case HeadcountNodeType.Position:
                     {
-                        var entity = await _context.PositionEntities
+                        PositionEntity entity = await _context.PositionEntities
                             .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                             ?? throw new InvalidOperationException("Chức danh không tồn tại.");
                         entity.QuantityStandard = request.PlannedLimit;

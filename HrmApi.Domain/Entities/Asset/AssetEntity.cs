@@ -1,4 +1,4 @@
-﻿using HrmApi.Domain.Common;
+using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
 
@@ -14,6 +14,10 @@ namespace HrmApi.Domain.Entities.Asset
         public string? SerialNumber { get; set; }
         public DateOnly? PurchaseDate { get; set; }
         public decimal? PurchaseCost { get; set; }
+        public DateOnly? WarrantyExpiryDate { get; set; }
+        public string? Vendor { get; set; }
+        public string? Model { get; set; }
+        public string? Location { get; set; }
         public string Status { get; set; } = AssetStatus.Available;
         public string? Note { get; set; }
 
@@ -21,5 +25,6 @@ namespace HrmApi.Domain.Entities.Asset
         public CompanyEntity? Company { get; set; }
         public BranchEntity? Branch { get; set; }
         public List<AssetTicketEntity> Tickets { get; set; } = [];
+        public List<AssetAssignmentEntity> Assignments { get; set; } = [];
     }
 }

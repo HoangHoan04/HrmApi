@@ -13,13 +13,19 @@ namespace HrmApi.Application.Features.Training
     public class GetTrainingQuizzesPagedQueryHandler : IRequestHandler<GetTrainingQuizzesPagedQuery, PagedResult<TrainingQuizDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetTrainingQuizzesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetTrainingQuizzesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<TrainingQuizDto>> Handle(GetTrainingQuizzesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<TrainingQuizEntity> query = _context.TrainingQuizEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CourseId.HasValue && request.CourseId != Guid.Empty)
+            {
                 query = query.Where(x => x.CourseId == request.CourseId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -42,9 +48,13 @@ namespace HrmApi.Application.Features.Training
 
         internal async Task<List<TrainingQuizDto>> MapManyAsync(List<TrainingQuizEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
-            var courses = await _context.TrainingCourseEntities.AsNoTracking()
+            if (rows.Count == 0)
+            {
+                return [];
+            }
+
+            List<Guid> courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
+            Dictionary<Guid, string> courses = await _context.TrainingCourseEntities.AsNoTracking()
                 .Where(x => courseIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             return rows.Select(e => new TrainingQuizDto
@@ -80,8 +90,7 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingQuizEntity? e = await _context.TrainingQuizEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -121,25 +130,56 @@ namespace HrmApi.Application.Features.Training
         internal async Task ValidateAsync(TrainingQuizCommandFields request, CancellationToken cancellationToken)
         {
             if (!request.CourseId.HasValue || request.CourseId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Khóa học (parent) là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Question)) throw new InvalidOperationException("Câu hỏi là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.OptionA)) throw new InvalidOperationException("Đáp án A là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.OptionB)) throw new InvalidOperationException("Đáp án B là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.CorrectOption)) throw new InvalidOperationException("Đáp án đúng là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Question))
+            {
+                throw new InvalidOperationException("Câu hỏi là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.OptionA))
+            {
+                throw new InvalidOperationException("Đáp án A là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.OptionB))
+            {
+                throw new InvalidOperationException("Đáp án B là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CorrectOption))
+            {
+                throw new InvalidOperationException("Đáp án đúng là bắt buộc.");
+            }
 
             string correct = NormalizeCorrectOption(request.CorrectOption);
             if (correct is not ("A" or "B" or "C" or "D"))
+            {
                 throw new InvalidOperationException("Đáp án đúng phải là A, B, C hoặc D.");
+            }
+
             if (correct == "C" && string.IsNullOrWhiteSpace(request.OptionC))
+            {
                 throw new InvalidOperationException("Đáp án C là bắt buộc khi chọn đúng là C.");
+            }
+
             if (correct == "D" && string.IsNullOrWhiteSpace(request.OptionD))
+            {
                 throw new InvalidOperationException("Đáp án D là bắt buộc khi chọn đúng là D.");
+            }
 
             if (!await _context.TrainingCourseEntities.AnyAsync(x => x.Id == request.CourseId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Khóa học không tồn tại.");
+            }
         }
 
-        internal static string NormalizeCorrectOption(string value) => value.Trim().ToUpperInvariant();
+        internal static string NormalizeCorrectOption(string value)
+        {
+            return value.Trim().ToUpperInvariant();
+        }
     }
 
     public class UpdateTrainingQuizCommand : TrainingQuizCommandFields, IRequest<bool>
@@ -163,7 +203,10 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingQuizEntity? entity = await _context.TrainingQuizEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.CourseId ??= entity.CourseId;
             request.Question ??= entity.Question;
@@ -202,7 +245,11 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingQuizEntity? entity = await _context.TrainingQuizEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

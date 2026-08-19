@@ -1,9 +1,6 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
+using HrmApi.Domain.Entities.AuditLog;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,7 +44,7 @@ namespace HrmApi.Application.Features.ActionLogs.Queries
 
         public async Task<PagedResult<ActionLogDto>> Handle(GetActionLogsQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.ActionLogEntities.AsNoTracking();
+            IQueryable<ActionLogEntity> query = _context.ActionLogEntities.AsNoTracking();
 
             if (!string.IsNullOrEmpty(request.EntityName))
             {
@@ -61,25 +58,25 @@ namespace HrmApi.Application.Features.ActionLogs.Queries
 
             if (!string.IsNullOrWhiteSpace(request.ActionType))
             {
-                var actionType = request.ActionType.Trim();
+                string actionType = request.ActionType.Trim();
                 query = query.Where(x => x.ActionType == actionType);
             }
 
             if (request.FromDate.HasValue)
             {
-                var from = request.FromDate.Value.Date;
+                DateTime from = request.FromDate.Value.Date;
                 query = query.Where(x => x.CreatedAt >= from);
             }
 
             if (request.ToDate.HasValue)
             {
-                var to = request.ToDate.Value.Date.AddDays(1);
+                DateTime to = request.ToDate.Value.Date.AddDays(1);
                 query = query.Where(x => x.CreatedAt < to);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x => x.CreatedByName.ToLower().Contains(search) ||
 
                                          x.CreatedByCode.ToLower().Contains(search) ||
@@ -87,11 +84,11 @@ namespace HrmApi.Application.Features.ActionLogs.Queries
                                          (x.CreatedNote != null && x.CreatedNote.ToLower().Contains(search)));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
 
             query = query.OrderByDescending(x => x.CreatedAt);
 
-            var items = await query
+            List<ActionLogDto> items = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .Select(x => new ActionLogDto

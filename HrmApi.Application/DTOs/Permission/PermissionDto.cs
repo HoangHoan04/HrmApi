@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace HrmApi.Application.DTOs.Permission
 {
     public class PermissionDto

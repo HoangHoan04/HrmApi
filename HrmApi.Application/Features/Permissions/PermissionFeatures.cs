@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.DTOs.Permission;
 using MediatR;
@@ -17,7 +12,7 @@ namespace HrmApi.Application.Features.Permissions
     {
         public Task<List<PermissionDto>> Handle(ListPermissionsQuery request, CancellationToken cancellationToken)
         {
-            var items = RbacPermissionCatalog.Items
+            List<PermissionDto> items = RbacPermissionCatalog.Items
                 .OrderBy(x => x.Module)
                 .ThenBy(x => x.Action)
                 .ThenBy(x => x.Code)
@@ -27,15 +22,18 @@ namespace HrmApi.Application.Features.Permissions
             return Task.FromResult(items);
         }
 
-        private static PermissionDto ToDto(RbacPermissionCatalog.Item x) => new()
+        private static PermissionDto ToDto(RbacPermissionCatalog.Item x)
         {
-            Code = x.Code,
-            Name = x.Name,
-            Module = x.Module,
-            Action = x.Action,
-            Description = x.Description,
-            IsScopable = x.IsScopable,
-        };
+            return new()
+            {
+                Code = x.Code,
+                Name = x.Name,
+                Module = x.Module,
+                Action = x.Action,
+                Description = x.Description,
+                IsScopable = x.IsScopable,
+            };
+        }
     }
 
     public class GetPermissionTreeQuery : IRequest<List<PermissionModuleTreeDto>>
@@ -148,7 +146,7 @@ namespace HrmApi.Application.Features.Permissions
             var catalog = RbacPermissionCatalog.Items
                 .Select(x =>
                 {
-                    ModuleMeta.TryGetValue(x.Module, out var meta);
+                    _ = ModuleMeta.TryGetValue(x.Module, out (string ParentKey, string ParentName, string ItemName, int Order) meta);
                     string parentKey = meta.ParentKey ?? x.Module;
                     string parentName = meta.ParentName ?? x.Module;
                     string itemName = meta.ItemName ?? x.Module;
@@ -166,12 +164,12 @@ namespace HrmApi.Application.Features.Permissions
                 })
                 .ToList();
 
-            var tree = catalog
+            List<PermissionModuleTreeDto> tree = catalog
                 .GroupBy(x => new { x.ParentKey, x.ParentName })
                 .OrderBy(g => g.Min(x => x.Order))
                 .Select(g =>
                 {
-                    var flat = g
+                    List<PermissionDto> flat = g
                         .OrderBy(x => x.Order)
                         .ThenBy(x => x.Item.Action)
                         .Select(x => new PermissionDto
@@ -185,7 +183,7 @@ namespace HrmApi.Application.Features.Permissions
                         })
                         .ToList();
 
-                    var items = g
+                    List<PermissionItemNodeDto> items = g
                         .GroupBy(x => new { x.ItemKey, x.ItemName, x.Order })
                         .OrderBy(ig => ig.Key.Order)
                         .Select(ig => new PermissionItemNodeDto
@@ -220,32 +218,35 @@ namespace HrmApi.Application.Features.Permissions
             return Task.FromResult(tree);
         }
 
-        private static int ActionSort(string action) => action.ToUpperInvariant() switch
+        private static int ActionSort(string action)
         {
-            "VIEW" => 1,
-            "CREATE" => 2,
-            "UPDATE" => 3,
-            "DELETE" => 4,
-            "DEACTIVATE" => 5,
-            "ACTIVATE" => 6,
-            "IMPORT_EXCEL" => 7,
-            "EXPORT_EXCEL" => 8,
-            "ADJUST" => 9,
-            "SUMMARIZE" => 10,
-            "APPROVE" => 11,
-            "REJECT" => 12,
-            "REVIEW" => 13,
-            "APPLY" => 14,
-            "CANCEL" => 15,
-            "SIGN" => 16,
-            "TERMINATE" => 17,
-            "RENEW" => 18,
-            "MARK_PAID" => 19,
-            "BULK_ASSIGN" => 20,
-            "RESET_PASSWORD" => 21,
-            "MANAGE" => 90,
-            "ACCESS" => 91,
-            _ => 99,
-        };
+            return action.ToUpperInvariant() switch
+            {
+                "VIEW" => 1,
+                "CREATE" => 2,
+                "UPDATE" => 3,
+                "DELETE" => 4,
+                "DEACTIVATE" => 5,
+                "ACTIVATE" => 6,
+                "IMPORT_EXCEL" => 7,
+                "EXPORT_EXCEL" => 8,
+                "ADJUST" => 9,
+                "SUMMARIZE" => 10,
+                "APPROVE" => 11,
+                "REJECT" => 12,
+                "REVIEW" => 13,
+                "APPLY" => 14,
+                "CANCEL" => 15,
+                "SIGN" => 16,
+                "TERMINATE" => 17,
+                "RENEW" => 18,
+                "MARK_PAID" => 19,
+                "BULK_ASSIGN" => 20,
+                "RESET_PASSWORD" => 21,
+                "MANAGE" => 90,
+                "ACCESS" => 91,
+                _ => 99,
+            };
+        }
     }
 }

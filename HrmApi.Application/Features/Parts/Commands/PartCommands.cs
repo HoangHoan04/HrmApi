@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using HrmApi.Application.Common.Interfaces;
+﻿using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
@@ -30,7 +27,7 @@ namespace HrmApi.Application.Features.Parts.Commands
         {
             await ValidateAsync(request, null, cancellationToken, _context);
 
-            var part = new PartEntity
+            PartEntity part = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -38,8 +35,8 @@ namespace HrmApi.Application.Features.Parts.Commands
 
             PartMapper.ApplyCommandFields(part, request);
 
-            _context.PartEntities.Add(part);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.PartEntities.Add(part);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -47,7 +44,7 @@ namespace HrmApi.Application.Features.Parts.Commands
                 part.Id,
                 null,
                 PartMapper.ToLogObject(part),
-                "Tạo mới tổ/nhóm " + (part.Name ?? part.Code) + " thành công");
+                "Tạo mới bộ phận " + (part.Name ?? part.Code) + " thành công");
 
             return part.Id;
         }
@@ -59,49 +56,61 @@ namespace HrmApi.Application.Features.Parts.Commands
             IApplicationDbContext context)
         {
             if (!request.PartMasterId.HasValue)
-                throw new InvalidOperationException("Mẫu tổ/nhóm (PartMaster) là bắt buộc.");
+            {
+                throw new InvalidOperationException("Mẫu bộ phận (PartMaster) là bắt buộc.");
+            }
 
-            var partMasterExists = await context.PartMasterEntities
+            bool partMasterExists = await context.PartMasterEntities
                 .AnyAsync(x => x.Id == request.PartMasterId.Value, cancellationToken);
 
             if (!partMasterExists)
-                throw new InvalidOperationException("Mẫu tổ/nhóm không tồn tại.");
+            {
+                throw new InvalidOperationException("Mẫu bộ phận không tồn tại.");
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
-                var exists = await context.PartEntities
+                string code = request.Code.Trim().ToLower();
+                bool exists = await context.PartEntities
                     .AnyAsync(x => x.Code != null && x.Code.ToLower() == code
                         && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
                 if (exists)
-                    throw new InvalidOperationException("Mã tổ/nhóm đã tồn tại trong hệ thống.");
+                {
+                    throw new InvalidOperationException("Mã bộ phận đã tồn tại trong hệ thống.");
+                }
             }
 
             if (request.DepartmentId.HasValue)
             {
-                var departmentExists = await context.DepartmentEntities
+                bool departmentExists = await context.DepartmentEntities
                     .AnyAsync(x => x.Id == request.DepartmentId.Value, cancellationToken);
 
                 if (!departmentExists)
+                {
                     throw new InvalidOperationException("Phòng ban không tồn tại.");
+                }
             }
 
             if (request.CompanyId.HasValue)
             {
-                var companyExists = await context.CompanyEntities
+                bool companyExists = await context.CompanyEntities
                     .AnyAsync(x => x.Id == request.CompanyId.Value, cancellationToken);
 
                 if (!companyExists)
+                {
                     throw new InvalidOperationException("Công ty không tồn tại.");
+                }
             }
 
             if (request.ManagerId.HasValue)
             {
-                var managerExists = await context.EmployeeEntities
+                bool managerExists = await context.EmployeeEntities
                     .AnyAsync(x => x.Id == request.ManagerId.Value && !x.IsDeleted, cancellationToken);
                 if (!managerExists)
+                {
                     throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
+                }
             }
         }
     }
@@ -129,18 +138,21 @@ namespace HrmApi.Application.Features.Parts.Commands
             var part = await _context.PartEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (part == null) return false;
+            if (part == null)
+            {
+                return false;
+            }
 
             await CreatePartCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            var oldValue = PartMapper.ToLogObject(part);
+            object oldValue = PartMapper.ToLogObject(part);
 
             PartMapper.ApplyCommandFields(part, request);
             part.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
-            var newValue = PartMapper.ToLogObject(part);
+            object newValue = PartMapper.ToLogObject(part);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -148,7 +160,7 @@ namespace HrmApi.Application.Features.Parts.Commands
                 part.Id,
                 oldValue,
                 newValue,
-                "Cập nhật thông tin tổ/nhóm " + (part.Name ?? part.Code) + " thành công");
+                "Cập nhật thông tin bộ phận " + (part.Name ?? part.Code) + " thành công");
 
             return true;
         }
@@ -177,12 +189,15 @@ namespace HrmApi.Application.Features.Parts.Commands
             var part = await _context.PartEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (part == null) return false;
+            if (part == null)
+            {
+                return false;
+            }
 
             part.IsDeleted = false;
             part.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
@@ -190,7 +205,7 @@ namespace HrmApi.Application.Features.Parts.Commands
                 part.Id,
                 new { IsDeleted = true },
                 new { IsDeleted = false },
-                "Kích hoạt tổ/nhóm " + (part.Name ?? part.Code) + " thành công");
+                "Kích hoạt bộ phận " + (part.Name ?? part.Code) + " thành công");
 
             return true;
         }
@@ -219,12 +234,15 @@ namespace HrmApi.Application.Features.Parts.Commands
             var part = await _context.PartEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (part == null) return false;
+            if (part == null)
+            {
+                return false;
+            }
 
             part.IsDeleted = true;
             part.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -232,7 +250,7 @@ namespace HrmApi.Application.Features.Parts.Commands
                 part.Id,
                 new { IsDeleted = false },
                 new { IsDeleted = true },
-                "Ngưng hoạt động tổ/nhóm " + (part.Name ?? part.Code) + " thành công");
+                "Ngưng hoạt động bộ phận " + (part.Name ?? part.Code) + " thành công");
 
             return true;
         }

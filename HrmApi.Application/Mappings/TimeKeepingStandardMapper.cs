@@ -35,29 +35,59 @@ namespace HrmApi.Application.Mappings
             entity.Code = fields.Code?.Trim() ?? entity.Code;
             entity.Name = fields.Name?.Trim() ?? entity.Name;
             entity.Description = string.IsNullOrWhiteSpace(fields.Description) ? entity.Description : fields.Description.Trim();
-            if (fields.CompanyId.HasValue) entity.CompanyId = fields.CompanyId;
-            if (fields.AllowedRadiusMeters.HasValue) entity.AllowedRadiusMeters = fields.AllowedRadiusMeters.Value;
-            if (fields.LateGraceMinutes.HasValue) entity.LateGraceMinutes = fields.LateGraceMinutes.Value;
-            if (fields.EarlyLeaveGraceMinutes.HasValue) entity.EarlyLeaveGraceMinutes = fields.EarlyLeaveGraceMinutes.Value;
-            if (fields.NightStartTime.HasValue) entity.NightStartTime = fields.NightStartTime.Value;
-            if (fields.NightEndTime.HasValue) entity.NightEndTime = fields.NightEndTime.Value;
-            if (fields.IsActive.HasValue) entity.IsActive = fields.IsActive.Value;
+            if (fields.CompanyId.HasValue)
+            {
+                entity.CompanyId = fields.CompanyId;
+            }
+
+            if (fields.AllowedRadiusMeters.HasValue)
+            {
+                entity.AllowedRadiusMeters = fields.AllowedRadiusMeters.Value;
+            }
+
+            if (fields.LateGraceMinutes.HasValue)
+            {
+                entity.LateGraceMinutes = fields.LateGraceMinutes.Value;
+            }
+
+            if (fields.EarlyLeaveGraceMinutes.HasValue)
+            {
+                entity.EarlyLeaveGraceMinutes = fields.EarlyLeaveGraceMinutes.Value;
+            }
+
+            if (fields.NightStartTime.HasValue)
+            {
+                entity.NightStartTime = fields.NightStartTime.Value;
+            }
+
+            if (fields.NightEndTime.HasValue)
+            {
+                entity.NightEndTime = fields.NightEndTime.Value;
+            }
+
+            if (fields.IsActive.HasValue)
+            {
+                entity.IsActive = fields.IsActive.Value;
+            }
         }
 
-        public static object ToLogObject(TimeKeepingStandardEntity entity) => new
+        public static object ToLogObject(TimeKeepingStandardEntity entity)
         {
-            entity.Id,
-            entity.Code,
-            entity.Name,
-            entity.Description,
-            entity.CompanyId,
-            entity.AllowedRadiusMeters,
-            entity.LateGraceMinutes,
-            entity.EarlyLeaveGraceMinutes,
-            entity.NightStartTime,
-            entity.NightEndTime,
-            entity.IsActive
-        };
+            return new
+            {
+                entity.Id,
+                entity.Code,
+                entity.Name,
+                entity.Description,
+                entity.CompanyId,
+                entity.AllowedRadiusMeters,
+                entity.LateGraceMinutes,
+                entity.EarlyLeaveGraceMinutes,
+                entity.NightStartTime,
+                entity.NightEndTime,
+                entity.IsActive
+            };
+        }
     }
 
     public class TimeKeepingStandardCommandFields

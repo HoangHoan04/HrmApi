@@ -30,20 +30,26 @@ namespace HrmApi.Application.Common.Services
             CancellationToken cancellationToken = default)
         {
             if (_currentUser.IsAdmin)
+            {
                 return DataScopes.All;
+            }
 
             if (string.IsNullOrWhiteSpace(permissionCode) || _currentUser.UserId is null)
+            {
                 return DataScopes.Own;
+            }
 
             _scopeCache ??= await LoadScopesAsync(cancellationToken);
-            var code = permissionCode.Trim();
-            return _scopeCache.TryGetValue(code, out var scope) ? scope : DataScopes.Own;
+            string code = permissionCode.Trim();
+            return _scopeCache.TryGetValue(code, out string? scope) ? scope : DataScopes.Own;
         }
 
         public async Task<DataScopeActor> GetActorAsync(CancellationToken cancellationToken = default)
         {
             if (_actorCache != null)
+            {
                 return _actorCache;
+            }
 
             Guid? companyId = _currentUser.CompanyId;
             Guid? branchId = _currentUser.BranchId;
@@ -71,10 +77,10 @@ namespace HrmApi.Application.Common.Services
 
         private async Task<Dictionary<string, string>> LoadScopesAsync(CancellationToken cancellationToken)
         {
-            var userId = _currentUser.UserId!.Value;
-            var now = DateTime.UtcNow;
+            Guid userId = _currentUser.UserId!.Value;
+            DateTime now = DateTime.UtcNow;
 
-            var roleIds = await (
+            List<Guid> roleIds = await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
                 join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
                 where ur.UserId == userId
@@ -87,7 +93,9 @@ namespace HrmApi.Application.Common.Services
             ).Distinct().ToListAsync(cancellationToken);
 
             if (roleIds.Count == 0)
+            {
                 return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
 
             var rows = await _context.RolePermissionEntities.AsNoTracking()
                 .Where(rp => roleIds.Contains(rp.RoleId) && !rp.IsDeleted && rp.PermissionCode != "")
@@ -97,12 +105,9 @@ namespace HrmApi.Application.Common.Services
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var row in rows)
             {
-                var code = row.PermissionCode.Trim();
-                var scope = NormalizeScope(row.DataScope);
-                if (!map.TryGetValue(code, out var existing))
-                    map[code] = scope;
-                else
-                    map[code] = Widen(existing, scope);
+                string code = row.PermissionCode.Trim();
+                string scope = NormalizeScope(row.DataScope);
+                map[code] = !map.TryGetValue(code, out string? existing) ? scope : Widen(existing, scope);
             }
 
             return map;
@@ -110,7 +115,7 @@ namespace HrmApi.Application.Common.Services
 
         private static string NormalizeScope(string? scope)
         {
-            var s = (scope ?? DataScopes.Own).Trim().ToUpperInvariant();
+            string s = (scope ?? DataScopes.Own).Trim().ToUpperInvariant();
             return s switch
             {
                 DataScopes.All => DataScopes.All,
@@ -122,8 +127,8 @@ namespace HrmApi.Application.Common.Services
 
         private static string Widen(string a, string b)
         {
-            var ra = Array.IndexOf(ScopeRank, NormalizeScope(a));
-            var rb = Array.IndexOf(ScopeRank, NormalizeScope(b));
+            int ra = Array.IndexOf(ScopeRank, NormalizeScope(a));
+            int rb = Array.IndexOf(ScopeRank, NormalizeScope(b));
             return ScopeRank[Math.Max(ra, rb)];
         }
     }

@@ -52,23 +52,32 @@ namespace HrmApi.Application.Features.SalaryConfigs.Commands
         internal async Task ValidateAsync(SalaryConfigCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã cấu hình lương là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên cấu hình lương là bắt buộc.");
+            }
 
             bool exists = await _context.SalaryConfigEntities.AnyAsync(x =>
                 !x.IsDeleted
                 && x.Code.ToLower() == request.Code.Trim().ToLower()
                 && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
             if (exists)
+            {
                 throw new InvalidOperationException("Mã cấu hình lương đã tồn tại.");
+            }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
                 bool companyOk = await _context.CompanyEntities
                     .AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken);
                 if (!companyOk)
+                {
                     throw new InvalidOperationException("Công ty không tồn tại.");
+                }
             }
         }
     }
@@ -95,7 +104,10 @@ namespace HrmApi.Application.Features.SalaryConfigs.Commands
         {
             SalaryConfigEntity? entity = await _context.SalaryConfigEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await _createHandler.ValidateAsync(request, request.Id, cancellationToken);
             object oldValue = SalaryConfigMapper.ToLogObject(entity);
@@ -135,7 +147,10 @@ namespace HrmApi.Application.Features.SalaryConfigs.Commands
         {
             SalaryConfigEntity? entity = await _context.SalaryConfigEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             object oldValue = SalaryConfigMapper.ToLogObject(entity);
             entity.IsActive = request.IsActive;

@@ -31,7 +31,10 @@ namespace HrmApi.Application.Features.Recruitment
 
             IQueryable<HiringSourceEntity> query = _context.HiringSourceEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.ChannelType))
             {
                 string ch = request.ChannelType.Trim().ToUpperInvariant();
@@ -62,7 +65,10 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetHiringSourceDetailQueryHandler : IRequestHandler<GetHiringSourceDetailQuery, HiringSourceDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetHiringSourceDetailQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetHiringSourceDetailQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<HiringSourceDto?> Handle(GetHiringSourceDetailQuery request, CancellationToken cancellationToken)
         {
@@ -89,7 +95,7 @@ namespace HrmApi.Application.Features.Recruitment
             await ValidateAsync(request, null, cancellationToken);
 
             int nextOrder = request.DisplayOrder
-                ?? (await _context.HiringSourceEntities.Where(x => !x.IsDeleted).Select(x => (int?)x.DisplayOrder).MaxAsync(cancellationToken) ?? 0) + 10;
+                ?? ((await _context.HiringSourceEntities.Where(x => !x.IsDeleted).Select(x => (int?)x.DisplayOrder).MaxAsync(cancellationToken) ?? 0) + 10);
 
             HiringSourceEntity entity = new()
             {
@@ -105,7 +111,10 @@ namespace HrmApi.Application.Features.Recruitment
             };
             RecruitmentMapper.Apply(entity, request);
             if (string.IsNullOrWhiteSpace(entity.Code))
+            {
                 throw new InvalidOperationException("Mã nguồn tuyển là bắt buộc.");
+            }
+
             entity.Code = entity.Code.Trim().ToUpperInvariant();
 
             _ = _context.HiringSourceEntities.Add(entity);
@@ -116,17 +125,28 @@ namespace HrmApi.Application.Features.Recruitment
         internal async Task ValidateAsync(HiringSourceCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã nguồn tuyển là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên nguồn tuyển là bắt buộc.");
+            }
+
             if (!string.IsNullOrWhiteSpace(request.ContactEmail) && !request.ContactEmail.Contains('@'))
+            {
                 throw new InvalidOperationException("Email liên hệ không hợp lệ.");
+            }
 
             bool exists = await _context.HiringSourceEntities.AnyAsync(x =>
                 !x.IsDeleted
                 && x.Code.ToLower() == request.Code.Trim().ToLower()
                 && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
-            if (exists) throw new InvalidOperationException("Mã nguồn tuyển đã tồn tại.");
+            if (exists)
+            {
+                throw new InvalidOperationException("Mã nguồn tuyển đã tồn tại.");
+            }
         }
     }
 
@@ -151,12 +171,20 @@ namespace HrmApi.Application.Features.Recruitment
         {
             HiringSourceEntity? entity = await _context.HiringSourceEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             if (entity.IsSystem)
+            {
                 request.Code = entity.Code;
+            }
             else
+            {
                 request.Code ??= entity.Code;
+            }
+
             request.Name ??= entity.Name;
             await _create.ValidateAsync(request, request.Id, cancellationToken);
 
@@ -187,14 +215,22 @@ namespace HrmApi.Application.Features.Recruitment
         {
             HiringSourceEntity? entity = await _context.HiringSourceEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.IsSystem)
+            {
                 throw new InvalidOperationException("Không xóa được nguồn hệ thống. Hãy tắt hoạt động nếu không dùng.");
+            }
 
             bool inUse = await _context.CandidateEntities.AnyAsync(x =>
                 !x.IsDeleted && x.HiringSourceId == entity.Id, cancellationToken);
             if (inUse)
+            {
                 throw new InvalidOperationException("Nguồn đang gắn ứng viên — không thể xóa. Hãy tắt hoạt động.");
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -261,7 +297,9 @@ namespace HrmApi.Application.Features.Recruitment
             }
 
             if (dirty)
+            {
                 _ = await context.SaveChangesAsync(cancellationToken);
+            }
         }
     }
 }

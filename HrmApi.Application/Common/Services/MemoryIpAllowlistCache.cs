@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -27,7 +22,9 @@ namespace HrmApi.Application.Common.Services
         public async Task<IReadOnlyList<string>> GetActiveEntriesAsync(CancellationToken cancellationToken = default)
         {
             if (_cache.TryGetValue(CacheKey, out List<string>? cached) && cached != null)
+            {
                 return cached;
+            }
 
             using IServiceScope scope = _scopeFactory.CreateScope();
             IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -36,7 +33,7 @@ namespace HrmApi.Application.Common.Services
                 .Select(x => x.CidrOrIp)
                 .ToListAsync(cancellationToken);
 
-            _cache.Set(
+            _ = _cache.Set(
                 CacheKey,
                 entries,
                 new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = Ttl });
@@ -44,6 +41,9 @@ namespace HrmApi.Application.Common.Services
             return entries;
         }
 
-        public void Invalidate() => _cache.Remove(CacheKey);
+        public void Invalidate()
+        {
+            _cache.Remove(CacheKey);
+        }
     }
 }

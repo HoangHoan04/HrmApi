@@ -113,6 +113,7 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<AssetTypeEntity> AssetTypeEntities { get; set; }
         public DbSet<AssetEntity> AssetEntities { get; set; }
         public DbSet<AssetTicketEntity> AssetTicketEntities { get; set; }
+        public DbSet<AssetAssignmentEntity> AssetAssignmentEntities { get; set; }
 
         public DbSet<ReportScheduleEntity> ReportScheduleEntities { get; set; }
         public DbSet<LegalRateConfigEntity> LegalRateConfigEntities { get; set; }

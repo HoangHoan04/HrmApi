@@ -1,5 +1,3 @@
-using HrmApi.Domain.Enums;
-
 namespace HrmApi.Application.DTOs.DayOffConfig
 {
     public class DayOffConfigDto : BaseDto

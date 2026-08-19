@@ -100,6 +100,7 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<AssetTypeEntity> AssetTypeEntities { get; }
         DbSet<AssetEntity> AssetEntities { get; }
         DbSet<AssetTicketEntity> AssetTicketEntities { get; }
+        DbSet<AssetAssignmentEntity> AssetAssignmentEntities { get; }
 
         DbSet<ReportScheduleEntity> ReportScheduleEntities { get; }
         DbSet<LegalRateConfigEntity> LegalRateConfigEntities { get; }

@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Timekeeping;
@@ -27,7 +24,7 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
         {
             await ValidateAsync(request, null, cancellationToken);
 
-            var entity = new ShiftMasterEntity
+            ShiftMasterEntity entity = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
@@ -49,19 +46,27 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
             if (entity.BreakStartTime.HasValue && entity.BreakEndTime.HasValue)
             {
                 int breakMins = (int)(entity.BreakEndTime.Value - entity.BreakStartTime.Value).TotalMinutes;
-                if (breakMins < 0) breakMins += 24 * 60;
+                if (breakMins < 0)
+                {
+                    breakMins += 24 * 60;
+                }
+
                 entity.BreakMinutes = Math.Max(0, breakMins);
             }
 
             if (entity.WorkingMinutes <= 0)
             {
-                var minutes = (int)(entity.EndTime - entity.StartTime).TotalMinutes;
-                if (entity.IsOvernight) minutes += 24 * 60;
+                int minutes = (int)(entity.EndTime - entity.StartTime).TotalMinutes;
+                if (entity.IsOvernight)
+                {
+                    minutes += 24 * 60;
+                }
+
                 entity.WorkingMinutes = Math.Max(0, minutes - entity.BreakMinutes);
             }
 
-            _context.ShiftMasterEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.ShiftMasterEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.CREATE, "ShiftMasterEntity", entity.Id, null, ShiftMasterMapper.ToLogObject(entity), "Tạo ca làm việc " + entity.Name);
             return entity.Id;
         }
@@ -69,17 +74,27 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
         internal async Task ValidateAsync(ShiftMasterCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã ca là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name))
-                throw new InvalidOperationException("Tên ca là bắt buộc.");
-            if (!request.StartTime.HasValue || !request.EndTime.HasValue)
-                throw new InvalidOperationException("Giờ bắt đầu/kết thúc ca là bắt buộc.");
+            }
 
-            var exists = await _context.ShiftMasterEntities
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên ca là bắt buộc.");
+            }
+
+            if (!request.StartTime.HasValue || !request.EndTime.HasValue)
+            {
+                throw new InvalidOperationException("Giờ bắt đầu/kết thúc ca là bắt buộc.");
+            }
+
+            bool exists = await _context.ShiftMasterEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
             if (exists)
+            {
                 throw new InvalidOperationException("Mã ca đã tồn tại.");
+            }
         }
     }
 
@@ -102,13 +117,16 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
         public async Task<bool> Handle(UpdateShiftMasterCommand request, CancellationToken cancellationToken)
         {
             var entity = await _context.ShiftMasterEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await new CreateShiftMasterCommandHandler(_context, _actionLog).ValidateAsync(request, request.Id, cancellationToken);
-            var oldValue = ShiftMasterMapper.ToLogObject(entity);
+            object oldValue = ShiftMasterMapper.ToLogObject(entity);
             ShiftMasterMapper.ApplyCommandFields(entity, request);
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.UPDATE, "ShiftMasterEntity", entity.Id, oldValue, ShiftMasterMapper.ToLogObject(entity), "Cập nhật ca " + entity.Name);
             return true;
         }
@@ -133,11 +151,15 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
         public async Task<bool> Handle(ActivateShiftMasterCommand request, CancellationToken cancellationToken)
         {
             var entity = await _context.ShiftMasterEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = false;
             entity.IsActive = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.ACTIVATE, "ShiftMasterEntity", entity.Id, null, ShiftMasterMapper.ToLogObject(entity), "Kích hoạt ca");
             return true;
         }
@@ -162,11 +184,15 @@ namespace HrmApi.Application.Features.ShiftMasters.Commands
         public async Task<bool> Handle(DeactivateShiftMasterCommand request, CancellationToken cancellationToken)
         {
             var entity = await _context.ShiftMasterEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.DEACTIVATE, "ShiftMasterEntity", entity.Id, null, ShiftMasterMapper.ToLogObject(entity), "Vô hiệu hóa ca");
             return true;
         }

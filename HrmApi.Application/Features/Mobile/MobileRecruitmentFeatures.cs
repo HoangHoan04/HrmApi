@@ -35,35 +35,46 @@ namespace HrmApi.Application.Features.Mobile
                 .Select(x => x.InterviewScheduleId)
                 .Distinct()
                 .ToListAsync(cancellationToken);
-            if (scheduleIds.Count == 0) return [];
+            if (scheduleIds.Count == 0)
+            {
+                return [];
+            }
 
             IQueryable<InterviewScheduleEntity> query = _context.InterviewScheduleEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && scheduleIds.Contains(x.Id));
             if (request.From.HasValue)
+            {
                 query = query.Where(x => x.EndAt >= request.From.Value);
+            }
+
             if (request.To.HasValue)
+            {
                 query = query.Where(x => x.StartAt <= request.To.Value);
+            }
 
             List<InterviewScheduleEntity> rows = await query
                 .OrderBy(x => x.StartAt)
                 .Take(200)
                 .ToListAsync(cancellationToken);
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var candidateIds = rows.Select(x => x.CandidateId).Distinct().ToList();
-            var planIds = rows.Where(x => x.HiringPlanId.HasValue).Select(x => x.HiringPlanId!.Value).Distinct().ToList();
+            List<Guid> candidateIds = rows.Select(x => x.CandidateId).Distinct().ToList();
+            List<Guid> planIds = rows.Where(x => x.HiringPlanId.HasValue).Select(x => x.HiringPlanId!.Value).Distinct().ToList();
             var candidates = await _context.CandidateEntities.AsNoTracking()
                 .Where(x => candidateIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => new { x.Code, x.FullName }, cancellationToken);
-            var plans = planIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> plans = planIds.Count == 0
+                ? []
                 : await _context.HiringPlanEntities.AsNoTracking()
                     .Where(x => planIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             return rows.Select(e =>
             {
-                candidates.TryGetValue(e.CandidateId, out var c);
+                _ = candidates.TryGetValue(e.CandidateId, out var c);
                 return new InterviewScheduleDto
                 {
                     Id = e.Id,

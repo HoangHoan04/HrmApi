@@ -126,9 +126,9 @@ namespace HrmApi.Application.Features.Contracts.Queries
 
             return entities.Select(x =>
             {
-                employees.TryGetValue(x.EmployeeId, out var emp);
+                _ = employees.TryGetValue(x.EmployeeId, out (string Code, string? Name) emp);
                 (string Code, string Name, int? Notify)? type = null;
-                if (x.ContractTypeId.HasValue && types.TryGetValue(x.ContractTypeId.Value, out var t))
+                if (x.ContractTypeId.HasValue && types.TryGetValue(x.ContractTypeId.Value, out (string Code, string Name, int? Notify) t))
                 {
                     type = t;
                 }
@@ -179,14 +179,7 @@ namespace HrmApi.Application.Features.Contracts.Queries
             query = await query.ApplyContractDataScopeAsync(
                 _dataScope, PermissionCodes.HrContractView, cancellationToken);
 
-            if (request.IsDeleted.HasValue)
-            {
-                query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
-            }
-            else
-            {
-                query = query.Where(x => !x.IsDeleted);
-            }
+            query = request.IsDeleted.HasValue ? query.Where(x => x.IsDeleted == request.IsDeleted.Value) : query.Where(x => !x.IsDeleted);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {

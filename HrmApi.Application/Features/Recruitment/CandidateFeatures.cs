@@ -14,29 +14,45 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetCandidatesPagedQueryHandler : IRequestHandler<GetCandidatesPagedQuery, PagedResult<CandidateDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetCandidatesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetCandidatesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<CandidateDto>> Handle(GetCandidatesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<CandidateEntity> query = _context.CandidateEntities.AsNoTracking().Where(x => !x.IsDeleted);
 
             if (request.HiringPlanId.HasValue && request.HiringPlanId != Guid.Empty)
+            {
                 query = query.Where(x => x.HiringPlanId == request.HiringPlanId);
+            }
+
             if (request.RecruitmentRequestId.HasValue && request.RecruitmentRequestId != Guid.Empty)
+            {
                 query = query.Where(x => x.RecruitmentRequestId == request.RecruitmentRequestId);
+            }
+
             if (request.HiringSourceId.HasValue && request.HiringSourceId != Guid.Empty)
+            {
                 query = query.Where(x => x.HiringSourceId == request.HiringSourceId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
             else if (request.Statuses is { Count: > 0 })
             {
-                var statuses = request.Statuses
+                List<string> statuses = request.Statuses
                     .Where(s => !string.IsNullOrWhiteSpace(s))
                     .Select(s => s.Trim().ToUpperInvariant())
                     .Distinct()
                     .ToList();
                 if (statuses.Count > 0)
+                {
                     query = query.Where(x => statuses.Contains(x.Status));
+                }
             }
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -60,20 +76,23 @@ namespace HrmApi.Application.Features.Recruitment
 
         internal async Task<List<CandidateDto>> MapManyAsync(List<CandidateEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var planIds = rows.Where(x => x.HiringPlanId.HasValue).Select(x => x.HiringPlanId!.Value).Distinct().ToList();
-            var reqIds = rows.Where(x => x.RecruitmentRequestId.HasValue).Select(x => x.RecruitmentRequestId!.Value).Distinct().ToList();
-            var sourceIds = rows.Where(x => x.HiringSourceId.HasValue).Select(x => x.HiringSourceId!.Value).Distinct().ToList();
-            var empIds = rows.Where(x => x.EmployeeId.HasValue).Select(x => x.EmployeeId!.Value).Distinct().ToList();
+            List<Guid> planIds = rows.Where(x => x.HiringPlanId.HasValue).Select(x => x.HiringPlanId!.Value).Distinct().ToList();
+            List<Guid> reqIds = rows.Where(x => x.RecruitmentRequestId.HasValue).Select(x => x.RecruitmentRequestId!.Value).Distinct().ToList();
+            List<Guid> sourceIds = rows.Where(x => x.HiringSourceId.HasValue).Select(x => x.HiringSourceId!.Value).Distinct().ToList();
+            List<Guid> empIds = rows.Where(x => x.EmployeeId.HasValue).Select(x => x.EmployeeId!.Value).Distinct().ToList();
 
-            var plans = planIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> plans = planIds.Count == 0 ? []
                 : await _context.HiringPlanEntities.AsNoTracking()
                     .Where(x => planIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-            var reqs = reqIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> reqs = reqIds.Count == 0 ? []
                 : await _context.RecruitmentRequestEntities.AsNoTracking()
                     .Where(x => reqIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var sources = sourceIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> sources = sourceIds.Count == 0 ? []
                 : await _context.HiringSourceEntities.AsNoTracking()
                     .Where(x => sourceIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             Dictionary<Guid, string?> emps = empIds.Count == 0
@@ -105,9 +124,13 @@ namespace HrmApi.Application.Features.Recruitment
 
         public async Task<CandidateDto?> Handle(GetCandidateByIdQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _context.CandidateEntities.AsNoTracking()
+            CandidateEntity? entity = await _context.CandidateEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
+
             List<CandidateDto> mapped = await _mapper.MapManyAsync([entity], cancellationToken);
             return mapped.FirstOrDefault();
         }
@@ -147,34 +170,54 @@ namespace HrmApi.Application.Features.Recruitment
         internal async Task ValidateAsync(CandidateCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã ứng viên là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.FullName))
+            {
                 throw new InvalidOperationException("Họ tên ứng viên là bắt buộc.");
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status)
                 && !RecruitmentMapper.IsValidCandidateStatus(request.Status.Trim().ToUpperInvariant()))
+            {
                 throw new InvalidOperationException("Trạng thái ứng viên không hợp lệ.");
+            }
 
             if (request.HiringPlanId.HasValue && request.HiringPlanId != Guid.Empty)
             {
                 bool ok = await _context.HiringPlanEntities.AnyAsync(x => x.Id == request.HiringPlanId && !x.IsDeleted, cancellationToken);
-                if (!ok) throw new InvalidOperationException("Kế hoạch tuyển dụng không tồn tại.");
+                if (!ok)
+                {
+                    throw new InvalidOperationException("Kế hoạch tuyển dụng không tồn tại.");
+                }
             }
             if (request.RecruitmentRequestId.HasValue && request.RecruitmentRequestId != Guid.Empty)
             {
                 bool ok = await _context.RecruitmentRequestEntities.AnyAsync(x => x.Id == request.RecruitmentRequestId && !x.IsDeleted, cancellationToken);
-                if (!ok) throw new InvalidOperationException("Yêu cầu tuyển dụng không tồn tại.");
+                if (!ok)
+                {
+                    throw new InvalidOperationException("Yêu cầu tuyển dụng không tồn tại.");
+                }
             }
             if (request.HiringSourceId.HasValue && request.HiringSourceId != Guid.Empty)
             {
                 bool ok = await _context.HiringSourceEntities.AnyAsync(x => x.Id == request.HiringSourceId && !x.IsDeleted, cancellationToken);
-                if (!ok) throw new InvalidOperationException("Nguồn tuyển không tồn tại.");
+                if (!ok)
+                {
+                    throw new InvalidOperationException("Nguồn tuyển không tồn tại.");
+                }
             }
 
             bool exists = await _context.CandidateEntities.AnyAsync(x =>
                 !x.IsDeleted
                 && x.Code.ToLower() == request.Code.Trim().ToLower()
                 && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
-            if (exists) throw new InvalidOperationException("Mã ứng viên đã tồn tại.");
+            if (exists)
+            {
+                throw new InvalidOperationException("Mã ứng viên đã tồn tại.");
+            }
         }
     }
 
@@ -199,7 +242,10 @@ namespace HrmApi.Application.Features.Recruitment
         {
             CandidateEntity? entity = await _context.CandidateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.Code ??= entity.Code;
             request.FullName ??= entity.FullName;
@@ -228,14 +274,22 @@ namespace HrmApi.Application.Features.Recruitment
         public async Task<bool> Handle(ChangeCandidateStatusCommand request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Status))
+            {
                 throw new InvalidOperationException("Trạng thái là bắt buộc.");
+            }
+
             string status = request.Status.Trim().ToUpperInvariant();
             if (!RecruitmentMapper.IsValidCandidateStatus(status))
+            {
                 throw new InvalidOperationException("Trạng thái ứng viên không hợp lệ.");
+            }
 
             CandidateEntity? entity = await _context.CandidateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.Status = status;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -250,13 +304,19 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetCandidateHirePrefillQueryHandler : IRequestHandler<GetCandidateHirePrefillQuery, CandidateHirePrefillDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetCandidateHirePrefillQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetCandidateHirePrefillQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<CandidateHirePrefillDto?> Handle(GetCandidateHirePrefillQuery request, CancellationToken cancellationToken)
         {
             CandidateEntity? candidate = await _context.CandidateEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (candidate == null) return null;
+            if (candidate == null)
+            {
+                return null;
+            }
 
             HiringPlanEntity? plan = null;
             if (candidate.HiringPlanId.HasValue)
@@ -298,9 +358,17 @@ namespace HrmApi.Application.Features.Recruitment
         private static (string First, string Last) SplitName(string fullName)
         {
             string name = (fullName ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(name)) return ("", "");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return ("", "");
+            }
+
             string[] parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 1) return (parts[0], parts[0]);
+            if (parts.Length == 1)
+            {
+                return (parts[0], parts[0]);
+            }
+
             return (string.Join(' ', parts.Take(parts.Length - 1)), parts[^1]);
         }
     }
@@ -326,27 +394,40 @@ namespace HrmApi.Application.Features.Recruitment
         public async Task<bool> Handle(LinkCandidateEmployeeCommand request, CancellationToken cancellationToken)
         {
             if (request.CandidateId == Guid.Empty || request.EmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("CandidateId và EmployeeId là bắt buộc.");
+            }
 
             CandidateEntity? candidate = await _context.CandidateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.CandidateId && !x.IsDeleted, cancellationToken);
-            if (candidate == null) return false;
+            if (candidate == null)
+            {
+                return false;
+            }
 
             bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken);
-            if (!empOk) throw new InvalidOperationException("Nhân viên không tồn tại.");
+            if (!empOk)
+            {
+                throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
 
             bool linkedOther = await _context.CandidateEntities.AnyAsync(x =>
                 !x.IsDeleted && x.EmployeeId == request.EmployeeId && x.Id != request.CandidateId, cancellationToken);
             if (linkedOther)
+            {
                 throw new InvalidOperationException("Nhân viên này đã gắn với ứng viên khác.");
+            }
 
             var old = new { candidate.Status, candidate.EmployeeId };
             candidate.EmployeeId = request.EmployeeId;
             if (request.SetStatusHired)
+            {
                 candidate.Status = CandidateStatus.Hired;
+            }
+
             candidate.UpdatedAt = DateTime.UtcNow;
             candidate.UpdatedBy = _currentUser.UserId;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -365,17 +446,25 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetCandidateStatusSummaryQueryHandler : IRequestHandler<GetCandidateStatusSummaryQuery, List<CandidateStatusSummaryDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetCandidateStatusSummaryQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetCandidateStatusSummaryQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<CandidateStatusSummaryDto>> Handle(GetCandidateStatusSummaryQuery request, CancellationToken cancellationToken)
         {
             IQueryable<CandidateEntity> query = _context.CandidateEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.HiringPlanId.HasValue && request.HiringPlanId != Guid.Empty)
+            {
                 query = query.Where(x => x.HiringPlanId == request.HiringPlanId);
-            if (request.RecruitmentRequestId.HasValue && request.RecruitmentRequestId != Guid.Empty)
-                query = query.Where(x => x.RecruitmentRequestId == request.RecruitmentRequestId);
+            }
 
-            var groups = await query
+            if (request.RecruitmentRequestId.HasValue && request.RecruitmentRequestId != Guid.Empty)
+            {
+                query = query.Where(x => x.RecruitmentRequestId == request.RecruitmentRequestId);
+            }
+
+            List<CandidateStatusSummaryDto> groups = await query
                 .GroupBy(x => x.Status)
                 .Select(g => new CandidateStatusSummaryDto { Status = g.Key, Count = g.Count() })
                 .ToListAsync(cancellationToken);

@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Leave;
@@ -27,7 +24,7 @@ namespace HrmApi.Application.Features.PublicHolidays.Commands
         {
             await ValidateAsync(request, null, cancellationToken);
 
-            var entity = new PublicHolidayEntity
+            PublicHolidayEntity entity = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
@@ -37,8 +34,8 @@ namespace HrmApi.Application.Features.PublicHolidays.Commands
             };
             PublicHolidayMapper.ApplyCommandFields(entity, request);
 
-            _context.PublicHolidayEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.PublicHolidayEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -54,17 +51,27 @@ namespace HrmApi.Application.Features.PublicHolidays.Commands
         internal async Task ValidateAsync(PublicHolidayCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã ngày lễ là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name))
-                throw new InvalidOperationException("Tên ngày lễ là bắt buộc.");
-            if (request.HolidayDate == default)
-                throw new InvalidOperationException("Ngày lễ là bắt buộc.");
+            }
 
-            var exists = await _context.PublicHolidayEntities
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên ngày lễ là bắt buộc.");
+            }
+
+            if (request.HolidayDate == default)
+            {
+                throw new InvalidOperationException("Ngày lễ là bắt buộc.");
+            }
+
+            bool exists = await _context.PublicHolidayEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
             if (exists)
+            {
                 throw new InvalidOperationException("Mã ngày lễ đã tồn tại.");
+            }
         }
     }
 
@@ -89,13 +96,16 @@ namespace HrmApi.Application.Features.PublicHolidays.Commands
         public async Task<bool> Handle(UpdatePublicHolidayCommand request, CancellationToken cancellationToken)
         {
             var entity = await _context.PublicHolidayEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await _createHandler.ValidateAsync(request, request.Id, cancellationToken);
-            var oldValue = PublicHolidayMapper.ToLogObject(entity);
+            object oldValue = PublicHolidayMapper.ToLogObject(entity);
             PublicHolidayMapper.ApplyCommandFields(entity, request);
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -128,11 +138,15 @@ namespace HrmApi.Application.Features.PublicHolidays.Commands
         public async Task<bool> Handle(ActivatePublicHolidayCommand request, CancellationToken cancellationToken)
         {
             var entity = await _context.PublicHolidayEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = false;
             entity.IsActive = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.ACTIVATE, "PublicHolidayEntity", entity.Id, null, PublicHolidayMapper.ToLogObject(entity), "Kích hoạt ngày nghỉ lễ");
             return true;
         }
@@ -157,11 +171,15 @@ namespace HrmApi.Application.Features.PublicHolidays.Commands
         public async Task<bool> Handle(DeactivatePublicHolidayCommand request, CancellationToken cancellationToken)
         {
             var entity = await _context.PublicHolidayEntities.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(ActionType.DEACTIVATE, "PublicHolidayEntity", entity.Id, null, PublicHolidayMapper.ToLogObject(entity), "Vô hiệu hóa ngày nghỉ lễ");
             return true;
         }

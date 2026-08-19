@@ -14,22 +14,39 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetInterviewSchedulesPagedQueryHandler : IRequestHandler<GetInterviewSchedulesPagedQuery, PagedResult<InterviewScheduleDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetInterviewSchedulesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetInterviewSchedulesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<InterviewScheduleDto>> Handle(GetInterviewSchedulesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<InterviewScheduleEntity> query = _context.InterviewScheduleEntities.AsNoTracking().Where(x => !x.IsDeleted);
 
             if (request.CandidateId.HasValue && request.CandidateId != Guid.Empty)
+            {
                 query = query.Where(x => x.CandidateId == request.CandidateId);
+            }
+
             if (request.HiringPlanId.HasValue && request.HiringPlanId != Guid.Empty)
+            {
                 query = query.Where(x => x.HiringPlanId == request.HiringPlanId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
+
             if (request.From.HasValue)
+            {
                 query = query.Where(x => x.EndAt >= request.From.Value);
+            }
+
             if (request.To.HasValue)
+            {
                 query = query.Where(x => x.StartAt <= request.To.Value);
+            }
 
             int total = await query.CountAsync(cancellationToken);
             List<InterviewScheduleEntity> rows = await query
@@ -50,16 +67,19 @@ namespace HrmApi.Application.Features.Recruitment
             bool includeChildren,
             CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var candidateIds = rows.Select(x => x.CandidateId).Distinct().ToList();
-            var planIds = rows.Where(x => x.HiringPlanId.HasValue).Select(x => x.HiringPlanId!.Value).Distinct().ToList();
-            var scheduleIds = rows.Select(x => x.Id).ToList();
+            List<Guid> candidateIds = rows.Select(x => x.CandidateId).Distinct().ToList();
+            List<Guid> planIds = rows.Where(x => x.HiringPlanId.HasValue).Select(x => x.HiringPlanId!.Value).Distinct().ToList();
+            List<Guid> scheduleIds = rows.Select(x => x.Id).ToList();
 
             var candidates = await _context.CandidateEntities.AsNoTracking()
                 .Where(x => candidateIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => new { x.Code, x.FullName }, cancellationToken);
-            var plans = planIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> plans = planIds.Count == 0 ? []
                 : await _context.HiringPlanEntities.AsNoTracking()
                     .Where(x => planIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
@@ -68,10 +88,10 @@ namespace HrmApi.Application.Features.Recruitment
 
             if (includeChildren)
             {
-                var interviewers = await _context.InterviewInterviewerEntities.AsNoTracking()
+                List<InterviewInterviewerEntity> interviewers = await _context.InterviewInterviewerEntities.AsNoTracking()
                     .Where(x => !x.IsDeleted && scheduleIds.Contains(x.InterviewScheduleId))
                     .ToListAsync(cancellationToken);
-                var empIds = interviewers.Select(x => x.EmployeeId).Distinct().ToList();
+                List<Guid> empIds = interviewers.Select(x => x.EmployeeId).Distinct().ToList();
                 Dictionary<Guid, (string? Code, string? Name)> emps = empIds.Count == 0
                     ? []
                     : await _context.EmployeeEntities.AsNoTracking()
@@ -87,21 +107,21 @@ namespace HrmApi.Application.Features.Recruitment
                         g => g.Key,
                         g => g.Select(i =>
                         {
-                            emps.TryGetValue(i.EmployeeId, out (string? Code, string? Name) emp);
+                            _ = emps.TryGetValue(i.EmployeeId, out (string? Code, string? Name) emp);
                             return RecruitmentMapper.ToDto(i, emp.Code, emp.Name);
                         }).ToList());
 
-                var evaluations = await _context.InterviewEvaluationEntities.AsNoTracking()
+                List<InterviewEvaluationEntity> evaluations = await _context.InterviewEvaluationEntities.AsNoTracking()
                     .Where(x => !x.IsDeleted && scheduleIds.Contains(x.InterviewScheduleId))
                     .ToListAsync(cancellationToken);
-                var interviewerEmpIds = evaluations.Select(x => x.InterviewerEmployeeId).Distinct().ToList();
-                var criteriaIds = evaluations.Select(x => x.EvaluationCriteriaId).Distinct().ToList();
+                List<Guid> interviewerEmpIds = evaluations.Select(x => x.InterviewerEmployeeId).Distinct().ToList();
+                List<Guid> criteriaIds = evaluations.Select(x => x.EvaluationCriteriaId).Distinct().ToList();
                 Dictionary<Guid, string?> interviewerNames = interviewerEmpIds.Count == 0
                     ? []
                     : await _context.EmployeeEntities.AsNoTracking()
                         .Where(x => interviewerEmpIds.Contains(x.Id))
                         .ToDictionaryAsync(x => x.Id, x => (string?)(x.FullName ?? (x.LastName + " " + x.FirstName).Trim()), cancellationToken);
-                var criteriaMeta = criteriaIds.Count == 0 ? new Dictionary<Guid, (string Code, string Name)>()
+                Dictionary<Guid, (string Code, string Name)> criteriaMeta = criteriaIds.Count == 0 ? []
                     : await _context.EvaluationCriteriaEntities.AsNoTracking()
                         .Where(x => criteriaIds.Contains(x.Id))
                         .ToDictionaryAsync(x => x.Id, x => (x.Code, x.Name), cancellationToken);
@@ -112,15 +132,15 @@ namespace HrmApi.Application.Features.Recruitment
                         g => g.Key,
                         g => g.Select(ev =>
                         {
-                            interviewerNames.TryGetValue(ev.InterviewerEmployeeId, out var iname);
-                            criteriaMeta.TryGetValue(ev.EvaluationCriteriaId, out var cmeta);
+                            _ = interviewerNames.TryGetValue(ev.InterviewerEmployeeId, out var iname);
+                            _ = criteriaMeta.TryGetValue(ev.EvaluationCriteriaId, out (string Code, string Name) cmeta);
                             return RecruitmentMapper.ToDto(ev, iname, cmeta.Code, cmeta.Name);
                         }).ToList());
             }
 
             return rows.Select(e =>
             {
-                candidates.TryGetValue(e.CandidateId, out var c);
+                _ = candidates.TryGetValue(e.CandidateId, out var c);
                 return RecruitmentMapper.ToDto(
                     e,
                     c?.Code,
@@ -146,9 +166,13 @@ namespace HrmApi.Application.Features.Recruitment
 
         public async Task<InterviewScheduleDto?> Handle(GetInterviewScheduleByIdQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _context.InterviewScheduleEntities.AsNoTracking()
+            InterviewScheduleEntity? entity = await _context.InterviewScheduleEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
+
             List<InterviewScheduleDto> mapped = await _mapper.MapManyAsync([entity], includeChildren: true, cancellationToken);
             return mapped.FirstOrDefault();
         }
@@ -192,7 +216,9 @@ namespace HrmApi.Application.Features.Recruitment
                 candidate.UpdatedAt = DateTime.UtcNow;
                 candidate.UpdatedBy = _currentUser.UserId;
                 if (entity.HiringPlanId.HasValue && !candidate.HiringPlanId.HasValue)
+                {
                     candidate.HiringPlanId = entity.HiringPlanId;
+                }
             }
 
             _ = await _context.SaveChangesAsync(cancellationToken);
@@ -202,16 +228,30 @@ namespace HrmApi.Application.Features.Recruitment
         internal async Task ValidateAsync(InterviewScheduleCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (!request.CandidateId.HasValue || request.CandidateId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Ứng viên là bắt buộc.");
+            }
+
             if (!request.StartAt.HasValue || !request.EndAt.HasValue)
+            {
                 throw new InvalidOperationException("Thời gian bắt đầu/kết thúc là bắt buộc.");
+            }
+
             if (request.EndAt < request.StartAt)
+            {
                 throw new InvalidOperationException("Thời gian kết thúc phải >= thời gian bắt đầu.");
+            }
+
             if (request.Round.HasValue && request.Round.Value < 1)
+            {
                 throw new InvalidOperationException("Vòng phỏng vấn phải >= 1.");
+            }
 
             bool candidateOk = await _context.CandidateEntities.AnyAsync(x => x.Id == request.CandidateId && !x.IsDeleted, cancellationToken);
-            if (!candidateOk) throw new InvalidOperationException("Ứng viên không tồn tại.");
+            if (!candidateOk)
+            {
+                throw new InvalidOperationException("Ứng viên không tồn tại.");
+            }
 
             Guid? planId = RecruitmentMapper.NullIfEmpty(request.HiringPlanId);
             if (!planId.HasValue)
@@ -225,7 +265,10 @@ namespace HrmApi.Application.Features.Recruitment
             if (planId.HasValue)
             {
                 bool planOk = await _context.HiringPlanEntities.AnyAsync(x => x.Id == planId && !x.IsDeleted, cancellationToken);
-                if (!planOk) throw new InvalidOperationException("Kế hoạch tuyển dụng không tồn tại.");
+                if (!planOk)
+                {
+                    throw new InvalidOperationException("Kế hoạch tuyển dụng không tồn tại.");
+                }
 
                 _ = await _context.HiringPlanEntities.AsNoTracking()
                     .Where(x => x.Id == planId)
@@ -258,7 +301,10 @@ namespace HrmApi.Application.Features.Recruitment
         {
             InterviewScheduleEntity? entity = await _context.InterviewScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.CandidateId ??= entity.CandidateId;
             request.StartAt ??= entity.StartAt;
@@ -291,9 +337,15 @@ namespace HrmApi.Application.Features.Recruitment
         {
             InterviewScheduleEntity? entity = await _context.InterviewScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.Status == InterviewStatus.Cancelled)
+            {
                 throw new InvalidOperationException("Lịch phỏng vấn đã bị hủy.");
+            }
 
             entity.Status = InterviewStatus.Cancelled;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -322,11 +374,20 @@ namespace HrmApi.Application.Features.Recruitment
         {
             InterviewScheduleEntity? entity = await _context.InterviewScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.Status == InterviewStatus.Cancelled)
+            {
                 throw new InvalidOperationException("Lịch đã hủy — không thể hoàn tất.");
+            }
+
             if (entity.Status == InterviewStatus.Completed)
+            {
                 throw new InvalidOperationException("Lịch đã hoàn tất.");
+            }
 
             entity.Status = InterviewStatus.Completed;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -365,18 +426,25 @@ namespace HrmApi.Application.Features.Recruitment
         {
             InterviewScheduleEntity? schedule = await _context.InterviewScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.InterviewScheduleId && !x.IsDeleted, cancellationToken);
-            if (schedule == null) return false;
+            if (schedule == null)
+            {
+                return false;
+            }
 
             request.Interviewers ??= [];
             List<Guid> empIds = request.Interviewers.Select(x => x.EmployeeId).Distinct().ToList();
             if (empIds.Count != request.Interviewers.Count)
+            {
                 throw new InvalidOperationException("Không được trùng người phỏng vấn.");
+            }
 
             if (empIds.Count > 0)
             {
                 int found = await _context.EmployeeEntities.CountAsync(x => !x.IsDeleted && empIds.Contains(x.Id), cancellationToken);
                 if (found != empIds.Count)
+                {
                     throw new InvalidOperationException("Một hoặc nhiều nhân viên phỏng vấn không tồn tại.");
+                }
             }
 
             List<InterviewInterviewerEntity> existing = await _context.InterviewInterviewerEntities
@@ -426,15 +494,22 @@ namespace HrmApi.Application.Features.Recruitment
         public async Task<List<InterviewScheduleDto>> Handle(GetInterviewCalendarRangeQuery request, CancellationToken cancellationToken)
         {
             if (request.To < request.From)
+            {
                 throw new InvalidOperationException("Thời gian kết thúc phải >= thời gian bắt đầu.");
+            }
 
             IQueryable<InterviewScheduleEntity> query = _context.InterviewScheduleEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.EndAt >= request.From && x.StartAt <= request.To);
 
             if (request.HiringPlanId.HasValue && request.HiringPlanId != Guid.Empty)
+            {
                 query = query.Where(x => x.HiringPlanId == request.HiringPlanId);
+            }
+
             if (request.CandidateId.HasValue && request.CandidateId != Guid.Empty)
+            {
                 query = query.Where(x => x.CandidateId == request.CandidateId);
+            }
 
             List<InterviewScheduleEntity> rows = await query.OrderBy(x => x.StartAt).ToListAsync(cancellationToken);
             return await _mapper.MapManyAsync(rows, includeChildren: true, cancellationToken);
@@ -457,17 +532,28 @@ namespace HrmApi.Application.Features.Recruitment
         {
             InterviewScheduleEntity? schedule = await _context.InterviewScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.InterviewScheduleId && !x.IsDeleted, cancellationToken);
-            if (schedule == null) return false;
+            if (schedule == null)
+            {
+                return false;
+            }
+
             if (request.InterviewerEmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Người đánh giá là bắt buộc.");
+            }
 
             bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.InterviewerEmployeeId && !x.IsDeleted, cancellationToken);
-            if (!empOk) throw new InvalidOperationException("Người đánh giá không tồn tại.");
+            if (!empOk)
+            {
+                throw new InvalidOperationException("Người đánh giá không tồn tại.");
+            }
 
             request.Evaluations ??= [];
             List<Guid> criteriaIds = request.Evaluations.Select(x => x.EvaluationCriteriaId).Distinct().ToList();
             if (criteriaIds.Count != request.Evaluations.Count)
+            {
                 throw new InvalidOperationException("Không được trùng tiêu chí đánh giá.");
+            }
 
             Dictionary<Guid, decimal> maxScoreByCriteria = [];
             if (criteriaIds.Count > 0)
@@ -475,7 +561,9 @@ namespace HrmApi.Application.Features.Recruitment
                 int found = await _context.EvaluationCriteriaEntities.CountAsync(x =>
                     !x.IsDeleted && criteriaIds.Contains(x.Id), cancellationToken);
                 if (found != criteriaIds.Count)
+                {
                     throw new InvalidOperationException("Một hoặc nhiều tiêu chí không tồn tại.");
+                }
 
                 if (schedule.HiringPlanId.HasValue)
                 {
@@ -504,13 +592,21 @@ namespace HrmApi.Application.Features.Recruitment
             foreach (EvaluationInputDto item in request.Evaluations)
             {
                 if (item.Score < 0)
+                {
                     throw new InvalidOperationException("Điểm đánh giá phải >= 0.");
+                }
+
                 if (maxScoreByCriteria.TryGetValue(item.EvaluationCriteriaId, out decimal max) && item.Score > max)
+                {
                     throw new InvalidOperationException($"Điểm vượt MaxScore ({max}) của tiêu chí.");
+                }
 
                 InterviewEvaluationEntity? row = null;
                 if (item.Id.HasValue && item.Id != Guid.Empty)
+                {
                     row = existing.FirstOrDefault(x => x.Id == item.Id);
+                }
+
                 row ??= existing.FirstOrDefault(x => x.EvaluationCriteriaId == item.EvaluationCriteriaId);
 
                 if (row == null)
@@ -557,34 +653,40 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetInterviewEvaluationsQueryHandler : IRequestHandler<GetInterviewEvaluationsQuery, List<EvaluationDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetInterviewEvaluationsQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetInterviewEvaluationsQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<EvaluationDto>> Handle(GetInterviewEvaluationsQuery request, CancellationToken cancellationToken)
         {
             bool exists = await _context.InterviewScheduleEntities.AsNoTracking()
                 .AnyAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (!exists) return [];
+            if (!exists)
+            {
+                return [];
+            }
 
-            var evaluations = await _context.InterviewEvaluationEntities.AsNoTracking()
+            List<InterviewEvaluationEntity> evaluations = await _context.InterviewEvaluationEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.InterviewScheduleId == request.Id)
                 .ToListAsync(cancellationToken);
 
-            var empIds = evaluations.Select(x => x.InterviewerEmployeeId).Distinct().ToList();
-            var criteriaIds = evaluations.Select(x => x.EvaluationCriteriaId).Distinct().ToList();
+            List<Guid> empIds = evaluations.Select(x => x.InterviewerEmployeeId).Distinct().ToList();
+            List<Guid> criteriaIds = evaluations.Select(x => x.EvaluationCriteriaId).Distinct().ToList();
             Dictionary<Guid, string?> emps = empIds.Count == 0
                 ? []
                 : await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => empIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => (string?)(x.FullName ?? (x.LastName + " " + x.FirstName).Trim()), cancellationToken);
-            var criteria = criteriaIds.Count == 0 ? new Dictionary<Guid, (string Code, string Name)>()
+            Dictionary<Guid, (string Code, string Name)> criteria = criteriaIds.Count == 0 ? []
                 : await _context.EvaluationCriteriaEntities.AsNoTracking()
                     .Where(x => criteriaIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => (x.Code, x.Name), cancellationToken);
 
             return evaluations.Select(ev =>
             {
-                emps.TryGetValue(ev.InterviewerEmployeeId, out var iname);
-                criteria.TryGetValue(ev.EvaluationCriteriaId, out var cmeta);
+                _ = emps.TryGetValue(ev.InterviewerEmployeeId, out var iname);
+                _ = criteria.TryGetValue(ev.EvaluationCriteriaId, out (string Code, string Name) cmeta);
                 return RecruitmentMapper.ToDto(ev, iname, cmeta.Code, cmeta.Name);
             }).ToList();
         }

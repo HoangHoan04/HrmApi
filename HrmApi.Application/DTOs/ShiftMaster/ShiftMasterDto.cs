@@ -1,5 +1,3 @@
-using System;
-
 namespace HrmApi.Application.DTOs.ShiftMaster
 {
     public class ShiftMasterDto : BaseDto

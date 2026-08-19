@@ -49,7 +49,10 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
         : IRequestHandler<GetEmployeeWorkPatternsPagedQuery, PagedResult<EmployeeWorkPatternDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetEmployeeWorkPatternsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetEmployeeWorkPatternsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<EmployeeWorkPatternDto>> Handle(
             GetEmployeeWorkPatternsPagedQuery request,
@@ -58,9 +61,20 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
             IQueryable<EmployeeWorkPatternEntity> query = _context.EmployeeWorkPatternEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
-            if (request.EmployeeId.HasValue) query = query.Where(x => x.EmployeeId == request.EmployeeId);
-            if (request.ShiftMasterId.HasValue) query = query.Where(x => x.ShiftMasterId == request.ShiftMasterId);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.EmployeeId.HasValue)
+            {
+                query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
+            if (request.ShiftMasterId.HasValue)
+            {
+                query = query.Where(x => x.ShiftMasterId == request.ShiftMasterId);
+            }
+
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
 
             int total = await query.CountAsync(cancellationToken);
             List<EmployeeWorkPatternEntity> rows = await query
@@ -92,20 +106,20 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
                     x => new { x.Code, Name = x.FullName ?? $"{x.LastName} {x.FirstName}".Trim() },
                     cancellationToken);
 
-            var shifts = await _context.ShiftMasterEntities.AsNoTracking()
+            Dictionary<Guid, ShiftMasterEntity> shifts = await _context.ShiftMasterEntities.AsNoTracking()
                 .Where(x => shiftIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x, cancellationToken);
 
-            var branches = branchIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branches = branchIds.Count == 0
+                ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             return rows.Select(row =>
             {
-                employees.TryGetValue(row.EmployeeId, out var emp);
-                shifts.TryGetValue(row.ShiftMasterId, out ShiftMasterEntity? shift);
+                _ = employees.TryGetValue(row.EmployeeId, out var emp);
+                _ = shifts.TryGetValue(row.ShiftMasterId, out ShiftMasterEntity? shift);
                 string? branchName = row.BranchId.HasValue && branches.TryGetValue(row.BranchId.Value, out string? bn)
                     ? bn
                     : null;
@@ -145,13 +159,41 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
         private static string BuildWorkDaysLabel(EmployeeWorkPatternEntity row)
         {
             List<string> days = [];
-            if (row.WorkOnMonday) days.Add("T2");
-            if (row.WorkOnTuesday) days.Add("T3");
-            if (row.WorkOnWednesday) days.Add("T4");
-            if (row.WorkOnThursday) days.Add("T5");
-            if (row.WorkOnFriday) days.Add("T6");
-            if (row.WorkOnSaturday) days.Add("T7");
-            if (row.WorkOnSunday) days.Add("CN");
+            if (row.WorkOnMonday)
+            {
+                days.Add("T2");
+            }
+
+            if (row.WorkOnTuesday)
+            {
+                days.Add("T3");
+            }
+
+            if (row.WorkOnWednesday)
+            {
+                days.Add("T4");
+            }
+
+            if (row.WorkOnThursday)
+            {
+                days.Add("T5");
+            }
+
+            if (row.WorkOnFriday)
+            {
+                days.Add("T6");
+            }
+
+            if (row.WorkOnSaturday)
+            {
+                days.Add("T7");
+            }
+
+            if (row.WorkOnSunday)
+            {
+                days.Add("CN");
+            }
+
             return days.Count == 0 ? "—" : string.Join(", ", days);
         }
     }
@@ -179,21 +221,34 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
     public class UpsertEmployeeWorkPatternCommandHandler : IRequestHandler<UpsertEmployeeWorkPatternCommand, Guid>
     {
         private readonly IApplicationDbContext _context;
-        public UpsertEmployeeWorkPatternCommandHandler(IApplicationDbContext context) => _context = context;
+        public UpsertEmployeeWorkPatternCommandHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<Guid> Handle(UpsertEmployeeWorkPatternCommand request, CancellationToken cancellationToken)
         {
             if (request.EmployeeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Chọn nhân viên.");
+            }
+
             if (request.ShiftMasterId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Chọn ca làm việc (ShiftMaster).");
+            }
+
             if (request.EffectiveTo.HasValue && request.EffectiveTo.Value < request.EffectiveFrom)
+            {
                 throw new InvalidOperationException("Ngày kết thúc phải >= ngày bắt đầu.");
+            }
 
             bool anyDay = request.WorkOnMonday || request.WorkOnTuesday || request.WorkOnWednesday
                 || request.WorkOnThursday || request.WorkOnFriday || request.WorkOnSaturday || request.WorkOnSunday;
             if (!anyDay)
+            {
                 throw new InvalidOperationException("Chọn ít nhất 1 ngày làm trong tuần.");
+            }
 
             _ = await _context.EmployeeEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken)
@@ -290,18 +345,29 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
         : IRequestHandler<BulkUpsertEmployeeWorkPatternCommand, BulkEmployeeWorkPatternResult>
     {
         private readonly IApplicationDbContext _context;
-        public BulkUpsertEmployeeWorkPatternCommandHandler(IApplicationDbContext context) => _context = context;
+        public BulkUpsertEmployeeWorkPatternCommandHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<BulkEmployeeWorkPatternResult> Handle(
             BulkUpsertEmployeeWorkPatternCommand request,
             CancellationToken cancellationToken)
         {
             if (request.EmployeeIds.Count == 0)
+            {
                 throw new InvalidOperationException("Chọn ít nhất 1 nhân viên.");
+            }
+
             if (request.ShiftMasterId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Chọn ca làm việc.");
+            }
+
             if (request.EffectiveTo.HasValue && request.EffectiveTo.Value < request.EffectiveFrom)
+            {
                 throw new InvalidOperationException("Ngày kết thúc phải >= ngày bắt đầu.");
+            }
 
             _ = await _context.ShiftMasterEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.ShiftMasterId && !x.IsDeleted && x.IsActive, cancellationToken)
@@ -389,13 +455,19 @@ namespace HrmApi.Application.Features.EmployeeWorkPatterns
     public class DeactivateEmployeeWorkPatternCommandHandler : IRequestHandler<DeactivateEmployeeWorkPatternCommand, bool>
     {
         private readonly IApplicationDbContext _context;
-        public DeactivateEmployeeWorkPatternCommandHandler(IApplicationDbContext context) => _context = context;
+        public DeactivateEmployeeWorkPatternCommandHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<bool> Handle(DeactivateEmployeeWorkPatternCommand request, CancellationToken cancellationToken)
         {
             EmployeeWorkPatternEntity? entity = await _context.EmployeeWorkPatternEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsActive = false;
             entity.EffectiveTo = request.EffectiveTo ?? DateOnly.FromDateTime(DateTime.UtcNow);

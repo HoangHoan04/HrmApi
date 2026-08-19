@@ -11,7 +11,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetComplianceSummaryQueryHandler : IRequestHandler<GetComplianceSummaryQuery, ComplianceSummaryDto>
     {
         private readonly IApplicationDbContext _context;
-        public GetComplianceSummaryQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetComplianceSummaryQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<ComplianceSummaryDto> Handle(GetComplianceSummaryQuery request, CancellationToken cancellationToken)
         {
@@ -27,7 +30,9 @@ namespace HrmApi.Application.Features.Settings
                     && x.EndDate.Value.Date <= maxDate);
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 contracts = contracts.Where(x => x.CompanyId == request.CompanyId);
+            }
 
             int expiringContracts = await contracts.CountAsync(cancellationToken);
 

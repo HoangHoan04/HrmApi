@@ -27,13 +27,18 @@ namespace HrmApi.Application.Features.Mobile
             IQueryable<KpiGoalEntity> query = _context.KpiGoalEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.EmployeeId == employeeId);
             if (request.CycleId.HasValue && request.CycleId != Guid.Empty)
+            {
                 query = query.Where(x => x.CycleId == request.CycleId);
+            }
 
             List<KpiGoalEntity> rows = await query.OrderBy(x => x.Title).Take(500).ToListAsync(cancellationToken);
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
-            var cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
+            List<Guid> cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
+            Dictionary<Guid, string> cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
                 .Where(x => cycleIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var emp = await _context.EmployeeEntities.AsNoTracking()
@@ -82,10 +87,15 @@ namespace HrmApi.Application.Features.Mobile
             IQueryable<KpiGoalEntity> goals = _context.KpiGoalEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.EmployeeId == employeeId);
             if (request.CycleId.HasValue && request.CycleId != Guid.Empty)
+            {
                 goals = goals.Where(x => x.CycleId == request.CycleId);
+            }
 
             List<Guid> goalIds = await goals.Select(x => x.Id).ToListAsync(cancellationToken);
-            if (goalIds.Count == 0) return [];
+            if (goalIds.Count == 0)
+            {
+                return [];
+            }
 
             List<KpiResultEntity> rows = await _context.KpiResultEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && goalIds.Contains(x.GoalId))
@@ -93,12 +103,12 @@ namespace HrmApi.Application.Features.Mobile
                 .Take(500)
                 .ToListAsync(cancellationToken);
 
-            var goalTitles = await _context.KpiGoalEntities.AsNoTracking()
+            Dictionary<Guid, string> goalTitles = await _context.KpiGoalEntities.AsNoTracking()
                 .Where(x => goalIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Title, cancellationToken);
-            var raterIds = rows.Where(x => x.RatedByEmployeeId.HasValue).Select(x => x.RatedByEmployeeId!.Value).Distinct().ToList();
-            var raters = raterIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            List<Guid> raterIds = rows.Where(x => x.RatedByEmployeeId.HasValue).Select(x => x.RatedByEmployeeId!.Value).Distinct().ToList();
+            Dictionary<Guid, string> raters = raterIds.Count == 0
+                ? []
                 : await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => raterIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.FullName ?? (x.LastName + " " + x.FirstName).Trim(), cancellationToken);
@@ -143,17 +153,22 @@ namespace HrmApi.Application.Features.Mobile
                 .Where(x => !x.IsDeleted
                     && (x.SubjectEmployeeId == employeeId || x.ReviewerEmployeeId == employeeId));
             if (request.CycleId.HasValue && request.CycleId != Guid.Empty)
+            {
                 query = query.Where(x => x.CycleId == request.CycleId);
+            }
 
             List<Performance360ReviewEntity> rows = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(500)
                 .ToListAsync(cancellationToken);
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
-            var employeeIds = rows.SelectMany(x => new[] { x.SubjectEmployeeId, x.ReviewerEmployeeId }).Distinct().ToList();
-            var cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
+            List<Guid> cycleIds = rows.Select(x => x.CycleId).Distinct().ToList();
+            List<Guid> employeeIds = rows.SelectMany(x => new[] { x.SubjectEmployeeId, x.ReviewerEmployeeId }).Distinct().ToList();
+            Dictionary<Guid, string> cycles = await _context.PerformanceReviewCycleEntities.AsNoTracking()
                 .Where(x => cycleIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var employees = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => employeeIds.Contains(x.Id))
@@ -164,8 +179,8 @@ namespace HrmApi.Application.Features.Mobile
 
             return rows.Select(e =>
             {
-                employees.TryGetValue(e.SubjectEmployeeId, out var subject);
-                employees.TryGetValue(e.ReviewerEmployeeId, out var reviewer);
+                _ = employees.TryGetValue(e.SubjectEmployeeId, out var subject);
+                _ = employees.TryGetValue(e.ReviewerEmployeeId, out var reviewer);
                 return new Performance360ReviewDto
                 {
                     Id = e.Id,
@@ -212,11 +227,13 @@ namespace HrmApi.Application.Features.Mobile
 
             if (request.Id.HasValue && request.Id != Guid.Empty)
             {
-                var existing = await _context.Performance360ReviewEntities.AsNoTracking()
+                Performance360ReviewEntity existing = await _context.Performance360ReviewEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                     ?? throw new InvalidOperationException("Không tìm thấy đánh giá 360.");
                 if (existing.ReviewerEmployeeId != me && existing.SubjectEmployeeId != me)
+                {
                     throw new InvalidOperationException("Bạn không có quyền sửa đánh giá này.");
+                }
 
                 bool ok = await _mediator.Send(new UpdatePerformance360ReviewCommand
                 {
@@ -229,8 +246,7 @@ namespace HrmApi.Application.Features.Mobile
                     Comment = request.Comment,
                     Status = request.Status,
                 }, cancellationToken);
-                if (!ok) throw new InvalidOperationException("Không cập nhật được đánh giá 360.");
-                return request.Id.Value;
+                return !ok ? throw new InvalidOperationException("Không cập nhật được đánh giá 360.") : request.Id.Value;
             }
 
             return await _mediator.Send(new CreatePerformance360ReviewCommand

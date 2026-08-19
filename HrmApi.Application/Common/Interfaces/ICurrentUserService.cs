@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace HrmApi.Application.Common.Interfaces
 {
     public interface ICurrentUserService

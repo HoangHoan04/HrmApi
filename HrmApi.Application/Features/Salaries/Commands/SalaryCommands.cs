@@ -165,9 +165,17 @@ namespace HrmApi.Application.Features.Salaries.Commands
                 {
                     void AddDeduction(string code, string name, decimal rate, int order)
                     {
-                        if (lines.Any(x => x.ItemCode == code)) return;
+                        if (lines.Any(x => x.ItemCode == code))
+                        {
+                            return;
+                        }
+
                         decimal amount = Math.Round(insuranceBase * rate / 100m, 0, MidpointRounding.AwayFromZero);
-                        if (amount <= 0) return;
+                        if (amount <= 0)
+                        {
+                            return;
+                        }
+
                         lines.Add(new SalaryLineItemEntity
                         {
                             ItemType = SalaryItemType.Deduction,
@@ -329,7 +337,10 @@ namespace HrmApi.Application.Features.Salaries.Commands
         {
             SalaryEntity? entity = await _context.SalaryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             if (entity.Status is not (SalaryStatus.Draft or SalaryStatus.Processing))
             {
@@ -376,7 +387,10 @@ namespace HrmApi.Application.Features.Salaries.Commands
         {
             SalaryEntity? entity = await _context.SalaryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             if (entity.Status is not (SalaryStatus.Approved or SalaryStatus.Processing))
             {
@@ -426,7 +440,10 @@ namespace HrmApi.Application.Features.Salaries.Commands
         {
             SalaryEntity? entity = await _context.SalaryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             if (entity.Status == SalaryStatus.Paid)
             {

@@ -13,15 +13,24 @@ namespace HrmApi.Application.Features.Performance
     public class GetCompetencyFrameworksPagedQueryHandler : IRequestHandler<GetCompetencyFrameworksPagedQuery, PagedResult<CompetencyFrameworkDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetCompetencyFrameworksPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetCompetencyFrameworksPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<CompetencyFrameworkDto>> Handle(GetCompetencyFrameworksPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<CompetencyFrameworkEntity> query = _context.CompetencyFrameworkEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -40,9 +49,13 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task<List<CompetencyFrameworkDto>> MapManyAsync(List<CompetencyFrameworkEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var companyIds = rows.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
-            var companies = companyIds.Count == 0 ? new Dictionary<Guid, string>()
+            if (rows.Count == 0)
+            {
+                return [];
+            }
+
+            List<Guid> companyIds = rows.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            Dictionary<Guid, string> companies = companyIds.Count == 0 ? []
                 : await _context.CompanyEntities.AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
@@ -77,8 +90,7 @@ namespace HrmApi.Application.Features.Performance
         {
             CompetencyFrameworkEntity? e = await _context.CompetencyFrameworkEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -114,16 +126,28 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task ValidateAsync(CompetencyFrameworkCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã khung năng lực là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên khung năng lực là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã khung năng lực là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên khung năng lực là bắt buộc.");
+            }
 
             string code = request.Code.Trim().ToUpperInvariant();
             if (await _context.CompetencyFrameworkEntities.AnyAsync(
                     x => !x.IsDeleted && x.Code == code && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+            {
                 throw new InvalidOperationException("Mã khung năng lực đã tồn tại.");
+            }
+
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty
                 && !await _context.CompanyEntities.AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Công ty không tồn tại.");
+            }
         }
     }
 
@@ -148,7 +172,10 @@ namespace HrmApi.Application.Features.Performance
         {
             CompetencyFrameworkEntity? entity = await _context.CompetencyFrameworkEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.Code ??= entity.Code;
             request.Name ??= entity.Name;
@@ -182,7 +209,11 @@ namespace HrmApi.Application.Features.Performance
         {
             CompetencyFrameworkEntity? entity = await _context.CompetencyFrameworkEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

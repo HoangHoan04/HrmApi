@@ -49,8 +49,14 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
                 try
                 {
                     bool ok = await _mediator.Send(new ApplyTransferEmployeeCommand { Id = id, Force = false }, cancellationToken);
-                    if (ok) applied++;
-                    else failed++;
+                    if (ok)
+                    {
+                        applied++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
                 }
                 catch (Exception ex)
                 {

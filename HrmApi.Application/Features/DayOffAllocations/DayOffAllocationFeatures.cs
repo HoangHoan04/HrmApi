@@ -2,6 +2,7 @@ using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.RegisterDayOff;
+using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Leave;
 using HrmApi.Domain.Enums;
 using MediatR;
@@ -35,16 +36,30 @@ namespace HrmApi.Application.Features.DayOffAllocations
     public class GetDayOffAllocationsPagedQueryHandler : IRequestHandler<GetDayOffAllocationsPagedQuery, PagedResult<DayOffAllocationDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetDayOffAllocationsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetDayOffAllocationsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<DayOffAllocationDto>> Handle(GetDayOffAllocationsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<DayOffConfigEmployeeEntity> query = _context.DayOffConfigEmployeeEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
-            if (request.EmployeeId.HasValue) query = query.Where(x => x.EmployeeId == request.EmployeeId);
-            if (request.DayOffConfigId.HasValue) query = query.Where(x => x.DayOffConfigId == request.DayOffConfigId);
-            if (request.Year.HasValue) query = query.Where(x => x.Year == request.Year);
+            if (request.EmployeeId.HasValue)
+            {
+                query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
+            if (request.DayOffConfigId.HasValue)
+            {
+                query = query.Where(x => x.DayOffConfigId == request.DayOffConfigId);
+            }
+
+            if (request.Year.HasValue)
+            {
+                query = query.Where(x => x.Year == request.Year);
+            }
 
             int total = await query.CountAsync(cancellationToken);
             List<DayOffConfigEmployeeEntity> rows = await query
@@ -65,15 +80,15 @@ namespace HrmApi.Application.Features.DayOffAllocations
             var employees = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => empIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => new { x.FullName, x.Code, x.LastName, x.FirstName }, cancellationToken);
-            var configs = await _context.DayOffConfigEntities.AsNoTracking()
+            Dictionary<Guid, string> configs = await _context.DayOffConfigEntities.AsNoTracking()
                 .Where(x => cfgIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             List<DayOffAllocationDto> result = [];
             foreach (DayOffConfigEmployeeEntity row in rows)
             {
-                employees.TryGetValue(row.EmployeeId, out var emp);
-                configs.TryGetValue(row.DayOffConfigId, out var cfgName);
+                _ = employees.TryGetValue(row.EmployeeId, out var emp);
+                _ = configs.TryGetValue(row.DayOffConfigId, out string? cfgName);
                 DateOnly ys = new(row.Year, 1, 1);
                 DateOnly ye = new(row.Year, 12, 31);
                 decimal pending = await _context.RegisterDayOffEntities.AsNoTracking()
@@ -127,18 +142,32 @@ namespace HrmApi.Application.Features.DayOffAllocations
         public async Task<Guid> Handle(UpsertDayOffAllocationCommand request, CancellationToken cancellationToken)
         {
             if (request.EmployeeId == Guid.Empty || request.DayOffConfigId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Nhân viên và loại nghỉ là bắt buộc.");
-            if (request.Year < 2000 || request.Year > 2100)
+            }
+
+            if (request.Year is < 2000 or > 2100)
+            {
                 throw new InvalidOperationException("Năm không hợp lệ.");
+            }
 
             bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken);
-            if (!empOk) throw new InvalidOperationException("Nhân viên không tồn tại.");
+            if (!empOk)
+            {
+                throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
+
             DayOffConfigEntity? cfg = await _context.DayOffConfigEntities.FirstOrDefaultAsync(x => x.Id == request.DayOffConfigId && !x.IsDeleted, cancellationToken);
-            if (cfg == null) throw new InvalidOperationException("Cấu hình nghỉ không tồn tại.");
+            if (cfg == null)
+            {
+                throw new InvalidOperationException("Cấu hình nghỉ không tồn tại.");
+            }
 
             decimal allocatedDays = request.AllocatedDays > 0 ? request.AllocatedDays : cfg.DefaultDaysPerYear;
             if (allocatedDays < 0)
+            {
                 throw new InvalidOperationException("Số ngày cấp phải >= 0.");
+            }
 
             DayOffConfigEmployeeEntity? entity = null;
             if (request.Id.HasValue && request.Id != Guid.Empty)
@@ -193,7 +222,9 @@ namespace HrmApi.Application.Features.DayOffAllocations
         public async Task<PreviewLeaveDaysDto> Handle(PreviewLeaveDaysQuery request, CancellationToken cancellationToken)
         {
             if (request.ToDate < request.FromDate)
+            {
                 throw new InvalidOperationException("Ngày kết thúc phải >= ngày bắt đầu.");
+            }
 
             Guid? companyId = request.CompanyId;
             if (!companyId.HasValue)
@@ -275,7 +306,10 @@ namespace HrmApi.Application.Features.DayOffAllocations
         : IRequestHandler<GetLeaveBalanceReportQuery, PagedResult<LeaveBalanceReportDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetLeaveBalanceReportQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetLeaveBalanceReportQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<LeaveBalanceReportDto>> Handle(
             GetLeaveBalanceReportQuery request,
@@ -285,27 +319,42 @@ namespace HrmApi.Application.Features.DayOffAllocations
             DateOnly expiresOn = new(year, 12, 31);
 
             if (request.ExpiringBefore.HasValue && expiresOn >= request.ExpiringBefore.Value)
+            {
                 return new PagedResult<LeaveBalanceReportDto>([], 0, request.PageIndex, request.PageSize);
+            }
 
             IQueryable<DayOffConfigEmployeeEntity> query = _context.DayOffConfigEmployeeEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.Year == year);
 
             if (request.DayOffConfigId.HasValue && request.DayOffConfigId != Guid.Empty)
+            {
                 query = query.Where(x => x.DayOffConfigId == request.DayOffConfigId);
+            }
+
             if (request.EmployeeId.HasValue && request.EmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
 
             if (request.CompanyId.HasValue || request.BranchId.HasValue || request.DepartmentId.HasValue)
             {
-                var empFilter = _context.EmployeeEntities.AsNoTracking().Where(e => !e.IsDeleted);
+                IQueryable<EmployeeEntity> empFilter = _context.EmployeeEntities.AsNoTracking().Where(e => !e.IsDeleted);
                 if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+                {
                     empFilter = empFilter.Where(e => e.CompanyId == request.CompanyId);
-                if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
-                    empFilter = empFilter.Where(e => e.BranchId == request.BranchId);
-                if (request.DepartmentId.HasValue && request.DepartmentId != Guid.Empty)
-                    empFilter = empFilter.Where(e => e.DepartmentId == request.DepartmentId);
+                }
 
-                var empIds = empFilter.Select(e => e.Id);
+                if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+                {
+                    empFilter = empFilter.Where(e => e.BranchId == request.BranchId);
+                }
+
+                if (request.DepartmentId.HasValue && request.DepartmentId != Guid.Empty)
+                {
+                    empFilter = empFilter.Where(e => e.DepartmentId == request.DepartmentId);
+                }
+
+                IQueryable<Guid> empIds = empFilter.Select(e => e.Id);
                 query = query.Where(x => empIds.Contains(x.EmployeeId));
             }
 
@@ -315,12 +364,16 @@ namespace HrmApi.Application.Features.DayOffAllocations
                 .ToListAsync(cancellationToken);
 
             if (allRows.Count == 0)
+            {
                 return new PagedResult<LeaveBalanceReportDto>([], 0, request.PageIndex, request.PageSize);
+            }
 
             List<LeaveBalanceReportDto> mapped = await MapReportAsync(allRows, expiresOn, cancellationToken);
 
             if (request.OnlyWithRemaining)
+            {
                 mapped = mapped.Where(x => x.RemainingDays > 0).ToList();
+            }
 
             int total = mapped.Count;
             List<LeaveBalanceReportDto> page = mapped
@@ -373,19 +426,19 @@ namespace HrmApi.Application.Features.DayOffAllocations
             var branchIds = employees.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
             var deptIds = employees.Where(x => x.DepartmentId.HasValue).Select(x => x.DepartmentId!.Value).Distinct().ToList();
 
-            var branchMap = branchIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branchMap = branchIds.Count == 0
+                ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var deptMap = deptIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> deptMap = deptIds.Count == 0
+                ? []
                 : await _context.DepartmentEntities.AsNoTracking()
                     .Where(x => deptIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var configs = await _context.DayOffConfigEntities.AsNoTracking()
+            Dictionary<Guid, string> configs = await _context.DayOffConfigEntities.AsNoTracking()
                 .Where(x => cfgIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
@@ -393,11 +446,11 @@ namespace HrmApi.Application.Features.DayOffAllocations
             DateOnly soonThreshold = today.AddDays(60);
 
             List<LeaveBalanceReportDto> result = [];
-            foreach (var row in rows)
+            foreach (DayOffConfigEmployeeEntity row in rows)
             {
-                empMap.TryGetValue(row.EmployeeId, out var emp);
-                configs.TryGetValue(row.DayOffConfigId, out var cfgName);
-                pendingMap.TryGetValue((row.EmployeeId, row.DayOffConfigId), out decimal pending);
+                _ = empMap.TryGetValue(row.EmployeeId, out var emp);
+                _ = configs.TryGetValue(row.DayOffConfigId, out string? cfgName);
+                _ = pendingMap.TryGetValue((row.EmployeeId, row.DayOffConfigId), out decimal pending);
                 decimal remaining = Math.Max(0, row.AllocatedDays - row.UsedDays - pending);
 
                 result.Add(new LeaveBalanceReportDto
@@ -410,9 +463,9 @@ namespace HrmApi.Application.Features.DayOffAllocations
                     EmployeeCode = emp?.Code,
                     CompanyId = emp?.CompanyId,
                     BranchId = emp?.BranchId,
-                    BranchName = emp?.BranchId is Guid bid && branchMap.TryGetValue(bid, out var bn) ? bn : null,
+                    BranchName = emp?.BranchId is Guid bid && branchMap.TryGetValue(bid, out string? bn) ? bn : null,
                     DepartmentId = emp?.DepartmentId,
-                    DepartmentName = emp?.DepartmentId is Guid did && deptMap.TryGetValue(did, out var dn) ? dn : null,
+                    DepartmentName = emp?.DepartmentId is Guid did && deptMap.TryGetValue(did, out string? dn) ? dn : null,
                     Year = row.Year,
                     AllocatedDays = row.AllocatedDays,
                     UsedDays = row.UsedDays,

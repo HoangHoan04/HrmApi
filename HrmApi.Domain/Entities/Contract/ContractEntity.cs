@@ -127,7 +127,7 @@ namespace HrmApi.Domain.Entities.Contract
         public Guid? DepartmentId { get; set; }
 
         /// <summary>
-        /// Id tổ/nhóm làm việc theo hợp đồng (Snapshot tại thời điểm ký)
+        /// Id bộ phận làm việc theo hợp đồng (Snapshot tại thời điểm ký)
         /// </summary>
         public Guid? PartId { get; set; }
 
@@ -213,7 +213,7 @@ namespace HrmApi.Domain.Entities.Contract
         public virtual DepartmentEntity? Department { get; set; }
 
         /// <summary>
-        /// Navigation property tới tổ/nhóm làm việc theo hợp đồng
+        /// Navigation property tới bộ phận làm việc theo hợp đồng
         /// </summary>
         public virtual PartEntity? Part { get; set; }
 

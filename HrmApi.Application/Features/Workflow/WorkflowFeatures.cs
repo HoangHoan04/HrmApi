@@ -1,5 +1,6 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Workflow;
+using HrmApi.Domain.Entities.Workflow;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -38,18 +39,21 @@ namespace HrmApi.Application.Features.Workflow
         : IRequestHandler<GetWorkflowDashboardSummaryQuery, WorkflowDashboardSummaryDto>
     {
         private readonly IApplicationDbContext _context;
-        public GetWorkflowDashboardSummaryQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWorkflowDashboardSummaryQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<WorkflowDashboardSummaryDto> Handle(
             GetWorkflowDashboardSummaryQuery request, CancellationToken cancellationToken)
         {
-            var byStatus = await _context.WorkflowInstanceEntities.AsNoTracking()
+            List<WorkflowStatusCountDto> byStatus = await _context.WorkflowInstanceEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .GroupBy(x => x.Status)
                 .Select(g => new WorkflowStatusCountDto { Status = g.Key, Count = g.Count() })
                 .ToListAsync(cancellationToken);
 
-            var byEntityType = await _context.WorkflowInstanceEntities.AsNoTracking()
+            List<WorkflowEntityTypeCountDto> byEntityType = await _context.WorkflowInstanceEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .GroupBy(x => x.EntityType)
                 .Select(g => new WorkflowEntityTypeCountDto { EntityType = g.Key, Count = g.Count() })
@@ -87,13 +91,12 @@ namespace HrmApi.Application.Features.Workflow
 
         public async Task<bool> Handle(AdvanceWorkflowTaskCommand request, CancellationToken cancellationToken)
         {
-            var task = await _context.WorkflowTaskEntities.AsNoTracking()
+            WorkflowTaskEntity task = await _context.WorkflowTaskEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.TaskId && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy task.");
-            if (task.Status != WorkflowTaskStatus.Pending)
-                throw new InvalidOperationException("Task không còn PENDING.");
-
-            return await _engine.AdvanceAsync(
+            return task.Status != WorkflowTaskStatus.Pending
+                ? throw new InvalidOperationException("Task không còn PENDING.")
+                : await _engine.AdvanceAsync(
                 task.InstanceId,
                 approve: true,
                 request.Note,
@@ -124,15 +127,16 @@ namespace HrmApi.Application.Features.Workflow
         public async Task<bool> Handle(RejectWorkflowTaskCommand request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Note))
+            {
                 throw new InvalidOperationException("Vui lòng nhập lý do từ chối.");
+            }
 
-            var task = await _context.WorkflowTaskEntities.AsNoTracking()
+            WorkflowTaskEntity task = await _context.WorkflowTaskEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.TaskId && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy task.");
-            if (task.Status != WorkflowTaskStatus.Pending)
-                throw new InvalidOperationException("Task không còn PENDING.");
-
-            return await _engine.AdvanceAsync(
+            return task.Status != WorkflowTaskStatus.Pending
+                ? throw new InvalidOperationException("Task không còn PENDING.")
+                : await _engine.AdvanceAsync(
                 task.InstanceId,
                 approve: false,
                 request.Note,

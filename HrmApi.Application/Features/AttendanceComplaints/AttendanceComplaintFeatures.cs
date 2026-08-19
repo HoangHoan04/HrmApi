@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.AttendanceComplaint;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
 using MediatR;
@@ -49,13 +45,17 @@ namespace HrmApi.Application.Features.AttendanceComplaints
         public async Task<Guid> Handle(CreateAttendanceComplaintCommand request, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Reason))
+            {
                 throw new InvalidOperationException("Vui lòng nhập lý do khiếu nại.");
+            }
 
             if (request.WorkDate > BusinessDateHelper.Today())
+            {
                 throw new InvalidOperationException("Không thể khiếu nại ngày trong tương lai.");
+            }
 
             Guid employeeId = request.EmployeeId ?? await ResolveEmployeeIdAsync(cancellationToken);
-            var employee = await _context.EmployeeEntities.AsNoTracking()
+            EmployeeEntity employee = await _context.EmployeeEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == employeeId && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy nhân viên.");
 
@@ -69,16 +69,18 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                     && x.Status == AttendanceComplaintStatus.PENDING,
                     cancellationToken);
             if (hasPending)
+            {
                 throw new InvalidOperationException("Đã có khiếu nại đang chờ duyệt cho ngày này.");
+            }
 
-            var timekeeping = await _context.TimekeepingEntities.AsNoTracking()
+            TimekeepingEntity? timekeeping = await _context.TimekeepingEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x =>
                     x.EmployeeId == employeeId
                     && x.WorkDate == request.WorkDate
                     && !x.IsDeleted,
                     cancellationToken);
 
-            var entity = new AttendanceComplaintEntity
+            AttendanceComplaintEntity entity = new()
             {
                 EmployeeId = employeeId,
                 CompanyId = employee.CompanyId,
@@ -95,8 +97,8 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                 CreatedBy = _currentUser.UserId ?? Guid.Empty,
             };
 
-            _context.AttendanceComplaintEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.AttendanceComplaintEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -115,7 +117,9 @@ namespace HrmApi.Application.Features.AttendanceComplaints
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
         {
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 return _currentUser.EmployeeId.Value;
+            }
 
             if (_currentUser.UserId.HasValue)
             {
@@ -124,7 +128,9 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
@@ -139,22 +145,37 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             {
                 case AttendanceComplaintType.FORGOT_CHECK_IN:
                     if (!checkIn.HasValue)
+                    {
                         throw new InvalidOperationException("Vui lòng nhập giờ vào ca đề xuất.");
+                    }
+
                     break;
                 case AttendanceComplaintType.FORGOT_CHECK_OUT:
                     if (!checkOut.HasValue)
+                    {
                         throw new InvalidOperationException("Vui lòng nhập giờ ra ca đề xuất.");
+                    }
+
                     break;
                 case AttendanceComplaintType.FORGOT_BOTH:
                 case AttendanceComplaintType.WRONG_TIME:
                     if (!checkIn.HasValue || !checkOut.HasValue)
+                    {
                         throw new InvalidOperationException("Vui lòng nhập đủ giờ vào và giờ ra đề xuất.");
+                    }
+
                     if (checkOut <= checkIn)
+                    {
                         throw new InvalidOperationException("Giờ ra ca phải sau giờ vào ca.");
+                    }
+
                     break;
                 case AttendanceComplaintType.OTHER:
                     if (!checkIn.HasValue && !checkOut.HasValue)
+                    {
                         throw new InvalidOperationException("Vui lòng nhập ít nhất một mốc giờ đề xuất.");
+                    }
+
                     break;
             }
         }
@@ -186,25 +207,35 @@ namespace HrmApi.Application.Features.AttendanceComplaints
 
         public async Task<bool> Handle(CancelAttendanceComplaintCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.AttendanceComplaintEntities
+            AttendanceComplaintEntity? entity = await _context.AttendanceComplaintEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
             if (entity.EmployeeId != employeeId)
+            {
                 throw new InvalidOperationException("Không thể hủy khiếu nại của người khác.");
+            }
 
             if (entity.Status != AttendanceComplaintStatus.PENDING)
+            {
                 throw new InvalidOperationException("Chỉ hủy được khiếu nại đang chờ duyệt.");
+            }
 
             var old = AttendanceComplaintMapper.ToLogObject(entity);
             entity.Status = AttendanceComplaintStatus.CANCELLED;
             if (!string.IsNullOrWhiteSpace(request.Reason))
+            {
                 entity.ApproverNote = request.Reason.Trim();
+            }
+
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
                 "AttendanceComplaintEntity",
@@ -219,14 +250,20 @@ namespace HrmApi.Application.Features.AttendanceComplaints
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
         {
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 return _currentUser.EmployeeId.Value;
+            }
+
             if (_currentUser.UserId.HasValue)
             {
                 Guid? empId = await _context.UserEntities.AsNoTracking()
                     .Where(x => x.Id == _currentUser.UserId.Value)
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
-                if (empId.HasValue && empId != Guid.Empty) return empId.Value;
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId.Value;
+                }
             }
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
         }
@@ -264,19 +301,26 @@ namespace HrmApi.Application.Features.AttendanceComplaints
 
         public async Task<bool> Handle(ReviewAttendanceComplaintCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.AttendanceComplaintEntities
+            AttendanceComplaintEntity? entity = await _context.AttendanceComplaintEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             if (entity.Status != AttendanceComplaintStatus.PENDING)
+            {
                 throw new InvalidOperationException("Khiếu nại đã được xử lý.");
+            }
 
             var old = AttendanceComplaintMapper.ToLogObject(entity);
 
             if (!request.Approve)
             {
                 if (string.IsNullOrWhiteSpace(request.ApproverNote))
+                {
                     throw new InvalidOperationException("Vui lòng nhập lý do từ chối.");
+                }
 
                 entity.Status = AttendanceComplaintStatus.REJECTED;
                 entity.ApproverNote = request.ApproverNote.Trim();
@@ -284,7 +328,7 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                 entity.ReviewedAt = DateTime.UtcNow;
                 entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = _currentUser.UserId;
-                await _context.SaveChangesAsync(cancellationToken);
+                _ = await _context.SaveChangesAsync(cancellationToken);
 
                 await _actionLog.LogActionAsync(
                     ActionType.UPDATE,
@@ -301,9 +345,9 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             CreateAttendanceComplaintCommandHandler.ValidateRequestedTimes(
                 entity.ComplaintType, checkInTime, checkOutTime);
 
-            var employee = await _rules.ResolveEmployeeAsync(entity.EmployeeId, cancellationToken);
-            var window = await _rules.ResolveWorkWindowAsync(employee, entity.WorkDate, cancellationToken);
-            var standard = await _rules.ResolveStandardAsync(
+            EmployeeEntity employee = await _rules.ResolveEmployeeAsync(entity.EmployeeId, cancellationToken);
+            WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, entity.WorkDate, cancellationToken);
+            AttendanceStandardResult standard = await _rules.ResolveStandardAsync(
                 entity.BranchId ?? window.BranchId ?? employee.BranchId,
                 employee.CompanyId,
                 cancellationToken);
@@ -335,13 +379,18 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUser.UserId ?? Guid.Empty,
                 };
-                _context.TimekeepingEntities.Add(record);
+                _ = _context.TimekeepingEntities.Add(record);
             }
 
             if (checkInTime.HasValue)
+            {
                 record.CheckInAt = BusinessDateHelper.ToUtc(entity.WorkDate, checkInTime.Value);
+            }
+
             if (checkOutTime.HasValue)
+            {
                 record.CheckOutAt = BusinessDateHelper.ToUtc(entity.WorkDate, checkOutTime.Value);
+            }
 
             record.Note = string.IsNullOrWhiteSpace(entity.Reason)
                 ? "Điều chỉnh từ khiếu nại chấm công"
@@ -363,7 +412,7 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -394,26 +443,47 @@ namespace HrmApi.Application.Features.AttendanceComplaints
     {
         private readonly IApplicationDbContext _context;
 
-        public GetAttendanceComplaintsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetAttendanceComplaintsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<AttendanceComplaintDto>> Handle(
             GetAttendanceComplaintsPagedQuery request,
             CancellationToken cancellationToken)
         {
-            var query = _context.AttendanceComplaintEntities.AsNoTracking().Where(x => !x.IsDeleted);
+            IQueryable<AttendanceComplaintEntity> query = _context.AttendanceComplaintEntities.AsNoTracking().Where(x => !x.IsDeleted);
 
             if (request.EmployeeId.HasValue && request.EmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
             if (request.Status.HasValue)
+            {
                 query = query.Where(x => x.Status == request.Status);
+            }
+
             if (request.FromDate.HasValue)
+            {
                 query = query.Where(x => x.WorkDate >= request.FromDate);
+            }
+
             if (request.ToDate.HasValue)
+            {
                 query = query.Where(x => x.WorkDate <= request.ToDate);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var s = request.Search.Trim().ToLower();
@@ -421,13 +491,13 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             }
 
             var total = await query.CountAsync(cancellationToken);
-            var entities = await query
+            List<AttendanceComplaintEntity> entities = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            var dtos = await MapManyAsync(entities, cancellationToken);
+            List<AttendanceComplaintDto> dtos = await MapManyAsync(entities, cancellationToken);
             return new PagedResult<AttendanceComplaintDto>(dtos, total, request.PageIndex, request.PageSize);
         }
 
@@ -435,12 +505,15 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             List<AttendanceComplaintEntity> entities,
             CancellationToken cancellationToken)
         {
-            if (entities.Count == 0) return new List<AttendanceComplaintDto>();
+            if (entities.Count == 0)
+            {
+                return [];
+            }
 
-            var empIds = entities.Select(x => x.EmployeeId).Distinct().ToList();
-            var branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
-            var tkIds = entities.Where(x => x.TimekeepingId.HasValue).Select(x => x.TimekeepingId!.Value).Distinct().ToList();
-            var approverIds = entities.Where(x => x.ApproverId.HasValue).Select(x => x.ApproverId!.Value).Distinct().ToList();
+            List<Guid> empIds = entities.Select(x => x.EmployeeId).Distinct().ToList();
+            List<Guid> branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+            List<Guid> tkIds = entities.Where(x => x.TimekeepingId.HasValue).Select(x => x.TimekeepingId!.Value).Distinct().ToList();
+            List<Guid> approverIds = entities.Where(x => x.ApproverId.HasValue).Select(x => x.ApproverId!.Value).Distinct().ToList();
 
             var empMap = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => empIds.Contains(x.Id))
@@ -449,20 +522,20 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                     x => new { x.Code, Name = x.FullName ?? ((x.FirstName ?? "") + " " + (x.LastName ?? "")).Trim() },
                     cancellationToken);
 
-            var branchMap = branchIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branchMap = branchIds.Count == 0
+                ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var tkMap = tkIds.Count == 0
-                ? new Dictionary<Guid, TimekeepingEntity>()
+            Dictionary<Guid, TimekeepingEntity> tkMap = tkIds.Count == 0
+                ? []
                 : await _context.TimekeepingEntities.AsNoTracking()
                     .Where(x => tkIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, cancellationToken);
 
-            var approverMap = approverIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> approverMap = approverIds.Count == 0
+                ? []
                 : await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => approverIds.Contains(x.Id))
                     .ToDictionaryAsync(
@@ -472,10 +545,10 @@ namespace HrmApi.Application.Features.AttendanceComplaints
 
             return entities.Select(e =>
             {
-                empMap.TryGetValue(e.EmployeeId, out var emp);
+                _ = empMap.TryGetValue(e.EmployeeId, out var emp);
                 string? branchName = e.BranchId.HasValue && branchMap.TryGetValue(e.BranchId.Value, out var bn) ? bn : null;
                 string? approverName = e.ApproverId.HasValue && approverMap.TryGetValue(e.ApproverId.Value, out var an) ? an : null;
-                TimekeepingEntity? tk = e.TimekeepingId.HasValue && tkMap.TryGetValue(e.TimekeepingId.Value, out var t) ? t : null;
+                TimekeepingEntity? tk = e.TimekeepingId.HasValue && tkMap.TryGetValue(e.TimekeepingId.Value, out TimekeepingEntity? t) ? t : null;
                 return AttendanceComplaintMapper.ToDto(
                     e,
                     emp?.Name,
@@ -499,15 +572,21 @@ namespace HrmApi.Application.Features.AttendanceComplaints
     {
         private readonly IApplicationDbContext _context;
 
-        public GetAttendanceComplaintByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetAttendanceComplaintByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<AttendanceComplaintDto?> Handle(
             GetAttendanceComplaintByIdQuery request,
             CancellationToken cancellationToken)
         {
-            var entity = await _context.AttendanceComplaintEntities.AsNoTracking()
+            AttendanceComplaintEntity? entity = await _context.AttendanceComplaintEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             var emp = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => x.Id == entity.EmployeeId)
@@ -577,7 +656,9 @@ namespace HrmApi.Application.Features.AttendanceComplaints
         {
             Guid employeeId;
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 employeeId = _currentUser.EmployeeId.Value;
+            }
             else if (_currentUser.UserId.HasValue)
             {
                 Guid? empId = await _context.UserEntities.AsNoTracking()
@@ -585,26 +666,31 @@ namespace HrmApi.Application.Features.AttendanceComplaints
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (!empId.HasValue || empId == Guid.Empty)
+                {
                     throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
+                }
+
                 employeeId = empId.Value;
             }
             else
+            {
                 throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
+            }
 
-            var query = _context.AttendanceComplaintEntities.AsNoTracking()
+            IQueryable<AttendanceComplaintEntity> query = _context.AttendanceComplaintEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == employeeId && !x.IsDeleted);
 
             if (request.Year.HasValue && request.Month.HasValue)
             {
-                var from = new DateOnly(request.Year.Value, request.Month.Value, 1);
-                var to = from.AddMonths(1).AddDays(-1);
+                DateOnly from = new(request.Year.Value, request.Month.Value, 1);
+                DateOnly to = from.AddMonths(1).AddDays(-1);
                 query = query.Where(x => x.WorkDate >= from && x.WorkDate <= to);
             }
 
-            var entities = await query.OrderByDescending(x => x.CreatedAt).Take(100).ToListAsync(cancellationToken);
+            List<AttendanceComplaintEntity> entities = await query.OrderByDescending(x => x.CreatedAt).Take(100).ToListAsync(cancellationToken);
 
-            var result = new List<AttendanceComplaintDto>();
-            foreach (var e in entities)
+            List<AttendanceComplaintDto> result = new();
+            foreach (AttendanceComplaintEntity? e in entities)
             {
                 TimekeepingEntity? tk = null;
                 if (e.TimekeepingId.HasValue)

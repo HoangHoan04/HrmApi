@@ -32,7 +32,7 @@ namespace HrmApi.Domain.Entities.Organization
         public Guid? DepartmentId { get; set; }
 
         /// <summary>
-        /// Id tổ/nhóm mà chức danh này trực thuộc (nếu chức danh gắn ở cấp tổ thay vì cả phòng ban)
+        /// Id bộ phận mà chức danh này trực thuộc (nếu chức danh gắn ở cấp tổ thay vì cả phòng ban)
         /// </summary>
         public Guid? PartId { get; set; }
 
@@ -69,7 +69,7 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public virtual DepartmentEntity? Department { get; set; }
         /// <summary>
-        /// Navigation property tới tổ/nhóm mà chức danh này trực thuộc
+        /// Navigation property tới bộ phận mà chức danh này trực thuộc
         /// </summary>
         public virtual PartEntity? Part { get; set; }
         /// <summary>

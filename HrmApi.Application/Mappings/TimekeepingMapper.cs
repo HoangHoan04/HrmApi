@@ -98,8 +98,8 @@ namespace HrmApi.Application.Mappings
             string? branchName,
             int allowedRadiusMeters)
         {
-            var hasIn = entity?.CheckInAt != null;
-            var hasOut = entity?.CheckOutAt != null;
+            bool hasIn = entity?.CheckInAt != null;
+            bool hasOut = entity?.CheckOutAt != null;
             return new MobileTodayDto
             {
                 WorkDate = workDate,
@@ -127,34 +127,40 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        public static MobileMonthDayDto ToMonthDayDto(TimekeepingEntity entity) => new()
+        public static MobileMonthDayDto ToMonthDayDto(TimekeepingEntity entity)
         {
-            WorkDate = entity.WorkDate,
-            Status = entity.Status,
-            CheckInAt = entity.CheckInAt,
-            CheckOutAt = entity.CheckOutAt,
-            WorkedMinutes = entity.WorkedMinutes,
-            LateMinutes = entity.LateMinutes,
-            EarlyMinutes = entity.EarlyMinutes,
-            Note = entity.Note
-        };
+            return new()
+            {
+                WorkDate = entity.WorkDate,
+                Status = entity.Status,
+                CheckInAt = entity.CheckInAt,
+                CheckOutAt = entity.CheckOutAt,
+                WorkedMinutes = entity.WorkedMinutes,
+                LateMinutes = entity.LateMinutes,
+                EarlyMinutes = entity.EarlyMinutes,
+                Note = entity.Note
+            };
+        }
 
-        public static object ToLogObject(TimekeepingEntity entity) => new
+        public static object ToLogObject(TimekeepingEntity entity)
         {
-            entity.Id,
-            entity.EmployeeId,
-            entity.WorkDate,
-            entity.CheckInAt,
-            entity.CheckOutAt,
-            entity.Status,
-            entity.LateMinutes,
-            entity.EarlyMinutes,
-            entity.WorkedMinutes,
-            entity.OtMinutes,
-            entity.NightMinutes,
-            entity.Note,
-            entity.IsManualAdjusted
-        };
+            return new
+            {
+                entity.Id,
+                entity.EmployeeId,
+                entity.WorkDate,
+                entity.CheckInAt,
+                entity.CheckOutAt,
+                entity.Status,
+                entity.LateMinutes,
+                entity.EarlyMinutes,
+                entity.WorkedMinutes,
+                entity.OtMinutes,
+                entity.NightMinutes,
+                entity.Note,
+                entity.IsManualAdjusted
+            };
+        }
     }
 
     public class ManualAdjustTimekeepingFields

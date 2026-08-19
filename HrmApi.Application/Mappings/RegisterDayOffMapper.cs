@@ -1,6 +1,5 @@
 using HrmApi.Application.DTOs.RegisterDayOff;
 using HrmApi.Domain.Entities.Leave;
-using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Mappings
 {
@@ -49,20 +48,23 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        public static object ToLogObject(RegisterDayOffEntity entity) => new
+        public static object ToLogObject(RegisterDayOffEntity entity)
         {
-            entity.Id,
-            entity.EmployeeId,
-            entity.DayOffConfigId,
-            entity.FromDate,
-            entity.ToDate,
-            entity.Session,
-            entity.TotalDays,
-            entity.Status,
-            entity.RequestedApproverId,
-            entity.ApproverId,
-            entity.ApproverNote,
-            entity.CancelReason
-        };
+            return new
+            {
+                entity.Id,
+                entity.EmployeeId,
+                entity.DayOffConfigId,
+                entity.FromDate,
+                entity.ToDate,
+                entity.Session,
+                entity.TotalDays,
+                entity.Status,
+                entity.RequestedApproverId,
+                entity.ApproverId,
+                entity.ApproverNote,
+                entity.CancelReason
+            };
+        }
     }
 }

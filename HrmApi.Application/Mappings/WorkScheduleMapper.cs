@@ -38,24 +38,50 @@ namespace HrmApi.Application.Mappings
 
         public static void ApplyCommandFields(WorkScheduledEmployeeEntity entity, WorkScheduleCommandFields fields)
         {
-            if (fields.EmployeeId != Guid.Empty) entity.EmployeeId = fields.EmployeeId;
-            if (fields.ShiftId.HasValue) entity.ShiftId = fields.ShiftId;
-            if (fields.ShiftMasterId.HasValue) entity.ShiftMasterId = fields.ShiftMasterId;
-            if (fields.WorkDate != default) entity.WorkDate = fields.WorkDate;
-            if (fields.BranchId.HasValue) entity.BranchId = fields.BranchId;
-            if (fields.Note != null) entity.Note = string.IsNullOrWhiteSpace(fields.Note) ? null : fields.Note.Trim();
+            if (fields.EmployeeId != Guid.Empty)
+            {
+                entity.EmployeeId = fields.EmployeeId;
+            }
+
+            if (fields.ShiftId.HasValue)
+            {
+                entity.ShiftId = fields.ShiftId;
+            }
+
+            if (fields.ShiftMasterId.HasValue)
+            {
+                entity.ShiftMasterId = fields.ShiftMasterId;
+            }
+
+            if (fields.WorkDate != default)
+            {
+                entity.WorkDate = fields.WorkDate;
+            }
+
+            if (fields.BranchId.HasValue)
+            {
+                entity.BranchId = fields.BranchId;
+            }
+
+            if (fields.Note != null)
+            {
+                entity.Note = string.IsNullOrWhiteSpace(fields.Note) ? null : fields.Note.Trim();
+            }
         }
 
-        public static object ToLogObject(WorkScheduledEmployeeEntity entity) => new
+        public static object ToLogObject(WorkScheduledEmployeeEntity entity)
         {
-            entity.Id,
-            entity.EmployeeId,
-            entity.ShiftId,
-            entity.ShiftMasterId,
-            entity.WorkDate,
-            entity.BranchId,
-            entity.Note
-        };
+            return new
+            {
+                entity.Id,
+                entity.EmployeeId,
+                entity.ShiftId,
+                entity.ShiftMasterId,
+                entity.WorkDate,
+                entity.BranchId,
+                entity.Note
+            };
+        }
     }
 
     public class WorkScheduleCommandFields

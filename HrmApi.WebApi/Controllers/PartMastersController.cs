@@ -9,14 +9,14 @@ using HrmApi.Application.Features.PartMasters.Commands;
 using HrmApi.Application.Features.PartMasters.Queries;
 using HrmApi.WebApi.Authorization;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrmApi.WebApi.Controllers
 {
     /// <summary>
-    /// API quản lý danh mục mẫu tổ/nhóm (Part Master)
+    /// API quản lý danh mục mẫu bộ phận (Part Master)
     /// </summary>
     [ApiController]
     [Authorize]
@@ -31,7 +31,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Lấy danh sách mẫu tổ/nhóm phân trang (Phương thức POST)
+        /// Lấy danh sách mẫu bộ phận phân trang (Phương thức POST)
         /// </summary>
         [HttpPost("pagination")]
         [RequirePermission(PermissionCodes.OrgPartMasterView)]
@@ -42,19 +42,19 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Chi tiết mẫu tổ/nhóm theo ID (Phương thức POST)
+        /// Chi tiết mẫu bộ phận theo ID (Phương thức POST)
         /// </summary>
         [HttpPost("detail")]
         [RequirePermission(PermissionCodes.OrgPartMasterView)]
         public async Task<ActionResult<PartMasterDto>> GetDetail([FromBody] GetPartMasterByIdQuery query)
         {
             var result = await _mediator.Send(query);
-            if (result == null) return NotFound("Không tìm thấy thông tin mẫu tổ/nhóm.");
+            if (result == null) return NotFound("Không tìm thấy thông tin mẫu bộ phận.");
             return Ok(result);
         }
 
         /// <summary>
-        /// Thêm mới mẫu tổ/nhóm (Phương thức POST)
+        /// Thêm mới mẫu bộ phận (Phương thức POST)
         /// </summary>
         [HttpPost("create")]
         [RequirePermission(PermissionCodes.OrgPartMasterCreate)]
@@ -72,7 +72,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Cập nhật mẫu tổ/nhóm (Phương thức POST)
+        /// Cập nhật mẫu bộ phận (Phương thức POST)
         /// </summary>
         [HttpPost("update")]
         [RequirePermission(PermissionCodes.OrgPartMasterUpdate)]
@@ -81,7 +81,7 @@ namespace HrmApi.WebApi.Controllers
             try
             {
                 var result = await _mediator.Send(command);
-                if (!result) return NotFound("Không tìm thấy thông tin mẫu tổ/nhóm cần cập nhật.");
+                if (!result) return NotFound("Không tìm thấy thông tin mẫu bộ phận cần cập nhật.");
                 return Ok(result);
             }
             catch (InvalidOperationException ex)
@@ -91,26 +91,26 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Kích hoạt mẫu tổ/nhóm (Phương thức POST, sets IsDeleted = false)
+        /// Kích hoạt mẫu bộ phận (Phương thức POST, sets IsDeleted = false)
         /// </summary>
         [HttpPost("activate")]
         [RequirePermission(PermissionCodes.OrgPartMasterActivate)]
         public async Task<ActionResult<bool>> Activate([FromBody] ActivatePartMasterCommand command)
         {
             var result = await _mediator.Send(command);
-            if (!result) return NotFound("Không tìm thấy thông tin mẫu tổ/nhóm.");
+            if (!result) return NotFound("Không tìm thấy thông tin mẫu bộ phận.");
             return Ok(result);
         }
 
         /// <summary>
-        /// Vô hiệu hóa/Ngừng hoạt động mẫu tổ/nhóm (Phương thức POST, sets IsDeleted = true)
+        /// Vô hiệu hóa/Ngừng hoạt động mẫu bộ phận (Phương thức POST, sets IsDeleted = true)
         /// </summary>
         [HttpPost("deactivate")]
         [RequirePermission(PermissionCodes.OrgPartMasterDeactivate)]
         public async Task<ActionResult<bool>> Deactivate([FromBody] DeactivatePartMasterCommand command)
         {
             var result = await _mediator.Send(command);
-            if (!result) return NotFound("Không tìm thấy thông tin mẫu tổ/nhóm.");
+            if (!result) return NotFound("Không tìm thấy thông tin mẫu bộ phận.");
             return Ok(result);
         }
 
@@ -126,7 +126,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Tải file mẫu Excel import mẫu tổ/nhóm
+        /// Tải file mẫu Excel import mẫu bộ phận
         /// </summary>
         [HttpPost("excel/template")]
         [RequirePermission(PermissionCodes.OrgPartMasterImportExcel)]
@@ -137,7 +137,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Xuất danh sách mẫu tổ/nhóm ra Excel
+        /// Xuất danh sách mẫu bộ phận ra Excel
         /// </summary>
         [HttpPost("excel/export")]
         [RequirePermission(PermissionCodes.OrgPartMasterExportExcel)]
@@ -149,7 +149,7 @@ namespace HrmApi.WebApi.Controllers
         }
 
         /// <summary>
-        /// Import danh sách mẫu tổ/nhóm từ Excel
+        /// Import danh sách mẫu bộ phận từ Excel
         /// </summary>
         [HttpPost("excel/import")]
         [RequirePermission(PermissionCodes.OrgPartMasterImportExcel)]

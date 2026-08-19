@@ -1,12 +1,12 @@
-using System.Globalization;
-using System.Text;
-using System.Text.Json;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
 
 namespace HrmApi.Application.Features.Integrations
 {
@@ -54,13 +54,17 @@ namespace HrmApi.Application.Features.Integrations
         {
             List<PunchCsvRowDto> rows = request.Rows ?? [];
             if (rows.Count == 0 && !string.IsNullOrWhiteSpace(request.Content))
+            {
                 rows = ParseContent(request.Content);
+            }
 
-            var result = new ImportPunchCsvResultDto { TotalRows = rows.Count };
+            ImportPunchCsvResultDto result = new() { TotalRows = rows.Count };
             if (rows.Count == 0)
+            {
                 throw new InvalidOperationException("Không có dòng punch để import.");
+            }
 
-            var codes = rows.Select(x => x.EmployeeCode.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            List<string> codes = rows.Select(x => x.EmployeeCode.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             Dictionary<string, EmployeeEntity> employees = await _context.EmployeeEntities
                 .Where(x => !x.IsDeleted && codes.Contains(x.Code))
                 .ToDictionaryAsync(x => x.Code, StringComparer.OrdinalIgnoreCase, cancellationToken);
@@ -101,9 +105,13 @@ namespace HrmApi.Application.Features.Integrations
 
                     TimekeepingEntity record = await _rules.GetOrCreateTodayRecordAsync(employee, workDate, cancellationToken);
                     if (isIn)
+                    {
                         record.CheckInAt = punchUtc;
+                    }
                     else
+                    {
                         record.CheckOutAt = punchUtc;
+                    }
 
                     record.IsManualAdjusted = true;
                     record.Note = string.IsNullOrWhiteSpace(record.Note)
@@ -142,39 +150,47 @@ namespace HrmApi.Application.Features.Integrations
 
             result.Imported = imported;
             if (result.Errors.Count > 50)
+            {
                 result.Errors = result.Errors.Take(50).Append($"... và {result.Errors.Count - 50} lỗi khác").ToList();
+            }
+
             return result;
         }
 
         private static List<PunchCsvRowDto> ParseContent(string content)
         {
             string trimmed = content.Trim();
-            if (trimmed.StartsWith('[') || trimmed.StartsWith('{'))
-                return ParseJson(trimmed);
-
-            return ParseCsv(trimmed);
+            return trimmed.StartsWith('[') || trimmed.StartsWith('{') ? ParseJson(trimmed) : ParseCsv(trimmed);
         }
 
         private static List<PunchCsvRowDto> ParseJson(string content)
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            JsonSerializerOptions options = new() { PropertyNameCaseInsensitive = true };
             if (content.StartsWith('['))
+            {
                 return JsonSerializer.Deserialize<List<PunchCsvRowDto>>(content, options) ?? [];
+            }
 
-            var list = new List<PunchCsvRowDto>();
+            List<PunchCsvRowDto> list = [];
             foreach (string line in content.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 PunchCsvRowDto? row = JsonSerializer.Deserialize<PunchCsvRowDto>(line, options);
-                if (row != null) list.Add(row);
+                if (row != null)
+                {
+                    list.Add(row);
+                }
             }
             return list;
         }
 
         private static List<PunchCsvRowDto> ParseCsv(string content)
         {
-            var list = new List<PunchCsvRowDto>();
+            List<PunchCsvRowDto> list = [];
             string[] lines = content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (lines.Length == 0) return list;
+            if (lines.Length == 0)
+            {
+                return list;
+            }
 
             int start = 0;
             Dictionary<string, int> header = new(StringComparer.OrdinalIgnoreCase);
@@ -183,7 +199,11 @@ namespace HrmApi.Application.Features.Integrations
                 || x.Equals("PunchTime", StringComparison.OrdinalIgnoreCase)
                 || x.Equals("Type", StringComparison.OrdinalIgnoreCase)))
             {
-                for (int i = 0; i < first.Length; i++) header[first[i].Trim()] = i;
+                for (int i = 0; i < first.Length; i++)
+                {
+                    header[first[i].Trim()] = i;
+                }
+
                 start = 1;
             }
             else
@@ -196,13 +216,23 @@ namespace HrmApi.Application.Features.Integrations
             for (int li = start; li < lines.Length; li++)
             {
                 string[] cols = SplitCsvLine(lines[li]);
-                if (cols.Length == 0) continue;
+                if (cols.Length == 0)
+                {
+                    continue;
+                }
+
                 string code = GetCol(cols, header, "EmployeeCode");
                 string timeRaw = GetCol(cols, header, "PunchTime");
                 string type = GetCol(cols, header, "Type");
-                if (string.IsNullOrWhiteSpace(code) && string.IsNullOrWhiteSpace(timeRaw)) continue;
+                if (string.IsNullOrWhiteSpace(code) && string.IsNullOrWhiteSpace(timeRaw))
+                {
+                    continue;
+                }
+
                 if (!TryParsePunchTime(timeRaw, out DateTime punchTime))
+                {
                     throw new InvalidOperationException($"Dòng {li + 1}: PunchTime không hợp lệ ({timeRaw}).");
+                }
 
                 list.Add(new PunchCsvRowDto
                 {
@@ -217,20 +247,19 @@ namespace HrmApi.Application.Features.Integrations
 
         private static string GetCol(string[] cols, Dictionary<string, int> header, string name)
         {
-            if (!header.TryGetValue(name, out int idx) || idx < 0 || idx >= cols.Length) return string.Empty;
-            return cols[idx].Trim().Trim('"');
+            return !header.TryGetValue(name, out int idx) || idx < 0 || idx >= cols.Length ? string.Empty : cols[idx].Trim().Trim('"');
         }
 
         private static string[] SplitCsvLine(string line)
         {
-            var parts = new List<string>();
-            var sb = new StringBuilder();
+            List<string> parts = [];
+            StringBuilder sb = new();
             bool inQuotes = false;
             foreach (char c in line)
             {
                 if (c == '"') { inQuotes = !inQuotes; continue; }
-                if (c == ',' && !inQuotes) { parts.Add(sb.ToString()); sb.Clear(); continue; }
-                sb.Append(c);
+                if (c == ',' && !inQuotes) { parts.Add(sb.ToString()); _ = sb.Clear(); continue; }
+                _ = sb.Append(c);
             }
             parts.Add(sb.ToString());
             return parts.ToArray();
@@ -239,7 +268,11 @@ namespace HrmApi.Application.Features.Integrations
         private static bool TryParsePunchTime(string raw, out DateTime punchTime)
         {
             punchTime = default;
-            if (string.IsNullOrWhiteSpace(raw)) return false;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
             string[] formats =
             [
                 "yyyy-MM-dd HH:mm:ss",
@@ -251,9 +284,7 @@ namespace HrmApi.Application.Features.Integrations
                 "dd-MM-yyyy HH:mm:ss",
                 "dd-MM-yyyy HH:mm",
             ];
-            if (DateTime.TryParseExact(raw.Trim(), formats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out punchTime))
-                return true;
-            return DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out punchTime);
+            return DateTime.TryParseExact(raw.Trim(), formats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out punchTime) || DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out punchTime);
         }
     }
 }

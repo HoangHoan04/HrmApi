@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.PartMaster;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Organization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,17 +29,17 @@ namespace HrmApi.Application.Features.PartMasters.Queries
 
         public async Task<PagedResult<PartMasterDto>> Handle(GetPartMastersPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PartMasterEntities.AsNoTracking();
+            IQueryable<PartMasterEntity> query = _context.PartMasterEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
@@ -64,32 +60,41 @@ namespace HrmApi.Application.Features.PartMasters.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(search) || x.Code.ToLower().Contains(search));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
 
             query = ApplySorting(query, request);
 
-            var entities = await query
+            List<PartMasterEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            var companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            List<Guid> companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            List<Guid> branchIds = entities.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
 
-            var companyMap = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> companyMap = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities
                     .AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var items = entities.Select(x =>
+            Dictionary<Guid, string> branchMap = branchIds.Count == 0
+                ? []
+                : await _context.BranchEntities
+                    .AsNoTracking()
+                    .Where(x => branchIds.Contains(x.Id))
+                    .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+            List<PartMasterDto> items = entities.Select(x =>
             {
-                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out var cName) ? cName : null;
-                return PartMasterMapper.ToDto(x, companyName);
+                string? companyName = x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out string? cName) ? cName : null;
+                string? branchName = x.BranchId.HasValue && branchMap.TryGetValue(x.BranchId.Value, out string? bName) ? bName : null;
+                return PartMasterMapper.ToDto(x, companyName, branchName);
             }).ToList();
 
             return new PagedResult<PartMasterDto>(items, totalCount, request.PageIndex, request.PageSize);
@@ -101,7 +106,7 @@ namespace HrmApi.Application.Features.PartMasters.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
@@ -138,11 +143,14 @@ namespace HrmApi.Application.Features.PartMasters.Queries
 
         public async Task<PartMasterDto?> Handle(GetPartMasterByIdQuery request, CancellationToken cancellationToken)
         {
-            var partMaster = await _context.PartMasterEntities
+            PartMasterEntity? partMaster = await _context.PartMasterEntities
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (partMaster == null) return null;
+            if (partMaster == null)
+            {
+                return null;
+            }
 
             string? companyName = null;
             if (partMaster.CompanyId.HasValue)
@@ -178,7 +186,7 @@ namespace HrmApi.Application.Features.PartMasters.Queries
 
         public async Task<List<PartMasterSelectBoxDto>> Handle(GetPartMasterSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PartMasterEntities
+            IQueryable<PartMasterEntity> query = _context.PartMasterEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
@@ -230,7 +238,7 @@ namespace HrmApi.Application.Features.PartMasters.Queries
 
         public async Task<List<PartMasterSelectBoxDto>> Handle(GetPartMastersByScopeQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PartMasterEntities
+            IQueryable<PartMasterEntity> query = _context.PartMasterEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 

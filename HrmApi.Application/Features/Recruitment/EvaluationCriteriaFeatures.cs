@@ -13,18 +13,30 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetEvaluationCriteriasPagedQueryHandler : IRequestHandler<GetEvaluationCriteriasPagedQuery, PagedResult<EvaluationCriteriaDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetEvaluationCriteriasPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetEvaluationCriteriasPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<EvaluationCriteriaDto>> Handle(GetEvaluationCriteriasPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<EvaluationCriteriaEntity> query = _context.EvaluationCriteriaEntities.AsNoTracking().Where(x => !x.IsDeleted);
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Category))
+            {
                 query = query.Where(x => x.Category == request.Category);
+            }
+
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -38,9 +50,9 @@ namespace HrmApi.Application.Features.Recruitment
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            var companyIds = rows.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
-            var companies = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            List<Guid> companyIds = rows.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            Dictionary<Guid, string> companies = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities.AsNoTracking()
                     .Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
@@ -56,13 +68,19 @@ namespace HrmApi.Application.Features.Recruitment
     public class GetEvaluationCriteriaByIdQueryHandler : IRequestHandler<GetEvaluationCriteriaByIdQuery, EvaluationCriteriaDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetEvaluationCriteriaByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetEvaluationCriteriaByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<EvaluationCriteriaDto?> Handle(GetEvaluationCriteriaByIdQuery request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EvaluationCriteriaEntities.AsNoTracking()
+            EvaluationCriteriaEntity? entity = await _context.EvaluationCriteriaEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             string? companyName = null;
             if (entity.CompanyId.HasValue)
@@ -111,25 +129,42 @@ namespace HrmApi.Application.Features.Recruitment
         internal async Task ValidateAsync(EvaluationCriteriaCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã tiêu chí là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên tiêu chí là bắt buộc.");
+            }
+
             if (request.DefaultWeight.HasValue && request.DefaultWeight.Value < 0)
+            {
                 throw new InvalidOperationException("Trọng số phải >= 0.");
+            }
+
             if (request.MaxScore.HasValue && request.MaxScore.Value <= 0)
+            {
                 throw new InvalidOperationException("Điểm tối đa phải > 0.");
+            }
 
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
                 bool companyOk = await _context.CompanyEntities.AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken);
-                if (!companyOk) throw new InvalidOperationException("Công ty không tồn tại.");
+                if (!companyOk)
+                {
+                    throw new InvalidOperationException("Công ty không tồn tại.");
+                }
             }
 
             bool exists = await _context.EvaluationCriteriaEntities.AnyAsync(x =>
                 !x.IsDeleted
                 && x.Code.ToLower() == request.Code.Trim().ToLower()
                 && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
-            if (exists) throw new InvalidOperationException("Mã tiêu chí đã tồn tại.");
+            if (exists)
+            {
+                throw new InvalidOperationException("Mã tiêu chí đã tồn tại.");
+            }
         }
     }
 
@@ -154,7 +189,10 @@ namespace HrmApi.Application.Features.Recruitment
         {
             EvaluationCriteriaEntity? entity = await _context.EvaluationCriteriaEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.Code ??= entity.Code;
             request.Name ??= entity.Name;
@@ -184,7 +222,10 @@ namespace HrmApi.Application.Features.Recruitment
         {
             EvaluationCriteriaEntity? entity = await _context.EvaluationCriteriaEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.IsActive = false;

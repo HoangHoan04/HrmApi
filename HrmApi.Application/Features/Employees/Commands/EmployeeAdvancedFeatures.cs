@@ -1,6 +1,9 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Employee;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.AuditLog;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.EmployeeMovement;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -41,17 +44,20 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(SetEmployeeLifecycleStatusCommand request, CancellationToken cancellationToken)
         {
-            var status = (request.Status ?? string.Empty).Trim().ToUpperInvariant();
+            string status = (request.Status ?? string.Empty).Trim().ToUpperInvariant();
             if (!Allowed.Contains(status))
             {
                 throw new InvalidOperationException("Trạng thái vòng đời không hợp lệ.");
             }
 
-            var employee = await _context.EmployeeEntities
+            EmployeeEntity? employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (employee == null) return false;
+            if (employee == null)
+            {
+                return false;
+            }
 
-            var oldValue = EmployeeMapper.ToLogObject(employee);
+            object oldValue = EmployeeMapper.ToLogObject(employee);
             employee.Status = status;
 
             if (!string.IsNullOrWhiteSpace(request.ContractType))
@@ -82,7 +88,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             }
 
             employee.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -142,15 +148,19 @@ namespace HrmApi.Application.Features.Employees.Commands
                 }
             }
 
-            var employees = await _context.EmployeeEntities
+            List<EmployeeEntity> employees = await _context.EmployeeEntities
                 .Where(x => ids.Contains(x.Id) && !x.IsDeleted)
                 .ToListAsync(cancellationToken);
 
-            var changed = 0;
-            foreach (var employee in employees)
+            int changed = 0;
+            foreach (EmployeeEntity? employee in employees)
             {
-                if (employee.DirectManagerId == managerId) continue;
-                var old = employee.DirectManagerId;
+                if (employee.DirectManagerId == managerId)
+                {
+                    continue;
+                }
+
+                Guid? old = employee.DirectManagerId;
                 employee.DirectManagerId = managerId;
                 employee.UpdatedAt = DateTime.UtcNow;
                 changed++;
@@ -168,7 +178,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             if (changed > 0)
             {
-                await _context.SaveChangesAsync(cancellationToken);
+                _ = await _context.SaveChangesAsync(cancellationToken);
             }
 
             return changed;
@@ -186,7 +196,10 @@ namespace HrmApi.Application.Features.Employees.Commands
     {
         private readonly IApplicationDbContext _context;
 
-        public GetEmployeeChangeTimelineQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetEmployeeChangeTimelineQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<EmployeeChangeTimelineItemDto>> Handle(
             GetEmployeeChangeTimelineQuery request,
@@ -197,12 +210,15 @@ namespace HrmApi.Application.Features.Employees.Commands
                 throw new InvalidOperationException("EmployeeId là bắt buộc.");
             }
 
-            var take = request.Take <= 0 ? 100 : Math.Min(request.Take, 300);
+            int take = request.Take <= 0 ? 100 : Math.Min(request.Take, 300);
             var items = new List<EmployeeChangeTimelineItemDto>();
 
-            var employee = await _context.EmployeeEntities.AsNoTracking()
+            EmployeeEntity? employee = await _context.EmployeeEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.EmployeeId, cancellationToken);
-            if (employee == null) return items;
+            if (employee == null)
+            {
+                return items;
+            }
 
             items.Add(new EmployeeChangeTimelineItemDto
             {
@@ -214,12 +230,12 @@ namespace HrmApi.Application.Features.Employees.Commands
                 RefType = "EmployeeEntity",
             });
 
-            var salaries = await _context.EmployeeSalaryHistoryEntities.AsNoTracking()
+            List<EmployeeSalaryHistoryEntity> salaries = await _context.EmployeeSalaryHistoryEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == request.EmployeeId && !x.IsDeleted)
                 .OrderByDescending(x => x.EffectiveDate)
                 .Take(take)
                 .ToListAsync(cancellationToken);
-            foreach (var s in salaries)
+            foreach (EmployeeSalaryHistoryEntity? s in salaries)
             {
                 items.Add(new EmployeeChangeTimelineItemDto
                 {
@@ -233,12 +249,12 @@ namespace HrmApi.Application.Features.Employees.Commands
                 });
             }
 
-            var transfers = await _context.TransferEmployeeEntities.AsNoTracking()
+            List<TransferEmployeeEntity> transfers = await _context.TransferEmployeeEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == request.EmployeeId && !x.IsDeleted)
                 .OrderByDescending(x => x.EffectiveDate)
                 .Take(take)
                 .ToListAsync(cancellationToken);
-            foreach (var t in transfers)
+            foreach (TransferEmployeeEntity? t in transfers)
             {
                 items.Add(new EmployeeChangeTimelineItemDto
                 {
@@ -252,12 +268,12 @@ namespace HrmApi.Application.Features.Employees.Commands
                 });
             }
 
-            var files = await _context.EmployeeFileEntities.AsNoTracking()
+            List<EmployeeFileEntity> files = await _context.EmployeeFileEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == request.EmployeeId && !x.IsDeleted)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(take)
                 .ToListAsync(cancellationToken);
-            foreach (var f in files)
+            foreach (EmployeeFileEntity? f in files)
             {
                 items.Add(new EmployeeChangeTimelineItemDto
                 {
@@ -273,11 +289,11 @@ namespace HrmApi.Application.Features.Employees.Commands
                 });
             }
 
-            var dependentIds = await _context.EmployeeDependentEntities.AsNoTracking()
+            List<Guid> dependentIds = await _context.EmployeeDependentEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == request.EmployeeId).Select(x => x.Id).ToListAsync(cancellationToken);
-            var educationIds = await _context.EmployeeEducationEntities.AsNoTracking()
+            List<Guid> educationIds = await _context.EmployeeEducationEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == request.EmployeeId).Select(x => x.Id).ToListAsync(cancellationToken);
-            var certificateIds = await _context.EmployeeCertificateEntities.AsNoTracking()
+            List<Guid> certificateIds = await _context.EmployeeCertificateEntities.AsNoTracking()
                 .Where(x => x.EmployeeId == request.EmployeeId).Select(x => x.Id).ToListAsync(cancellationToken);
             var fileIds = files.Select(x => x.Id).ToList();
             var salaryIds = salaries.Select(x => x.Id).ToList();
@@ -291,7 +307,7 @@ namespace HrmApi.Application.Features.Employees.Commands
                 .Distinct()
                 .ToList();
 
-            var logs = await _context.ActionLogEntities.AsNoTracking()
+            List<ActionLogEntity> logs = await _context.ActionLogEntities.AsNoTracking()
                 .Where(x =>
                     (x.EntityName == "EmployeeEntity" && x.EntityId == request.EmployeeId)
                     || (x.EntityId.HasValue && childIds.Contains(x.EntityId.Value)))
@@ -299,7 +315,7 @@ namespace HrmApi.Application.Features.Employees.Commands
                 .Take(take)
                 .ToListAsync(cancellationToken);
 
-            foreach (var log in logs)
+            foreach (ActionLogEntity? log in logs)
             {
                 items.Add(new EmployeeChangeTimelineItemDto
                 {
@@ -331,15 +347,18 @@ namespace HrmApi.Application.Features.Employees.Commands
     {
         private readonly IApplicationDbContext _context;
 
-        public GetExpiringEmployeeFilesQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetExpiringEmployeeFilesQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<EmployeeExpiringFileDto>> Handle(
             GetExpiringEmployeeFilesQuery request,
             CancellationToken cancellationToken)
         {
-            var days = request.DaysAhead < 0 ? 0 : request.DaysAhead;
-            var today = DateTime.UtcNow.Date;
-            var until = today.AddDays(days);
+            int days = request.DaysAhead < 0 ? 0 : request.DaysAhead;
+            DateTime today = DateTime.UtcNow.Date;
+            DateTime until = today.AddDays(days);
 
             var query =
                 from f in _context.EmployeeFileEntities.AsNoTracking()
@@ -352,14 +371,9 @@ namespace HrmApi.Application.Features.Employees.Commands
                 query = query.Where(x => x.e.CompanyId == request.CompanyId);
             }
 
-            if (request.IncludeExpired)
-            {
-                query = query.Where(x => x.f.ExpiryDate!.Value.Date <= until);
-            }
-            else
-            {
-                query = query.Where(x => x.f.ExpiryDate!.Value.Date >= today && x.f.ExpiryDate.Value.Date <= until);
-            }
+            query = request.IncludeExpired
+                ? query.Where(x => x.f.ExpiryDate!.Value.Date <= until)
+                : query.Where(x => x.f.ExpiryDate!.Value.Date >= today && x.f.ExpiryDate.Value.Date <= until);
 
             var rows = await query
                 .OrderBy(x => x.f.ExpiryDate)
@@ -368,7 +382,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
             return rows.Select(x =>
             {
-                var expiry = x.f.ExpiryDate!.Value.Date;
+                DateTime expiry = x.f.ExpiryDate!.Value.Date;
                 return new EmployeeExpiringFileDto
                 {
                     Id = x.f.Id,

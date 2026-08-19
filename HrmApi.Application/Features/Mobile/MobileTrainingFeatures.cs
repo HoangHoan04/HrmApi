@@ -90,9 +90,12 @@ namespace HrmApi.Application.Features.Mobile
                 .OrderByDescending(x => x.EnrolledAt)
                 .Take(200)
                 .ToListAsync(cancellationToken);
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
+            List<Guid> courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
             var courses = await _context.TrainingCourseEntities.AsNoTracking()
                 .Where(x => courseIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => new { x.Code, x.Name }, cancellationToken);
@@ -103,7 +106,7 @@ namespace HrmApi.Application.Features.Mobile
 
             return rows.Select(e =>
             {
-                courses.TryGetValue(e.CourseId, out var c);
+                _ = courses.TryGetValue(e.CourseId, out var c);
                 return new TrainingEnrollmentDto
                 {
                     Id = e.Id,
@@ -143,20 +146,26 @@ namespace HrmApi.Application.Features.Mobile
                 .Where(x => !x.IsDeleted && x.EmployeeId == employeeId)
                 .Select(x => x.Id)
                 .ToListAsync(cancellationToken);
-            if (enrollmentIds.Count == 0) return [];
+            if (enrollmentIds.Count == 0)
+            {
+                return [];
+            }
 
             List<TrainingResultEntity> rows = await _context.TrainingResultEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && enrollmentIds.Contains(x.EnrollmentId))
                 .OrderByDescending(x => x.CompletedAt ?? x.CreatedAt)
                 .Take(200)
                 .ToListAsync(cancellationToken);
-            if (rows.Count == 0) return [];
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var enrollments = await _context.TrainingEnrollmentEntities.AsNoTracking()
+            Dictionary<Guid, Guid> enrollments = await _context.TrainingEnrollmentEntities.AsNoTracking()
                 .Where(x => enrollmentIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.CourseId, cancellationToken);
-            var courseIds = enrollments.Values.Distinct().ToList();
-            var courses = await _context.TrainingCourseEntities.AsNoTracking()
+            List<Guid> courseIds = enrollments.Values.Distinct().ToList();
+            Dictionary<Guid, string> courses = await _context.TrainingCourseEntities.AsNoTracking()
                 .Where(x => courseIds.Contains(x.Id))
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
             var empName = await _context.EmployeeEntities.AsNoTracking()
@@ -166,7 +175,7 @@ namespace HrmApi.Application.Features.Mobile
 
             return rows.Select(e =>
             {
-                enrollments.TryGetValue(e.EnrollmentId, out var courseId);
+                _ = enrollments.TryGetValue(e.EnrollmentId, out Guid courseId);
                 return new TrainingResultDto
                 {
                     Id = e.Id,
@@ -201,10 +210,9 @@ namespace HrmApi.Application.Features.Mobile
         public async Task<List<MobileQuizQuestionDto>> Handle(GetMobileQuizzesQuery request, CancellationToken cancellationToken)
         {
             _ = await MobileEmployeeHelper.ResolveEmployeeIdAsync(_context, _currentUser, cancellationToken);
-            if (request.CourseId == Guid.Empty)
-                throw new InvalidOperationException("CourseId là bắt buộc.");
-
-            return await _context.TrainingQuizEntities.AsNoTracking()
+            return request.CourseId == Guid.Empty
+                ? throw new InvalidOperationException("CourseId là bắt buộc.")
+                : await _context.TrainingQuizEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CourseId == request.CourseId)
                 .OrderBy(x => x.CreatedAt)
                 .Select(x => new MobileQuizQuestionDto
@@ -238,19 +246,27 @@ namespace HrmApi.Application.Features.Mobile
         {
             Guid employeeId = await MobileEmployeeHelper.ResolveEmployeeIdAsync(_context, _currentUser, cancellationToken);
             if (request.CourseId == Guid.Empty)
+            {
                 throw new InvalidOperationException("CourseId là bắt buộc.");
+            }
 
             List<TrainingQuizEntity> quizzes = await _context.TrainingQuizEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CourseId == request.CourseId)
                 .ToListAsync(cancellationToken);
 
             int correct = 0;
-            foreach (var answer in request.Answers ?? [])
+            foreach (MobileQuizAnswerDto answer in request.Answers ?? [])
             {
-                var q = quizzes.FirstOrDefault(x => x.Id == answer.QuizId);
-                if (q == null) continue;
+                TrainingQuizEntity? q = quizzes.FirstOrDefault(x => x.Id == answer.QuizId);
+                if (q == null)
+                {
+                    continue;
+                }
+
                 if (string.Equals(q.CorrectOption?.Trim(), answer.SelectedOption?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
                     correct++;
+                }
             }
 
             int total = quizzes.Count;
@@ -258,7 +274,7 @@ namespace HrmApi.Application.Features.Mobile
 
             if (!string.IsNullOrWhiteSpace(request.Note))
             {
-                var enrollment = await _context.TrainingEnrollmentEntities
+                TrainingEnrollmentEntity? enrollment = await _context.TrainingEnrollmentEntities
                     .FirstOrDefaultAsync(x => !x.IsDeleted && x.EmployeeId == employeeId && x.CourseId == request.CourseId, cancellationToken);
                 if (enrollment != null)
                 {
@@ -267,7 +283,7 @@ namespace HrmApi.Application.Features.Mobile
                         : enrollment.Note + $" | [Quiz {percent}%] {request.Note.Trim()}";
                     enrollment.UpdatedAt = DateTime.UtcNow;
                     enrollment.UpdatedBy = _currentUser.UserId;
-                    await _context.SaveChangesAsync(cancellationToken);
+                    _ = await _context.SaveChangesAsync(cancellationToken);
                 }
             }
 

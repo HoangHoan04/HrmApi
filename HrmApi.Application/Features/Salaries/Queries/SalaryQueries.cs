@@ -16,7 +16,10 @@ namespace HrmApi.Application.Features.Salaries.Queries
             List<SalaryEntity> entities,
             CancellationToken cancellationToken)
         {
-            if (entities.Count == 0) return [];
+            if (entities.Count == 0)
+            {
+                return [];
+            }
 
             List<Guid> salaryIds = entities.Select(x => x.Id).ToList();
             List<Guid> employeeIds = entities.Select(x => x.EmployeeId).Distinct().ToList();
@@ -88,7 +91,7 @@ namespace HrmApi.Application.Features.Salaries.Queries
                 {
                     x.LineItems = lineList;
                 }
-                employees.TryGetValue(x.EmployeeId, out var emp);
+                _ = employees.TryGetValue(x.EmployeeId, out (string Code, string? Name) emp);
                 return SalaryMapper.ToDto(
                     x,
                     emp.Code,
@@ -117,7 +120,10 @@ namespace HrmApi.Application.Features.Salaries.Queries
     public class GetSalariesPagedQueryHandler : IRequestHandler<GetSalariesPagedQuery, PagedResult<SalaryDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetSalariesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSalariesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<SalaryDto>> Handle(GetSalariesPagedQuery request, CancellationToken cancellationToken)
         {
@@ -127,17 +133,35 @@ namespace HrmApi.Application.Features.Salaries.Queries
                 : query.Where(x => !x.IsDeleted);
 
             if (request.EmployeeId.HasValue && request.EmployeeId != Guid.Empty)
+            {
                 query = query.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
             if (request.Year.HasValue)
+            {
                 query = query.Where(x => x.Year == request.Year);
+            }
+
             if (request.Month.HasValue)
+            {
                 query = query.Where(x => x.Month == request.Month);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.PeriodCode))
             {
                 string code = request.PeriodCode.Trim().ToLower();
@@ -176,13 +200,20 @@ namespace HrmApi.Application.Features.Salaries.Queries
     public class GetSalaryByIdQueryHandler : IRequestHandler<GetSalaryByIdQuery, SalaryDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetSalaryByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSalaryByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<SalaryDto?> Handle(GetSalaryByIdQuery request, CancellationToken cancellationToken)
         {
             SalaryEntity? entity = await _context.SalaryEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
+
             List<SalaryDto> items = await SalaryQueryHelper.MapAsync(_context, [entity], cancellationToken);
             return items.FirstOrDefault();
         }
@@ -217,9 +248,14 @@ namespace HrmApi.Application.Features.Salaries.Queries
                     && x.Status != SalaryStatus.Draft);
 
             if (request.Year.HasValue)
+            {
                 query = query.Where(x => x.Year == request.Year);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim());
+            }
 
             List<SalaryEntity> entities = await query
                 .OrderByDescending(x => x.Year)
@@ -260,14 +296,24 @@ namespace HrmApi.Application.Features.Salaries.Queries
                     && x.Status != SalaryStatus.Draft);
 
             if (request.Id.HasValue && request.Id != Guid.Empty)
+            {
                 query = query.Where(x => x.Id == request.Id);
+            }
             else if (request.Year.HasValue && request.Month.HasValue)
+            {
                 query = query.Where(x => x.Year == request.Year && x.Month == request.Month);
+            }
             else
+            {
                 return null;
+            }
 
             SalaryEntity? entity = await query.FirstOrDefaultAsync(cancellationToken);
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
+
             List<SalaryDto> items = await SalaryQueryHelper.MapAsync(_context, [entity], cancellationToken);
             return items.FirstOrDefault();
         }

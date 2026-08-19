@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.DTOs.Notification

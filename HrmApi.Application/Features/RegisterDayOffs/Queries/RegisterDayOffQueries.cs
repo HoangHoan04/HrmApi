@@ -324,7 +324,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 .FirstOrDefaultAsync(x => x.Id == employeeId && !x.IsDeleted, cancellationToken);
             Guid? companyId = employee?.CompanyId;
 
-            var configQuery = _context.DayOffConfigEntities.AsNoTracking()
+            IQueryable<DayOffConfigEntity> configQuery = _context.DayOffConfigEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.IsActive);
 
             List<DayOffConfigEntity> configs;
@@ -370,7 +370,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
             decimal annualTotal = 0;
             if (allocations.Any())
             {
-                var primaryAlloc = annualConfig != null
+                DayOffConfigEmployeeEntity? primaryAlloc = annualConfig != null
                     ? allocations.FirstOrDefault(x => x.DayOffConfigId == annualConfig.Id)
                     : null;
 
@@ -380,7 +380,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
                 }
                 else
                 {
-                    var deductibleAllocs = allocations.Where(a => configs.Any(c => c.Id == a.DayOffConfigId && c.DeductBalance)).ToList();
+                    List<DayOffConfigEmployeeEntity> deductibleAllocs = allocations.Where(a => configs.Any(c => c.Id == a.DayOffConfigId && c.DeductBalance)).ToList();
                     annualTotal = deductibleAllocs.Any()
                         ? deductibleAllocs.Sum(a => a.AllocatedDays)
                         : allocations.Sum(a => a.AllocatedDays);
@@ -519,7 +519,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Queries
 
             return entities.Select(x =>
             {
-                employees.TryGetValue(x.EmployeeId, out var emp);
+                _ = employees.TryGetValue(x.EmployeeId, out (string? Name, string Code) emp);
                 string? configName = x.DayOffConfigId.HasValue && configs.TryGetValue(x.DayOffConfigId.Value, out string? cn) ? cn : null;
                 string? requestedName = x.RequestedApproverId.HasValue && requestedNames.TryGetValue(x.RequestedApproverId.Value, out string? rn) ? rn : null;
                 return RegisterDayOffMapper.ToDto(x, emp.Name, emp.Code, null, configName, null, requestedName);

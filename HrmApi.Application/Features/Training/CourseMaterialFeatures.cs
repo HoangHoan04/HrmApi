@@ -13,13 +13,19 @@ namespace HrmApi.Application.Features.Training
     public class GetCourseMaterialsPagedQueryHandler : IRequestHandler<GetCourseMaterialsPagedQuery, PagedResult<CourseMaterialDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetCourseMaterialsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetCourseMaterialsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<CourseMaterialDto>> Handle(GetCourseMaterialsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<TrainingCourseMaterialEntity> query = _context.TrainingCourseMaterialEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CourseId.HasValue && request.CourseId != Guid.Empty)
+            {
                 query = query.Where(x => x.CourseId == request.CourseId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -39,9 +45,13 @@ namespace HrmApi.Application.Features.Training
 
         internal async Task<List<CourseMaterialDto>> MapManyAsync(List<TrainingCourseMaterialEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
-            var courses = await _context.TrainingCourseEntities.AsNoTracking()
+            if (rows.Count == 0)
+            {
+                return [];
+            }
+
+            List<Guid> courseIds = rows.Select(x => x.CourseId).Distinct().ToList();
+            Dictionary<Guid, string> courses = await _context.TrainingCourseEntities.AsNoTracking()
                 .Where(x => courseIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
             return rows.Select(e => new CourseMaterialDto
@@ -74,8 +84,7 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingCourseMaterialEntity? e = await _context.TrainingCourseMaterialEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -111,11 +120,24 @@ namespace HrmApi.Application.Features.Training
         internal async Task ValidateAsync(CourseMaterialCommandFields request, CancellationToken cancellationToken)
         {
             if (!request.CourseId.HasValue || request.CourseId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Khóa học (parent) là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên tài liệu là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.FileUrl)) throw new InvalidOperationException("Đường dẫn file là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên tài liệu là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.FileUrl))
+            {
+                throw new InvalidOperationException("Đường dẫn file là bắt buộc.");
+            }
+
             if (!await _context.TrainingCourseEntities.AnyAsync(x => x.Id == request.CourseId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Khóa học không tồn tại.");
+            }
         }
     }
 
@@ -140,7 +162,10 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingCourseMaterialEntity? entity = await _context.TrainingCourseMaterialEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.CourseId ??= entity.CourseId;
             request.Name ??= entity.Name;
@@ -174,7 +199,11 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingCourseMaterialEntity? entity = await _context.TrainingCourseMaterialEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

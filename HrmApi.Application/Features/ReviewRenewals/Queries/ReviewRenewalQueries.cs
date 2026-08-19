@@ -49,8 +49,8 @@ namespace HrmApi.Application.Features.ReviewRenewals.Queries
 
             return entities.Select(x =>
             {
-                contracts.TryGetValue(x.ContractId, out var c);
-                employees.TryGetValue(x.EmployeeId, out var e);
+                _ = contracts.TryGetValue(x.ContractId, out (string Code, DateTime? EndDate) c);
+                _ = employees.TryGetValue(x.EmployeeId, out (string Code, string? Name) e);
                 return ReviewRenewalMapper.ToDto(
                     x,
                     c.Code,
@@ -85,14 +85,7 @@ namespace HrmApi.Application.Features.ReviewRenewals.Queries
         {
             IQueryable<ReviewRenewalEntity> query = _context.ReviewRenewalEntities.AsNoTracking();
 
-            if (request.IsDeleted.HasValue)
-            {
-                query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
-            }
-            else
-            {
-                query = query.Where(x => !x.IsDeleted);
-            }
+            query = request.IsDeleted.HasValue ? query.Where(x => x.IsDeleted == request.IsDeleted.Value) : query.Where(x => !x.IsDeleted);
 
             if (request.ContractId.HasValue && request.ContractId != Guid.Empty)
             {

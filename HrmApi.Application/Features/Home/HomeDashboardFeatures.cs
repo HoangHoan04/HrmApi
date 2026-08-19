@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Home;
 using HrmApi.Domain.Enums;
@@ -28,22 +23,22 @@ namespace HrmApi.Application.Features.Home
 
         public async Task<HomeDashboardDto> Handle(GetHomeDashboardQuery request, CancellationToken cancellationToken)
         {
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var toDate = request.ToDate ?? today;
-            var fromDate = request.FromDate ?? new DateOnly(toDate.Year, toDate.Month, 1);
+            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+            DateOnly toDate = request.ToDate ?? today;
+            DateOnly fromDate = request.FromDate ?? new DateOnly(toDate.Year, toDate.Month, 1);
             if (fromDate > toDate)
             {
                 (fromDate, toDate) = (toDate, fromDate);
             }
 
-            var fromDt = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-            var toDtExclusive = toDate.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            DateTime fromDt = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            DateTime toDtExclusive = toDate.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             var rangeDays = Math.Max(1, toDate.DayNumber - fromDate.DayNumber + 1);
-            var prevTo = fromDate.AddDays(-1);
-            var prevFrom = prevTo.AddDays(-(rangeDays - 1));
-            var prevFromDt = prevFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-            var prevToExclusive = fromDt;
-            var expiringUntil = toDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(30);
+            DateOnly prevTo = fromDate.AddDays(-1);
+            DateOnly prevFrom = prevTo.AddDays(-(rangeDays - 1));
+            DateTime prevFromDt = prevFrom.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            DateTime prevToExclusive = fromDt;
+            DateTime expiringUntil = toDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(30);
 
             var employees = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
@@ -68,18 +63,18 @@ namespace HrmApi.Application.Features.Home
                 ? (newInPeriod > 0 ? 100m : 0m)
                 : Math.Round((newInPeriod - newPrevPeriod) * 100m / newPrevPeriod, 1);
 
-            var deptIds = employees
+            List<Guid> deptIds = employees
                 .Where(x => x.DepartmentId.HasValue)
                 .Select(x => x.DepartmentId!.Value)
                 .Distinct()
                 .ToList();
 
-            var deptNames = await _context.DepartmentEntities.AsNoTracking()
+            Dictionary<Guid, string> deptNames = await _context.DepartmentEntities.AsNoTracking()
                 .Where(x => deptIds.Contains(x.Id) && !x.IsDeleted)
                 .Select(x => new { x.Id, x.Name })
                 .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            var departmentHeadcount = employees
+            List<HomeNamedCountDto> departmentHeadcount = employees
                 .GroupBy(x => x.DepartmentId)
                 .Select(g =>
                 {
@@ -98,7 +93,7 @@ namespace HrmApi.Application.Features.Home
                 .ToList();
 
             var yearFrom = toDate.Year - 4;
-            var headcountByYear = Enumerable.Range(yearFrom, 5)
+            List<HomeNamedCountDto> headcountByYear = Enumerable.Range(yearFrom, 5)
                 .Select(year => new HomeNamedCountDto
                 {
                     Key = year.ToString(),
@@ -107,12 +102,12 @@ namespace HrmApi.Application.Features.Home
                 })
                 .ToList();
 
-            var monthCursor = new DateTime(fromDate.Year, fromDate.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-            var monthEnd = new DateTime(toDate.Year, toDate.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-            var hireMonths = new List<HomeNamedCountDto>();
+            DateTime monthCursor = new(fromDate.Year, fromDate.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            DateTime monthEnd = new(toDate.Year, toDate.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            List<HomeNamedCountDto> hireMonths = [];
             while (monthCursor <= monthEnd && hireMonths.Count < 12)
             {
-                var next = monthCursor.AddMonths(1);
+                DateTime next = monthCursor.AddMonths(1);
                 hireMonths.Add(new HomeNamedCountDto
                 {
                     Key = monthCursor.ToString("yyyy-MM"),
@@ -158,7 +153,7 @@ namespace HrmApi.Application.Features.Home
                 && !string.Equals(x.Status, ContractStatus.Liquidated, StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(x.Status, ContractStatus.Expired, StringComparison.OrdinalIgnoreCase));
 
-            var periodTk = await _context.TimekeepingEntities.AsNoTracking()
+            List<AttendanceStatus> periodTk = await _context.TimekeepingEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.WorkDate >= fromDate && x.WorkDate <= toDate)
                 .Select(x => x.Status)
                 .ToListAsync(cancellationToken);
@@ -179,7 +174,7 @@ namespace HrmApi.Application.Features.Home
                 .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync(cancellationToken);
 
-            var leaveStatus = Enum.GetValues<DayOffStatus>()
+            List<HomeNamedCountDto> leaveStatus = Enum.GetValues<DayOffStatus>()
                 .Select(st => new HomeNamedCountDto
                 {
                     Key = st.ToString(),
@@ -240,24 +235,31 @@ namespace HrmApi.Application.Features.Home
             };
         }
 
-        private static bool IsFemale(string? gender) =>
-            string.Equals(gender, "FEMALE", StringComparison.OrdinalIgnoreCase)
+        private static bool IsFemale(string? gender)
+        {
+            return string.Equals(gender, "FEMALE", StringComparison.OrdinalIgnoreCase)
             || string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase)
             || string.Equals(gender, "NỮ", StringComparison.OrdinalIgnoreCase)
             || string.Equals(gender, "NU", StringComparison.OrdinalIgnoreCase);
+        }
 
-        private static bool IsMale(string? gender) =>
-            string.Equals(gender, "MALE", StringComparison.OrdinalIgnoreCase)
+        private static bool IsMale(string? gender)
+        {
+            return string.Equals(gender, "MALE", StringComparison.OrdinalIgnoreCase)
             || string.Equals(gender, "M", StringComparison.OrdinalIgnoreCase)
             || string.Equals(gender, "NAM", StringComparison.OrdinalIgnoreCase);
+        }
 
-        private static string LeaveStatusName(DayOffStatus status) => status switch
+        private static string LeaveStatusName(DayOffStatus status)
         {
-            DayOffStatus.PENDING => "Chờ duyệt",
-            DayOffStatus.APPROVED => "Đã duyệt",
-            DayOffStatus.REJECTED => "Từ chối",
-            DayOffStatus.CANCELLED => "Đã hủy",
-            _ => status.ToString(),
-        };
+            return status switch
+            {
+                DayOffStatus.PENDING => "Chờ duyệt",
+                DayOffStatus.APPROVED => "Đã duyệt",
+                DayOffStatus.REJECTED => "Từ chối",
+                DayOffStatus.CANCELLED => "Đã hủy",
+                _ => status.ToString(),
+            };
+        }
     }
 }

@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
@@ -39,19 +34,19 @@ namespace HrmApi.Application.Features.Employees.Queries
 
         public async Task<PagedResult<EmployeeDto>> Handle(GetEmployeesPagedQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.EmployeeEntities.AsNoTracking();
+            IQueryable<EmployeeEntity> query = _context.EmployeeEntities.AsNoTracking();
             query = await query.ApplyEmployeeDataScopeAsync(
                 _dataScope, PermissionCodes.HrEmployeeView, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.FullName))
             {
-                var fullName = request.FullName.Trim().ToLower();
+                string fullName = request.FullName.Trim().ToLower();
                 query = query.Where(x =>
                     (x.FullName != null && x.FullName.ToLower().Contains(fullName))
                     || x.FirstName.ToLower().Contains(fullName)
@@ -60,19 +55,19 @@ namespace HrmApi.Application.Features.Employees.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Phone))
             {
-                var phone = request.Phone.Trim().ToLower();
+                string phone = request.Phone.Trim().ToLower();
                 query = query.Where(x => x.Phone.ToLower().Contains(phone));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Email))
             {
-                var email = request.Email.Trim().ToLower();
+                string email = request.Email.Trim().ToLower();
                 query = query.Where(x => x.Email.ToLower().Contains(email));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Status))
             {
-                var status = request.Status.Trim().ToLower();
+                string status = request.Status.Trim().ToLower();
                 query = query.Where(x => x.Status != null && x.Status.ToLower() == status);
             }
 
@@ -83,7 +78,7 @@ namespace HrmApi.Application.Features.Employees.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var search = request.Search.Trim().ToLower();
+                string search = request.Search.Trim().ToLower();
                 query = query.Where(x =>
                     x.Code.ToLower().Contains(search)
                     || (x.FullName != null && x.FullName.ToLower().Contains(search))
@@ -94,11 +89,11 @@ namespace HrmApi.Application.Features.Employees.Queries
                     || x.IdentityCard.ToLower().Contains(search));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+            int totalCount = await query.CountAsync(cancellationToken);
 
             query = ApplySorting(query, request);
 
-            var entities = await query
+            List<EmployeeEntity> entities = await query
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
@@ -114,7 +109,7 @@ namespace HrmApi.Application.Features.Employees.Queries
         {
             if (!string.IsNullOrWhiteSpace(request.SortField))
             {
-                var isDesc = request.SortOrder?.ToLower() == "desc";
+                bool isDesc = request.SortOrder?.ToLower() == "desc";
                 return request.SortField.ToLower() switch
                 {
                     "code" => isDesc ? query.OrderByDescending(x => x.Code) : query.OrderBy(x => x.Code),
@@ -161,7 +156,7 @@ namespace HrmApi.Application.Features.Employees.Queries
 
         public async Task<EmployeeDto?> Handle(GetEmployeeByIdQuery request, CancellationToken cancellationToken)
         {
-            var employee = await _context.EmployeeEntities
+            EmployeeEntity? employee = await _context.EmployeeEntities
                 .AsNoTracking()
                 .Include(x => x.DirectManager)
                 .Include(x => x.Dependents)
@@ -195,7 +190,7 @@ namespace HrmApi.Application.Features.Employees.Queries
 
         public async Task<List<EmployeeSelectBoxDto>> Handle(GetEmployeeSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.EmployeeEntities
+            IQueryable<EmployeeEntity> query = _context.EmployeeEntities
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 

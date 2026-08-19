@@ -49,54 +49,63 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 ?? throw new InvalidOperationException("Không tìm thấy nhân viên.");
 
             if (!employee.CompanyId.HasValue)
+            {
                 throw new InvalidOperationException("Nhân viên chưa thuộc công ty.");
+            }
 
             if (request.ToDate < request.FromDate)
+            {
                 throw new InvalidOperationException("Ngày kết thúc phải >= ngày bắt đầu.");
+            }
 
             if (request.Session is LeaveSession.AM or LeaveSession.PM && request.FromDate != request.ToDate)
+            {
                 throw new InvalidOperationException("Nghỉ nửa ngày (AM/PM) chỉ áp dụng khi Từ ngày = Đến ngày.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Reason))
+            {
                 throw new InvalidOperationException("Vui lòng nhập lý do nghỉ.");
-
-            DayOffConfigEntity? config = null;
-            if (request.DayOffConfigId.HasValue)
-            {
-                config = await _context.DayOffConfigEntities.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == request.DayOffConfigId && !x.IsDeleted && x.IsActive, cancellationToken)
-                    ?? throw new InvalidOperationException("Không tìm thấy cấu hình loại nghỉ.");
             }
-            else
-            {
-                config = await _context.DayOffConfigEntities.AsNoTracking()
+
+            DayOffConfigEntity? config = request.DayOffConfigId.HasValue
+                ? await _context.DayOffConfigEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.DayOffConfigId && !x.IsDeleted && x.IsActive, cancellationToken)
+                    ?? throw new InvalidOperationException("Không tìm thấy cấu hình loại nghỉ.")
+                : await _context.DayOffConfigEntities.AsNoTracking()
                     .Where(x => !x.IsDeleted && x.IsActive
                         && (x.CompanyId == null || x.CompanyId == employee.CompanyId))
                     .OrderByDescending(x => x.CompanyId.HasValue)
                     .ThenBy(x => x.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken)
                     ?? throw new InvalidOperationException("Chưa cấu hình loại nghỉ. Vui lòng chọn DayOffConfig.");
-            }
-
             if (config.RequireAttachment && string.IsNullOrWhiteSpace(request.AttachmentUrl))
+            {
                 throw new InvalidOperationException("Loại nghỉ này bắt buộc đính kèm giấy tờ.");
+            }
 
             if (config.MinNoticeDays > 0)
             {
                 DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
                 DateOnly minFrom = today.AddDays(config.MinNoticeDays);
                 if (request.FromDate < minFrom)
+                {
                     throw new InvalidOperationException($"Phải đăng ký trước ít nhất {config.MinNoticeDays} ngày.");
+                }
             }
 
             decimal totalDays = await LeaveDayCalculator.CountWorkingDaysAsync(
                 _context, request.FromDate, request.ToDate, employee.CompanyId, request.Session, cancellationToken);
 
             if (totalDays <= 0)
+            {
                 throw new InvalidOperationException("Khoảng ngày chọn không có ngày làm việc (cuối tuần/ngày lễ).");
+            }
 
             if (config.MaxDaysPerRequest.HasValue && totalDays > config.MaxDaysPerRequest.Value)
+            {
                 throw new InvalidOperationException($"Vượt số ngày tối đa mỗi đơn ({config.MaxDaysPerRequest:0.##}).");
+            }
 
             bool overlap = await _context.RegisterDayOffEntities.AsNoTracking()
                 .AnyAsync(x =>
@@ -106,7 +115,9 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                     x.FromDate <= request.ToDate &&
                     x.ToDate >= request.FromDate, cancellationToken);
             if (overlap)
+            {
                 throw new InvalidOperationException("Khoảng ngày nghỉ bị trùng với đơn khác đang chờ/đã duyệt.");
+            }
 
             await LeaveBalanceHelper.EnsureBalanceAsync(
                 _context, employeeId, employee.CompanyId, config, totalDays, request.FromDate.Year, cancellationToken);
@@ -137,7 +148,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
             _ = await _workflow.StartAsync(
                 Domain.Enums.WorkflowEntityType.Leave, entity.Id, entity.CompanyId, cancellationToken);
 
-            await _notificationService.NotifyAdminsAndApproverAsync(
+            _ = await _notificationService.NotifyAdminsAndApproverAsync(
                 approverEmployeeId: requestedApproverId,
                 title: "Đơn xin nghỉ phép mới",
                 content: $"Nhân viên {employee.FullName ?? employee.Code} vừa gửi đơn xin nghỉ phép ({request.FromDate:dd/MM/yyyy} - {request.ToDate:dd/MM/yyyy}, {totalDays:0.##} ngày).",
@@ -184,9 +195,15 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         {
             RegisterDayOffEntity? entity = await _context.RegisterDayOffEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.Status != DayOffStatus.PENDING)
+            {
                 throw new InvalidOperationException("Chỉ có thể duyệt đơn đang chờ duyệt.");
+            }
 
             Guid? actorEmployeeId = _currentUser.EmployeeId;
             await EnsureCanDecideAsync(_context, entity, actorEmployeeId, request.AsAdmin, cancellationToken);
@@ -201,8 +218,10 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                         _context, entity.EmployeeId, entity.CompanyId, config.Id,
                         entity.FromDate.Year, cancellationToken) + entity.TotalDays;
                     if (config.DeductBalance && entity.TotalDays > remaining)
+                    {
                         throw new InvalidOperationException(
                              $"Không đủ quỹ phép (còn {remaining:0.##}, yêu cầu {entity.TotalDays:0.##}).");
+                    }
                 }
             }
 
@@ -226,7 +245,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 actorEmployeeId,
                 cancellationToken);
 
-            await _notificationService.CreateNotifyForEmployeeAsync(
+            _ = await _notificationService.CreateNotifyForEmployeeAsync(
                 employeeId: entity.EmployeeId,
                 title: "Đơn xin nghỉ phép đã được duyệt",
                 content: $"Đơn xin nghỉ phép ({entity.FromDate:dd/MM/yyyy} - {entity.ToDate:dd/MM/yyyy}, {entity.TotalDays:0.##} ngày) của bạn đã được phê duyệt.",
@@ -250,18 +269,30 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         {
             if (!actorEmployeeId.HasValue || actorEmployeeId == Guid.Empty)
             {
-                if (asAdminFallback) return;
+                if (asAdminFallback)
+                {
+                    return;
+                }
+
                 throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");
             }
 
             if (entity.RequestedApproverId.HasValue && entity.RequestedApproverId == actorEmployeeId)
+            {
                 return;
+            }
 
             Guid? currentResolver = await LeaveApproverResolver.ResolveAsync(context, entity.EmployeeId, cancellationToken);
             if (currentResolver.HasValue && currentResolver == actorEmployeeId)
+            {
                 return;
+            }
 
-            if (asAdminFallback) return;
+            if (asAdminFallback)
+            {
+                return;
+            }
+
             throw new InvalidOperationException("Bạn không có quyền duyệt đơn này.");
         }
 
@@ -288,7 +319,10 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                     if (hasPunch && !overwritePunches)
                     {
                         if (string.IsNullOrWhiteSpace(existing.Note))
+                        {
                             existing.Note = "Có đơn nghỉ đã duyệt";
+                        }
+
                         existing.UpdatedAt = DateTime.UtcNow;
                         existing.UpdatedBy = leave.UpdatedBy;
                         continue;
@@ -345,11 +379,20 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         {
             RegisterDayOffEntity? entity = await _context.RegisterDayOffEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.Status != DayOffStatus.PENDING)
+            {
                 throw new InvalidOperationException("Chỉ có thể từ chối đơn đang chờ duyệt.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.ApproverNote))
+            {
                 throw new InvalidOperationException("Vui lòng nhập lý do từ chối.");
+            }
 
             await ApproveRegisterDayOffCommandHandler.EnsureCanDecideAsync(
                 _context, entity, _currentUser.EmployeeId, request.AsAdmin, cancellationToken);
@@ -371,7 +414,7 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                 _currentUser.EmployeeId,
                 cancellationToken);
 
-            await _notificationService.CreateNotifyForEmployeeAsync(
+            _ = await _notificationService.CreateNotifyForEmployeeAsync(
                 employeeId: entity.EmployeeId,
                 title: "Đơn xin nghỉ phép bị từ chối",
                 content: $"Đơn xin nghỉ phép ({entity.FromDate:dd/MM/yyyy} - {entity.ToDate:dd/MM/yyyy}) của bạn đã bị từ chối. Lý do: {request.ApproverNote}",
@@ -409,25 +452,41 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
         {
             RegisterDayOffEntity? entity = await _context.RegisterDayOffEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             Guid? actorEmployeeId = _currentUser.EmployeeId;
             if (!request.AsAdmin)
             {
                 Guid employeeId = await CurrentEmployeeHelper.ResolveAsync(_context, _currentUser, cancellationToken);
                 if (entity.EmployeeId != employeeId)
+                {
                     throw new InvalidOperationException("Bạn không có quyền hủy đơn này.");
+                }
+
                 if (entity.Status != DayOffStatus.PENDING)
+                {
                     throw new InvalidOperationException("Chỉ có thể hủy đơn đang chờ duyệt.");
+                }
             }
             else
             {
                 if (entity.Status is not (DayOffStatus.PENDING or DayOffStatus.APPROVED))
+                {
                     throw new InvalidOperationException("Chỉ có thể hủy đơn đang chờ duyệt hoặc đã duyệt.");
+                }
+
                 if (entity.Status == DayOffStatus.APPROVED && entity.FromDate < DateOnly.FromDateTime(DateTime.UtcNow))
+                {
                     throw new InvalidOperationException("Không thể hủy đơn đã duyệt có ngày bắt đầu trong quá khứ.");
+                }
+
                 if (string.IsNullOrWhiteSpace(request.CancelReason))
+                {
                     throw new InvalidOperationException("Vui lòng nhập lý do hủy.");
+                }
             }
 
             bool wasApproved = entity.Status == DayOffStatus.APPROVED;
@@ -485,7 +544,9 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
             CancellationToken cancellationToken)
         {
             if (currentUser.EmployeeId.HasValue && currentUser.EmployeeId != Guid.Empty)
+            {
                 return currentUser.EmployeeId.Value;
+            }
 
             if (currentUser.UserId.HasValue)
             {
@@ -494,7 +555,9 @@ namespace HrmApi.Application.Features.RegisterDayOffs.Commands
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");

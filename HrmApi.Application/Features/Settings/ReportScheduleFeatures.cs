@@ -17,14 +17,24 @@ namespace HrmApi.Application.Features.Settings
     public class GetReportSchedulesPagedQueryHandler : IRequestHandler<GetReportSchedulesPagedQuery, PagedResult<ReportScheduleDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetReportSchedulesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetReportSchedulesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<ReportScheduleDto>> Handle(GetReportSchedulesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<ReportScheduleEntity> query = _context.ReportScheduleEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.ReportType))
+            {
                 query = query.Where(x => x.ReportType == request.ReportType.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -39,20 +49,23 @@ namespace HrmApi.Application.Features.Settings
             return new PagedResult<ReportScheduleDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static ReportScheduleDto ToDto(ReportScheduleEntity e) => new()
+        internal static ReportScheduleDto ToDto(ReportScheduleEntity e)
         {
-            Id = e.Id,
-            Code = e.Code,
-            Name = e.Name,
-            ReportType = e.ReportType,
-            CronHint = e.CronHint,
-            EmailTo = e.EmailTo,
-            IsActive = e.IsActive,
-            LastRunAt = e.LastRunAt,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Code = e.Code,
+                Name = e.Name,
+                ReportType = e.ReportType,
+                CronHint = e.CronHint,
+                EmailTo = e.EmailTo,
+                IsActive = e.IsActive,
+                LastRunAt = e.LastRunAt,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetReportScheduleByIdQuery : SettingsIdRequest, IRequest<ReportScheduleDto?> { }
@@ -60,7 +73,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetReportScheduleByIdQueryHandler : IRequestHandler<GetReportScheduleByIdQuery, ReportScheduleDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetReportScheduleByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetReportScheduleByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<ReportScheduleDto?> Handle(GetReportScheduleByIdQuery request, CancellationToken cancellationToken)
         {
@@ -87,7 +103,9 @@ namespace HrmApi.Application.Features.Settings
             Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.ReportScheduleEntities.AnyAsync(x => !x.IsDeleted && x.Code == code, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã lịch báo cáo đã tồn tại.");
+            }
 
             ReportScheduleEntity entity = new()
             {
@@ -108,9 +126,20 @@ namespace HrmApi.Application.Features.Settings
 
         internal static void Validate(ReportScheduleCommandFields request)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã lịch báo cáo là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên lịch báo cáo là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.EmailTo)) throw new InvalidOperationException("Email nhận báo cáo là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã lịch báo cáo là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên lịch báo cáo là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.EmailTo))
+            {
+                throw new InvalidOperationException("Email nhận báo cáo là bắt buộc.");
+            }
         }
 
         internal static string NormalizeReportType(string? value)
@@ -141,12 +170,17 @@ namespace HrmApi.Application.Features.Settings
         {
             ReportScheduleEntity? entity = await _context.ReportScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateReportScheduleCommandHandler.Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.ReportScheduleEntities.AnyAsync(x => !x.IsDeleted && x.Code == code && x.Id != request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã lịch báo cáo đã tồn tại.");
+            }
 
             entity.Code = code;
             entity.Name = request.Name!.Trim();
@@ -178,7 +212,11 @@ namespace HrmApi.Application.Features.Settings
         {
             ReportScheduleEntity? entity = await _context.ReportScheduleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
@@ -218,7 +256,10 @@ namespace HrmApi.Application.Features.Settings
             int ran = 0;
             foreach (ReportScheduleEntity schedule in due)
             {
-                if (!IsDue(schedule, today)) continue;
+                if (!IsDue(schedule, today))
+                {
+                    continue;
+                }
 
                 string subject = $"[HRM] Báo cáo {schedule.ReportType} — {schedule.Name}";
                 string body = BuildBody(schedule);
@@ -250,14 +291,18 @@ namespace HrmApi.Application.Features.Settings
         private static bool IsDue(ReportScheduleEntity schedule, DateTime today)
         {
             string hint = (schedule.CronHint ?? ReportCronHint.Daily).ToUpperInvariant();
-            if (hint == ReportCronHint.Daily) return true;
-            if (hint == ReportCronHint.Weekly) return today.DayOfWeek == DayOfWeek.Monday;
-            if (hint == ReportCronHint.Monthly) return today.Day == 1;
-            return true;
+            if (hint == ReportCronHint.Daily)
+            {
+                return true;
+            }
+
+            return hint == ReportCronHint.Weekly ? today.DayOfWeek == DayOfWeek.Monday : hint != ReportCronHint.Monthly || today.Day == 1;
         }
 
-        private static string BuildBody(ReportScheduleEntity schedule) =>
-            $"<p>Báo cáo định kỳ <b>{schedule.Name}</b> ({schedule.ReportType}).</p>" +
+        private static string BuildBody(ReportScheduleEntity schedule)
+        {
+            return $"<p>Báo cáo định kỳ <b>{schedule.Name}</b> ({schedule.ReportType}).</p>" +
             $"<p>Mã: {schedule.Code}</p><p>Thời điểm: {DateTime.UtcNow:u}</p>";
+        }
     }
 }

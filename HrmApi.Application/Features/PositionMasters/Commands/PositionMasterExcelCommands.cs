@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
@@ -33,17 +27,17 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
 
         public async Task<byte[]> Handle(ExportPositionMastersExcelQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.PositionMasterEntities.AsNoTracking();
+            IQueryable<PositionMasterEntity> query = _context.PositionMasterEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
@@ -52,21 +46,21 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
             }
 
-            var positionMasters = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            List<PositionMasterEntity> positionMasters = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            Dictionary<Guid, string> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
-            var branchDict = await _context.BranchEntities.AsNoTracking()
+            Dictionary<Guid, string> branchDict = await _context.BranchEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("DanhSachMauChucDanh");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("DanhSachMauChucDanh");
             PositionMasterExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: true);
 
-            for (var i = 0; i < positionMasters.Count; i++)
+            for (int i = 0; i < positionMasters.Count; i++)
             {
-                var pm = positionMasters[i];
-                string? companyCode = pm.CompanyId.HasValue && companyDict.TryGetValue(pm.CompanyId.Value, out var cc) ? cc : null;
-                string? branchCode = pm.BranchId.HasValue && branchDict.TryGetValue(pm.BranchId.Value, out var bc) ? bc : null;
+                PositionMasterEntity pm = positionMasters[i];
+                string? companyCode = pm.CompanyId.HasValue && companyDict.TryGetValue(pm.CompanyId.Value, out string? cc) ? cc : null;
+                string? branchCode = pm.BranchId.HasValue && branchDict.TryGetValue(pm.BranchId.Value, out string? bc) ? bc : null;
 
                 PositionMasterExcelWriter.WriteRow(worksheet, i + 2, pm, companyCode, branchCode, includeExportOnlyColumns: true);
             }
@@ -96,7 +90,7 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
         public async Task<byte[]> Handle(DownloadPositionMasterExcelTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("MauChucDanh");
+            IXLWorksheet worksheet = workbook.Worksheets.Add("MauChucDanh");
             PositionMasterExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
             PositionMasterExcelWriter.WriteTemplateSampleRow(worksheet);
             ExcelHelper.ApplyColumnWidths(worksheet);
@@ -132,7 +126,7 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
         public int TotalRows { get; set; }
         public int SuccessCount { get; set; }
         public int ErrorCount { get; set; }
-        public List<string> Errors { get; set; } = new();
+        public List<string> Errors { get; set; } = [];
     }
 
     public class ImportPositionMastersExcelCommandHandler : IRequestHandler<ImportPositionMastersExcelCommand, PositionMasterImportResultDto>
@@ -152,24 +146,24 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
 
             using var stream = new MemoryStream(request.FileContent);
             using var workbook = new XLWorkbook(stream);
-            var worksheet = workbook.Worksheet(1);
-            var rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? new List<IXLRangeRow>();
+            IXLWorksheet worksheet = workbook.Worksheet(1);
+            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
 
             result.TotalRows = rows.Count;
 
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            Dictionary<string, Guid> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
-            var branchDict = await _context.BranchEntities.AsNoTracking()
+            Dictionary<string, Guid> branchDict = await _context.BranchEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
 
-            foreach (var row in rows)
+            foreach (IXLRangeRow? row in rows)
             {
-                var rowNumber = row.RowNumber();
+                int rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row, companyDict, branchDict);
+                    PositionMasterCommandFields command = ReadRow(row, companyDict, branchDict);
                     if (string.IsNullOrWhiteSpace(command.Code) && string.IsNullOrWhiteSpace(command.Name))
                     {
                         result.TotalRows--;
@@ -191,8 +185,8 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
                     };
                     PositionMasterMapper.ApplyCommandFields(entity, command);
 
-                    _context.PositionMasterEntities.Add(entity);
-                    await _context.SaveChangesAsync(cancellationToken);
+                    _ = _context.PositionMasterEntities.Add(entity);
+                    _ = await _context.SaveChangesAsync(cancellationToken);
 
                     await _actionLog.LogActionAsync(
                         ActionType.CREATE,
@@ -219,11 +213,11 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
             Dictionary<string, Guid> companyDict,
             Dictionary<string, Guid> branchDict)
         {
-            var companyCode = ExcelHelper.GetCellString(row, 4).Trim().ToLower();
-            var branchCode = ExcelHelper.GetCellString(row, 5).Trim().ToLower();
+            string companyCode = ExcelHelper.GetCellString(row, 4).Trim().ToLower();
+            string branchCode = ExcelHelper.GetCellString(row, 5).Trim().ToLower();
 
-            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out var cid) ? cid : null;
-            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out var bid) ? bid : null;
+            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out Guid cid) ? cid : null;
+            Guid? branchId = !string.IsNullOrWhiteSpace(branchCode) && branchDict.TryGetValue(branchCode, out Guid bid) ? bid : null;
 
             return new PositionMasterCommandFields
             {
@@ -265,8 +259,10 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
             new() { Title = "Trạng thái hệ thống", Required = false, ExportOnly = true },
         };
 
-        public static IEnumerable<PositionMasterExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns) =>
-            Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        public static IEnumerable<PositionMasterExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns)
+        {
+            return Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        }
     }
 
     internal static class PositionMasterExcelWriter
@@ -275,9 +271,9 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
         {
             var columns = PositionMasterExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
 
-            for (var col = 0; col < columns.Count; col++)
+            for (int col = 0; col < columns.Count; col++)
             {
-                var definition = columns[col];
+                PositionMasterExcelColumnDefinition definition = columns[col];
                 ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
@@ -300,9 +296,9 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
                 "1"
             };
 
-            for (var col = 0; col < sampleValues.Count; col++)
+            for (int col = 0; col < sampleValues.Count; col++)
             {
-                var cell = worksheet.Cell(2, col + 1);
+                IXLCell cell = worksheet.Cell(2, col + 1);
                 cell.Value = sampleValues[col];
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -337,9 +333,9 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
                 values.Add(entity.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
             }
 
-            for (var col = 0; col < values.Count; col++)
+            for (int col = 0; col < values.Count; col++)
             {
-                var cell = worksheet.Cell(row, col + 1);
+                IXLCell cell = worksheet.Cell(row, col + 1);
                 cell.Value = values[col] ?? string.Empty;
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;

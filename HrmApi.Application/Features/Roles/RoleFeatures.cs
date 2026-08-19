@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
@@ -28,7 +23,10 @@ namespace HrmApi.Application.Features.Roles
     {
         private readonly IApplicationDbContext _context;
 
-        public GetRolesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetRolesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<RoleListItemDto>> Handle(GetRolesPagedQuery request, CancellationToken cancellationToken)
         {
@@ -43,11 +41,20 @@ namespace HrmApi.Application.Features.Roles
                 select new { Role = r, CompanyCode = c != null ? c.Code : null, CompanyName = c != null ? c.Name : null };
 
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.Role.IsActive == request.IsActive.Value);
+            }
+
             if (request.IsSystem.HasValue)
+            {
                 query = query.Where(x => x.Role.IsSystem == request.IsSystem.Value);
+            }
+
             if (request.CompanyId.HasValue)
+            {
                 query = query.Where(x => x.Role.CompanyId == request.CompanyId.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.CompanyCode))
             {
                 string companyCode = request.CompanyCode.Trim().ToLower();
@@ -74,7 +81,7 @@ namespace HrmApi.Application.Features.Roles
 
             int total = await query.CountAsync(cancellationToken);
 
-            var roles = await query
+            List<RoleListItemDto> roles = await query
                 .OrderByDescending(x => x.Role.IsSystem)
                 .ThenBy(x => x.Role.Code)
                 .Skip((pageIndex - 1) * pageSize)
@@ -110,15 +117,23 @@ namespace HrmApi.Application.Features.Roles
     {
         private readonly IApplicationDbContext _context;
 
-        public GetRoleSelectBoxQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetRoleSelectBoxQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<List<RoleSelectBoxDto>> Handle(GetRoleSelectBoxQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.RoleEntities.AsNoTracking().Where(x => !x.IsDeleted);
+            IQueryable<RoleEntity> query = _context.RoleEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.IsActive.HasValue)
+            {
                 query = query.Where(x => x.IsActive == request.IsActive.Value);
+            }
+
             if (request.CompanyId.HasValue)
+            {
                 query = query.Where(x => x.CompanyId == null || x.CompanyId == request.CompanyId.Value);
+            }
 
             return await query
                 .OrderByDescending(x => x.IsSystem)
@@ -137,27 +152,33 @@ namespace HrmApi.Application.Features.Roles
     {
         private readonly IApplicationDbContext _context;
 
-        public GetRoleByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetRoleByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<RoleDetailDto?> Handle(GetRoleByIdQuery request, CancellationToken cancellationToken)
         {
-            var role = await _context.RoleEntities.AsNoTracking()
+            RoleEntity? role = await _context.RoleEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (role == null) return null;
+            if (role == null)
+            {
+                return null;
+            }
 
             var rpRows = await _context.RolePermissionEntities.AsNoTracking()
                 .Where(rp => rp.RoleId == role.Id && !rp.IsDeleted && rp.PermissionCode != "")
                 .Select(rp => new { rp.PermissionCode, rp.DataScope })
                 .ToListAsync(cancellationToken);
 
-            var catalogByCode = RbacPermissionCatalog.Items
+            Dictionary<string, RbacPermissionCatalog.Item> catalogByCode = RbacPermissionCatalog.Items
                 .ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
 
-            var permissions = rpRows
+            List<RolePermissionItemDto> permissions = rpRows
                 .Select(rp =>
                 {
                     string code = rp.PermissionCode.Trim();
-                    catalogByCode.TryGetValue(code, out var catalog);
+                    _ = catalogByCode.TryGetValue(code, out RbacPermissionCatalog.Item? catalog);
 
                     return new RolePermissionItemDto
                     {
@@ -217,16 +238,23 @@ namespace HrmApi.Application.Features.Roles
             string code = (request.Code ?? string.Empty).Trim().ToUpperInvariant();
             string name = (request.Name ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(code))
+            {
                 throw new InvalidOperationException("Mã vai trò không được để trống.");
+            }
+
             if (string.IsNullOrWhiteSpace(name))
+            {
                 throw new InvalidOperationException("Tên vai trò không được để trống.");
+            }
 
             bool exists = await _context.RoleEntities.AsNoTracking()
                 .AnyAsync(x => !x.IsDeleted && x.Code.ToUpper() == code, cancellationToken);
             if (exists)
+            {
                 throw new InvalidOperationException($"Mã vai trò '{code}' đã tồn tại.");
+            }
 
-            var entity = new RoleEntity
+            RoleEntity entity = new()
             {
                 Code = code,
                 Name = name,
@@ -239,8 +267,8 @@ namespace HrmApi.Application.Features.Roles
                 CreatedBy = _currentUser.UserId ?? Guid.Empty,
             };
 
-            _context.RoleEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.RoleEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -282,13 +310,15 @@ namespace HrmApi.Application.Features.Roles
 
         public async Task<bool> Handle(UpdateRoleCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.RoleEntities
+            RoleEntity entity = await _context.RoleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy vai trò.");
 
             string name = (request.Name ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(name))
+            {
                 throw new InvalidOperationException("Tên vai trò không được để trống.");
+            }
 
             var before = new { entity.Name, entity.Description, entity.IsActive };
 
@@ -303,7 +333,7 @@ namespace HrmApi.Application.Features.Roles
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -340,19 +370,21 @@ namespace HrmApi.Application.Features.Roles
 
         public async Task<bool> Handle(DeleteRoleCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.RoleEntities
+            RoleEntity entity = await _context.RoleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy vai trò.");
 
             if (entity.IsSystem)
+            {
                 throw new InvalidOperationException("Không thể xóa vai trò hệ thống.");
+            }
 
             entity.IsDeleted = true;
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DELETE,
@@ -378,7 +410,9 @@ namespace HrmApi.Application.Features.Roles
             set
             {
                 if (value != null)
+                {
                     Items = value;
+                }
             }
         }
     }
@@ -407,7 +441,7 @@ namespace HrmApi.Application.Features.Roles
 
         public async Task<bool> Handle(SetRolePermissionsCommand request, CancellationToken cancellationToken)
         {
-            var role = await _context.RoleEntities
+            RoleEntity role = await _context.RoleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.RoleId && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy vai trò.");
 
@@ -415,30 +449,32 @@ namespace HrmApi.Application.Features.Roles
                 .Select(x => new
                 {
                     PermissionCode = (x.PermissionCode ?? string.Empty).Trim().ToUpperInvariant(),
-                    DataScope = x.DataScope,
+                    x.DataScope,
                 })
                 .Where(x => !string.IsNullOrWhiteSpace(x.PermissionCode))
                 .GroupBy(x => x.PermissionCode, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
                 .ToList();
 
-            var invalid = items
+            List<string> invalid = items
                 .Where(x => !ValidCodes.Contains(x.PermissionCode))
                 .Select(x => x.PermissionCode)
                 .ToList();
             if (invalid.Count > 0)
+            {
                 throw new InvalidOperationException(
                     $"Có quyền không tồn tại trong danh mục: {string.Join(", ", invalid)}.");
+            }
 
-            var existing = await _context.RolePermissionEntities
+            List<RolePermissionEntity> existing = await _context.RolePermissionEntities
                 .Where(x => x.RoleId == role.Id)
                 .ToListAsync(cancellationToken);
 
-            var keepCodes = items
+            HashSet<string> keepCodes = items
                 .Select(x => x.PermissionCode)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var rp in existing.Where(x =>
+            foreach (RolePermissionEntity? rp in existing.Where(x =>
                          !x.IsDeleted
                          && !keepCodes.Contains(x.PermissionCode)))
             {
@@ -447,7 +483,7 @@ namespace HrmApi.Application.Features.Roles
                 rp.UpdatedBy = _currentUser.UserId;
             }
 
-            var existingByCode = existing
+            Dictionary<string, RolePermissionEntity> existingByCode = existing
                 .Where(x => !string.IsNullOrWhiteSpace(x.PermissionCode))
                 .GroupBy(x => x.PermissionCode, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
@@ -458,7 +494,7 @@ namespace HrmApi.Application.Features.Roles
             foreach (var item in items)
             {
                 string scope = NormalizeScope(item.DataScope);
-                if (existingByCode.TryGetValue(item.PermissionCode, out var rp))
+                if (existingByCode.TryGetValue(item.PermissionCode, out RolePermissionEntity? rp))
                 {
                     rp.PermissionCode = item.PermissionCode;
                     rp.DataScope = scope;
@@ -468,7 +504,7 @@ namespace HrmApi.Application.Features.Roles
                 }
                 else
                 {
-                    _context.RolePermissionEntities.Add(new RolePermissionEntity
+                    _ = _context.RolePermissionEntities.Add(new RolePermissionEntity
                     {
                         RoleId = role.Id,
                         PermissionCode = item.PermissionCode,
@@ -479,7 +515,7 @@ namespace HrmApi.Application.Features.Roles
                 }
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
             await _permissionCache.InvalidateByRoleAsync(role.Id, cancellationToken);
 
             await _actionLog.LogActionAsync(

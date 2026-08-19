@@ -10,7 +10,10 @@ namespace HrmApi.Application.Features.Integrations
     public class GetIntegrationStatusQueryHandler : IRequestHandler<GetIntegrationStatusQuery, IntegrationStatusResultDto>
     {
         private readonly IApplicationDbContext _context;
-        public GetIntegrationStatusQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetIntegrationStatusQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<IntegrationStatusResultDto> Handle(GetIntegrationStatusQuery request, CancellationToken cancellationToken)
         {
@@ -46,9 +49,14 @@ namespace HrmApi.Application.Features.Integrations
     public class RefreshIntegrationStatusCommandHandler : IRequestHandler<RefreshIntegrationStatusCommand, IntegrationStatusResultDto>
     {
         private readonly IMediator _mediator;
-        public RefreshIntegrationStatusCommandHandler(IMediator mediator) => _mediator = mediator;
+        public RefreshIntegrationStatusCommandHandler(IMediator mediator)
+        {
+            _mediator = mediator;
+        }
 
         public Task<IntegrationStatusResultDto> Handle(RefreshIntegrationStatusCommand request, CancellationToken cancellationToken)
-            => _mediator.Send(new GetIntegrationStatusQuery(), cancellationToken);
+        {
+            return _mediator.Send(new GetIntegrationStatusQuery(), cancellationToken);
+        }
     }
 }

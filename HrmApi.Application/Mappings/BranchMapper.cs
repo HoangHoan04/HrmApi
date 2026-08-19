@@ -61,16 +61,36 @@ namespace HrmApi.Application.Mappings
             entity.ShortName = TrimOrNull(fields.ShortName) ?? entity.ShortName;
             entity.Description = TrimOrNull(fields.Description) ?? entity.Description;
             entity.Type = TrimOrNull(fields.Type) ?? entity.Type;
-            if (fields.CompanyId.HasValue) entity.CompanyId = fields.CompanyId;
-            if (fields.ParentBranchId.HasValue) entity.ParentBranchId = fields.ParentBranchId;
-            if (fields.IsHeadQuarter.HasValue) entity.IsHeadQuarter = fields.IsHeadQuarter.Value;
+            if (fields.CompanyId.HasValue)
+            {
+                entity.CompanyId = fields.CompanyId;
+            }
+
+            if (fields.ParentBranchId.HasValue)
+            {
+                entity.ParentBranchId = fields.ParentBranchId;
+            }
+
+            if (fields.IsHeadQuarter.HasValue)
+            {
+                entity.IsHeadQuarter = fields.IsHeadQuarter.Value;
+            }
+
             entity.Address = TrimOrNull(fields.Address) ?? entity.Address;
             entity.Country = TrimOrNull(fields.Country) ?? entity.Country;
             entity.City = TrimOrNull(fields.City) ?? entity.City;
             entity.District = TrimOrNull(fields.District) ?? entity.District;
             entity.Ward = TrimOrNull(fields.Ward) ?? entity.Ward;
-            if (fields.Latitude.HasValue) entity.Latitude = fields.Latitude;
-            if (fields.Longitude.HasValue) entity.Longitude = fields.Longitude;
+            if (fields.Latitude.HasValue)
+            {
+                entity.Latitude = fields.Latitude;
+            }
+
+            if (fields.Longitude.HasValue)
+            {
+                entity.Longitude = fields.Longitude;
+            }
+
             entity.PhoneNumber = TrimOrNull(fields.PhoneNumber) ?? entity.PhoneNumber;
             entity.Email = TrimOrNull(fields.Email) ?? entity.Email;
             entity.Fax = TrimOrNull(fields.Fax) ?? entity.Fax;
@@ -88,15 +108,43 @@ namespace HrmApi.Application.Mappings
             }
             entity.TaxCode = TrimOrNull(fields.TaxCode) ?? entity.TaxCode;
             entity.BusinessRegistrationCode = TrimOrNull(fields.BusinessRegistrationCode) ?? entity.BusinessRegistrationCode;
-            if (fields.OpeningDate.HasValue) entity.OpeningDate = fields.OpeningDate;
-            if (fields.ClosingDate.HasValue) entity.ClosingDate = fields.ClosingDate;
+            if (fields.OpeningDate.HasValue)
+            {
+                entity.OpeningDate = fields.OpeningDate;
+            }
+
+            if (fields.ClosingDate.HasValue)
+            {
+                entity.ClosingDate = fields.ClosingDate;
+            }
+
             entity.OperatingStatus = TrimOrNull(fields.OperatingStatus) ?? entity.OperatingStatus;
-            if (fields.IsActive.HasValue) entity.IsActive = fields.IsActive.Value;
-            if (fields.IsUsingHrm.HasValue) entity.IsUsingHrm = fields.IsUsingHrm.Value;
-            if (fields.DisplayOrder.HasValue) entity.DisplayOrder = fields.DisplayOrder.Value;
+            if (fields.IsActive.HasValue)
+            {
+                entity.IsActive = fields.IsActive.Value;
+            }
+
+            if (fields.IsUsingHrm.HasValue)
+            {
+                entity.IsUsingHrm = fields.IsUsingHrm.Value;
+            }
+
+            if (fields.DisplayOrder.HasValue)
+            {
+                entity.DisplayOrder = fields.DisplayOrder.Value;
+            }
+
             entity.GroupSalary = TrimOrNull(fields.GroupSalary) ?? entity.GroupSalary;
-            if (fields.TimeKeepingStandardId.HasValue) entity.TimeKeepingStandardId = fields.TimeKeepingStandardId;
-            if (fields.MaxEmployeeCapacity.HasValue) entity.MaxEmployeeCapacity = fields.MaxEmployeeCapacity;
+            if (fields.TimeKeepingStandardId.HasValue)
+            {
+                entity.TimeKeepingStandardId = fields.TimeKeepingStandardId;
+            }
+
+            if (fields.MaxEmployeeCapacity.HasValue)
+            {
+                entity.MaxEmployeeCapacity = fields.MaxEmployeeCapacity;
+            }
+
             entity.TimeZone = TrimOrNull(fields.TimeZone) ?? entity.TimeZone;
         }
 
@@ -142,8 +190,10 @@ namespace HrmApi.Application.Mappings
             };
         }
 
-        private static string? TrimOrNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        private static string? TrimOrNull(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
     }
 
     public class BranchCommandFields

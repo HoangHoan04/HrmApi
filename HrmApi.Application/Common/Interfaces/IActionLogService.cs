@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using HrmApi.Domain.Enums;
 
 namespace HrmApi.Application.Common.Interfaces

@@ -72,5 +72,42 @@ namespace HrmApi.WebApi.Controllers
             if (!result) return NotFound("Không tìm thấy ngày nghỉ lễ.");
             return Ok(result);
         }
+
+        [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OperatePublicHolidayImportExcel)]
+        public async Task<IActionResult> DownloadExcelTemplate()
+        {
+            byte[] content = await _mediator.Send(new DownloadPublicHolidayExcelTemplateQuery());
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Mau_Import_Ngay_Nghi_Le.xlsx");
+        }
+
+        [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OperatePublicHolidayExportExcel)]
+        public async Task<IActionResult> ExportExcel([FromBody] ExportPublicHolidaysExcelQuery query)
+        {
+            byte[] content = await _mediator.Send(query);
+            string fileName = $"Danh_Sach_Ngay_Nghi_Le_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OperatePublicHolidayImportExcel)]
+        public async Task<ActionResult<PublicHolidayImportResultDto>> ImportExcel(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file Excel hợp lệ.");
+            }
+
+            using MemoryStream memoryStream = new();
+            await file.CopyToAsync(memoryStream);
+
+            PublicHolidayImportResultDto result = await _mediator.Send(new ImportPublicHolidaysExcelCommand
+            {
+                FileContent = memoryStream.ToArray()
+            });
+
+            return Ok(result);
+        }
     }
 }

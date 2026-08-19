@@ -12,12 +12,19 @@ namespace HrmApi.Application.Features.Settings
     public class GetIpAllowlistPagedQueryHandler : IRequestHandler<GetIpAllowlistPagedQuery, PagedResult<IpAllowlistEntryDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetIpAllowlistPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetIpAllowlistPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<IpAllowlistEntryDto>> Handle(GetIpAllowlistPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<IpAllowlistEntryEntity> query = _context.IpAllowlistEntryEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -32,15 +39,18 @@ namespace HrmApi.Application.Features.Settings
             return new PagedResult<IpAllowlistEntryDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static IpAllowlistEntryDto ToDto(IpAllowlistEntryEntity e) => new()
+        internal static IpAllowlistEntryDto ToDto(IpAllowlistEntryEntity e)
         {
-            Id = e.Id,
-            CidrOrIp = e.CidrOrIp,
-            Note = e.Note,
-            IsActive = e.IsActive,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                CidrOrIp = e.CidrOrIp,
+                Note = e.Note,
+                IsActive = e.IsActive,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetIpAllowlistByIdQuery : SettingsIdRequest, IRequest<IpAllowlistEntryDto?> { }
@@ -48,7 +58,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetIpAllowlistByIdQueryHandler : IRequestHandler<GetIpAllowlistByIdQuery, IpAllowlistEntryDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetIpAllowlistByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetIpAllowlistByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<IpAllowlistEntryDto?> Handle(GetIpAllowlistByIdQuery request, CancellationToken cancellationToken)
         {
@@ -79,7 +92,9 @@ namespace HrmApi.Application.Features.Settings
         {
             string cidr = (request.CidrOrIp ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(cidr))
+            {
                 throw new InvalidOperationException("IP/CIDR là bắt buộc.");
+            }
 
             IpAllowlistEntryEntity entity = new()
             {
@@ -120,11 +135,16 @@ namespace HrmApi.Application.Features.Settings
         {
             IpAllowlistEntryEntity? entity = await _context.IpAllowlistEntryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             string cidr = (request.CidrOrIp ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(cidr))
+            {
                 throw new InvalidOperationException("IP/CIDR là bắt buộc.");
+            }
 
             entity.CidrOrIp = cidr;
             entity.Note = request.Note;
@@ -158,7 +178,11 @@ namespace HrmApi.Application.Features.Settings
         {
             IpAllowlistEntryEntity? entity = await _context.IpAllowlistEntryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

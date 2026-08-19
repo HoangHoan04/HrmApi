@@ -1,5 +1,3 @@
-using System;
-
 namespace HrmApi.Application.Common.Helpers
 {
     public static class BusinessDateHelper
@@ -10,7 +8,10 @@ namespace HrmApi.Application.Common.Helpers
 
         public static DateTime NowLocal => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZone);
 
-        public static DateOnly Today() => DateOnly.FromDateTime(NowLocal);
+        public static DateOnly Today()
+        {
+            return DateOnly.FromDateTime(NowLocal);
+        }
 
         public static DateTime ToUtc(DateOnly workDate, TimeSpan timeOfDay)
         {

@@ -15,12 +15,19 @@ namespace HrmApi.Application.Features.Settings
     public class GetLegalRateConfigsPagedQueryHandler : IRequestHandler<GetLegalRateConfigsPagedQuery, PagedResult<LegalRateConfigDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetLegalRateConfigsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetLegalRateConfigsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<LegalRateConfigDto>> Handle(GetLegalRateConfigsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<LegalRateConfigEntity> query = _context.LegalRateConfigEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.Year.HasValue) query = query.Where(x => x.Year == request.Year);
+            if (request.Year.HasValue)
+            {
+                query = query.Where(x => x.Year == request.Year);
+            }
+
             int pageIndex = request.PageIndex < 1 ? 1 : request.PageIndex;
             int pageSize = request.PageSize < 1 ? 20 : request.PageSize;
             int total = await query.CountAsync(cancellationToken);
@@ -29,20 +36,23 @@ namespace HrmApi.Application.Features.Settings
             return new PagedResult<LegalRateConfigDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static LegalRateConfigDto ToDto(LegalRateConfigEntity e) => new()
+        internal static LegalRateConfigDto ToDto(LegalRateConfigEntity e)
         {
-            Id = e.Id,
-            Year = e.Year,
-            SocialInsuranceEmployeeRate = e.SocialInsuranceEmployeeRate,
-            SocialInsuranceEmployerRate = e.SocialInsuranceEmployerRate,
-            HealthInsuranceRate = e.HealthInsuranceRate,
-            UnemploymentRate = e.UnemploymentRate,
-            PersonalDeduction = e.PersonalDeduction,
-            DependentDeduction = e.DependentDeduction,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Year = e.Year,
+                SocialInsuranceEmployeeRate = e.SocialInsuranceEmployeeRate,
+                SocialInsuranceEmployerRate = e.SocialInsuranceEmployerRate,
+                HealthInsuranceRate = e.HealthInsuranceRate,
+                UnemploymentRate = e.UnemploymentRate,
+                PersonalDeduction = e.PersonalDeduction,
+                DependentDeduction = e.DependentDeduction,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetLegalRateConfigByIdQuery : SettingsIdRequest, IRequest<LegalRateConfigDto?> { }
@@ -50,7 +60,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetLegalRateConfigByIdQueryHandler : IRequestHandler<GetLegalRateConfigByIdQuery, LegalRateConfigDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetLegalRateConfigByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetLegalRateConfigByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<LegalRateConfigDto?> Handle(GetLegalRateConfigByIdQuery request, CancellationToken cancellationToken)
         {
@@ -77,7 +90,9 @@ namespace HrmApi.Application.Features.Settings
             Validate(request);
             int year = request.Year!.Value;
             if (await _context.LegalRateConfigEntities.AnyAsync(x => !x.IsDeleted && x.Year == year, cancellationToken))
+            {
                 throw new InvalidOperationException($"Đã có cấu hình tỷ lệ pháp lý cho năm {year}.");
+            }
 
             LegalRateConfigEntity entity = new()
             {
@@ -100,7 +115,9 @@ namespace HrmApi.Application.Features.Settings
         internal static void Validate(LegalRateConfigCommandFields request)
         {
             if (!request.Year.HasValue || request.Year < 2000 || request.Year > 2100)
+            {
                 throw new InvalidOperationException("Năm cấu hình không hợp lệ.");
+            }
         }
     }
 
@@ -123,12 +140,17 @@ namespace HrmApi.Application.Features.Settings
         {
             LegalRateConfigEntity? entity = await _context.LegalRateConfigEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateLegalRateConfigCommandHandler.Validate(request);
             int year = request.Year!.Value;
             if (await _context.LegalRateConfigEntities.AnyAsync(x => !x.IsDeleted && x.Year == year && x.Id != request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException($"Đã có cấu hình tỷ lệ pháp lý cho năm {year}.");
+            }
 
             entity.Year = year;
             entity.SocialInsuranceEmployeeRate = request.SocialInsuranceEmployeeRate ?? entity.SocialInsuranceEmployeeRate;
@@ -161,7 +183,11 @@ namespace HrmApi.Application.Features.Settings
         {
             LegalRateConfigEntity? entity = await _context.LegalRateConfigEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

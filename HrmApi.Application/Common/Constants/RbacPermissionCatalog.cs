@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace HrmApi.Application.Common.Constants
 {
     public static class RbacPermissionCatalog
@@ -22,10 +18,12 @@ namespace HrmApi.Application.Common.Constants
 
         private static List<Item> BuildItems()
         {
-            var list = new List<Item>();
+            List<Item> list = [];
 
             void A(string code, string name, string module, string action, bool scopable = true)
-                => list.Add(new Item(code, name, module, action, null, scopable));
+            {
+                list.Add(new Item(code, name, module, action, null, scopable));
+            }
 
             // HOME
             A(PermissionCodes.HomeView, "Xem", "HOME", "VIEW", false);
@@ -100,6 +98,8 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.HrContractTypeUpdate, "Cập nhật", "HUMAN_RESOURCE_CONTRACT_TYPE", "UPDATE");
             A(PermissionCodes.HrContractTypeDeactivate, "Ngưng", "HUMAN_RESOURCE_CONTRACT_TYPE", "DEACTIVATE");
             A(PermissionCodes.HrContractTypeActivate, "Kích hoạt", "HUMAN_RESOURCE_CONTRACT_TYPE", "ACTIVATE");
+            A(PermissionCodes.HrContractTypeImportExcel, "Import Excel", "HUMAN_RESOURCE_CONTRACT_TYPE", "IMPORT_EXCEL");
+            A(PermissionCodes.HrContractTypeExportExcel, "Export Excel", "HUMAN_RESOURCE_CONTRACT_TYPE", "EXPORT_EXCEL");
             A(PermissionCodes.HrContractTypeManage, "Quản lý", "HUMAN_RESOURCE_CONTRACT_TYPE", "MANAGE");
 
             A(PermissionCodes.HrContractView, "Xem", "HUMAN_RESOURCE_CONTRACT", "VIEW");
@@ -125,6 +125,8 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.HrTransferReject, "Từ chối", "HUMAN_RESOURCE_TRANSFER", "REJECT");
             A(PermissionCodes.HrTransferApply, "Áp dụng", "HUMAN_RESOURCE_TRANSFER", "APPLY");
             A(PermissionCodes.HrTransferCancel, "Hủy", "HUMAN_RESOURCE_TRANSFER", "CANCEL");
+            A(PermissionCodes.HrTransferImportExcel, "Import Excel", "HUMAN_RESOURCE_TRANSFER", "IMPORT_EXCEL");
+            A(PermissionCodes.HrTransferExportExcel, "Export Excel", "HUMAN_RESOURCE_TRANSFER", "EXPORT_EXCEL");
             A(PermissionCodes.HrTransferManage, "Quản lý", "HUMAN_RESOURCE_TRANSFER", "MANAGE");
 
             // OPERATE 
@@ -136,6 +138,8 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperateTimekeepingStandardUpdate, "Cập nhật", "OPERATE_TIMEKEEPING_STANDARD", "UPDATE");
             A(PermissionCodes.OperateTimekeepingStandardDeactivate, "Ngưng", "OPERATE_TIMEKEEPING_STANDARD", "DEACTIVATE");
             A(PermissionCodes.OperateTimekeepingStandardActivate, "Kích hoạt", "OPERATE_TIMEKEEPING_STANDARD", "ACTIVATE");
+            A(PermissionCodes.OperateTimekeepingStandardImportExcel, "Import Excel", "OPERATE_TIMEKEEPING_STANDARD", "IMPORT_EXCEL");
+            A(PermissionCodes.OperateTimekeepingStandardExportExcel, "Export Excel", "OPERATE_TIMEKEEPING_STANDARD", "EXPORT_EXCEL");
             A(PermissionCodes.OperateTimekeepingStandardManage, "Quản lý", "OPERATE_TIMEKEEPING_STANDARD", "MANAGE");
 
             A(PermissionCodes.OperateTimekeepingView, "Xem", "OPERATE_TIMEKEEPING", "VIEW");
@@ -157,6 +161,8 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperateDayOffConfigUpdate, "Cập nhật", "OPERATE_DAY_OFF_CONFIG", "UPDATE");
             A(PermissionCodes.OperateDayOffConfigDeactivate, "Ngưng", "OPERATE_DAY_OFF_CONFIG", "DEACTIVATE");
             A(PermissionCodes.OperateDayOffConfigActivate, "Kích hoạt", "OPERATE_DAY_OFF_CONFIG", "ACTIVATE");
+            A(PermissionCodes.OperateDayOffConfigImportExcel, "Import Excel", "OPERATE_DAY_OFF_CONFIG", "IMPORT_EXCEL");
+            A(PermissionCodes.OperateDayOffConfigExportExcel, "Export Excel", "OPERATE_DAY_OFF_CONFIG", "EXPORT_EXCEL");
             A(PermissionCodes.OperateDayOffConfigManage, "Quản lý", "OPERATE_DAY_OFF_CONFIG", "MANAGE");
 
             A(PermissionCodes.OperatePublicHolidayView, "Xem", "OPERATE_PUBLIC_HOLIDAY", "VIEW");
@@ -164,6 +170,8 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperatePublicHolidayUpdate, "Cập nhật", "OPERATE_PUBLIC_HOLIDAY", "UPDATE");
             A(PermissionCodes.OperatePublicHolidayDeactivate, "Ngưng", "OPERATE_PUBLIC_HOLIDAY", "DEACTIVATE");
             A(PermissionCodes.OperatePublicHolidayActivate, "Kích hoạt", "OPERATE_PUBLIC_HOLIDAY", "ACTIVATE");
+            A(PermissionCodes.OperatePublicHolidayImportExcel, "Import Excel", "OPERATE_PUBLIC_HOLIDAY", "IMPORT_EXCEL");
+            A(PermissionCodes.OperatePublicHolidayExportExcel, "Export Excel", "OPERATE_PUBLIC_HOLIDAY", "EXPORT_EXCEL");
             A(PermissionCodes.OperatePublicHolidayManage, "Quản lý", "OPERATE_PUBLIC_HOLIDAY", "MANAGE");
 
             A(PermissionCodes.OperateLeaveView, "Xem", "OPERATE_LEAVE", "VIEW");
@@ -183,12 +191,16 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperateShiftUpdate, "Cập nhật", "OPERATE_SHIFT", "UPDATE");
             A(PermissionCodes.OperateShiftDeactivate, "Ngưng", "OPERATE_SHIFT", "DEACTIVATE");
             A(PermissionCodes.OperateShiftActivate, "Kích hoạt", "OPERATE_SHIFT", "ACTIVATE");
+            A(PermissionCodes.OperateShiftImportExcel, "Import Excel", "OPERATE_SHIFT", "IMPORT_EXCEL");
+            A(PermissionCodes.OperateShiftExportExcel, "Export Excel", "OPERATE_SHIFT", "EXPORT_EXCEL");
             A(PermissionCodes.OperateShiftManage, "Quản lý", "OPERATE_SHIFT", "MANAGE");
 
             A(PermissionCodes.OperateWorkScheduleView, "Xem", "OPERATE_WORK_SCHEDULE", "VIEW");
             A(PermissionCodes.OperateWorkScheduleCreate, "Tạo mới", "OPERATE_WORK_SCHEDULE", "CREATE");
             A(PermissionCodes.OperateWorkScheduleUpdate, "Cập nhật", "OPERATE_WORK_SCHEDULE", "UPDATE");
             A(PermissionCodes.OperateWorkScheduleDeactivate, "Ngưng", "OPERATE_WORK_SCHEDULE", "DEACTIVATE");
+            A(PermissionCodes.OperateWorkScheduleImportExcel, "Import Excel", "OPERATE_WORK_SCHEDULE", "IMPORT_EXCEL");
+            A(PermissionCodes.OperateWorkScheduleExportExcel, "Export Excel", "OPERATE_WORK_SCHEDULE", "EXPORT_EXCEL");
             A(PermissionCodes.OperateWorkScheduleManage, "Quản lý", "OPERATE_WORK_SCHEDULE", "MANAGE");
 
             A(PermissionCodes.OperateWorkPatternView, "Xem", "OPERATE_WORK_PATTERN", "VIEW");
@@ -196,6 +208,8 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.OperateWorkPatternUpdate, "Cập nhật", "OPERATE_WORK_PATTERN", "UPDATE");
             A(PermissionCodes.OperateWorkPatternDeactivate, "Ngưng", "OPERATE_WORK_PATTERN", "DEACTIVATE");
             A(PermissionCodes.OperateWorkPatternBulkAssign, "Gán hàng loạt", "OPERATE_WORK_PATTERN", "BULK_ASSIGN");
+            A(PermissionCodes.OperateWorkPatternImportExcel, "Import Excel", "OPERATE_WORK_PATTERN", "IMPORT_EXCEL");
+            A(PermissionCodes.OperateWorkPatternExportExcel, "Export Excel", "OPERATE_WORK_PATTERN", "EXPORT_EXCEL");
             A(PermissionCodes.OperateWorkPatternManage, "Quản lý", "OPERATE_WORK_PATTERN", "MANAGE");
 
             // DISCIPLINE
@@ -291,12 +305,29 @@ namespace HrmApi.Application.Common.Constants
             // ASSET
             A(PermissionCodes.AssetView, "Xem", "ASSET", "VIEW");
             A(PermissionCodes.AssetManage, "Quản lý", "ASSET", "MANAGE");
+
             A(PermissionCodes.AssetInventoryView, "Xem", "ASSET_INVENTORY", "VIEW");
             A(PermissionCodes.AssetInventoryCreate, "Tạo mới", "ASSET_INVENTORY", "CREATE");
             A(PermissionCodes.AssetInventoryUpdate, "Cập nhật", "ASSET_INVENTORY", "UPDATE");
             A(PermissionCodes.AssetInventoryImportExcel, "Import Excel", "ASSET_INVENTORY", "IMPORT_EXCEL");
             A(PermissionCodes.AssetInventoryExportExcel, "Export Excel", "ASSET_INVENTORY", "EXPORT_EXCEL");
             A(PermissionCodes.AssetInventoryManage, "Quản lý", "ASSET_INVENTORY", "MANAGE");
+
+            A(PermissionCodes.AssetTypeView, "Xem", "ASSET_TYPE", "VIEW");
+            A(PermissionCodes.AssetTypeCreate, "Tạo mới", "ASSET_TYPE", "CREATE");
+            A(PermissionCodes.AssetTypeUpdate, "Cập nhật", "ASSET_TYPE", "UPDATE");
+            A(PermissionCodes.AssetTypeImportExcel, "Import Excel", "ASSET_TYPE", "IMPORT_EXCEL");
+            A(PermissionCodes.AssetTypeExportExcel, "Export Excel", "ASSET_TYPE", "EXPORT_EXCEL");
+            A(PermissionCodes.AssetTypeManage, "Quản lý", "ASSET_TYPE", "MANAGE");
+
+            A(PermissionCodes.AssetTicketView, "Xem", "ASSET_TICKET", "VIEW");
+            A(PermissionCodes.AssetTicketCreate, "Tạo mới", "ASSET_TICKET", "CREATE");
+            A(PermissionCodes.AssetTicketUpdate, "Cập nhật", "ASSET_TICKET", "UPDATE");
+            A(PermissionCodes.AssetTicketComplete, "Hoàn tất", "ASSET_TICKET", "COMPLETE");
+            A(PermissionCodes.AssetTicketCancel, "Hủy phiếu", "ASSET_TICKET", "CANCEL");
+            A(PermissionCodes.AssetTicketImportExcel, "Import Excel", "ASSET_TICKET", "IMPORT_EXCEL");
+            A(PermissionCodes.AssetTicketExportExcel, "Export Excel", "ASSET_TICKET", "EXPORT_EXCEL");
+            A(PermissionCodes.AssetTicketManage, "Quản lý", "ASSET_TICKET", "MANAGE");
 
             // SYSTEM / ROLE
             A(PermissionCodes.RoleView, "Xem", "ROLE", "VIEW");
@@ -329,8 +360,9 @@ namespace HrmApi.Application.Common.Constants
             return list;
         }
 
-        private static string[] BuildHrCodes() =>
-        [
+        private static string[] BuildHrCodes()
+        {
+            return [
             PermissionCodes.HomeView,
             PermissionCodes.OrgView, PermissionCodes.OrgManage,
             PermissionCodes.OrgCompanyView, PermissionCodes.OrgCompanyManage, PermissionCodes.OrgCompanyCreate, PermissionCodes.OrgCompanyUpdate, PermissionCodes.OrgCompanyActivate, PermissionCodes.OrgCompanyDeactivate, PermissionCodes.OrgCompanyImportExcel, PermissionCodes.OrgCompanyExportExcel,
@@ -396,9 +428,11 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.WorkflowView, PermissionCodes.WorkflowManage, PermissionCodes.WorkflowInbox,
             PermissionCodes.MobileAccess,
         ];
+        }
 
-        private static string[] BuildManagerCodes() =>
-        [
+        private static string[] BuildManagerCodes()
+        {
+            return [
             PermissionCodes.HomeView,
             PermissionCodes.HrEmployeeView,
             PermissionCodes.OperateTimekeepingView,
@@ -411,9 +445,11 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.WorkflowView, PermissionCodes.WorkflowInbox,
             PermissionCodes.MobileAccess,
         ];
+        }
 
-        private static string[] BuildEmployeeCodes() =>
-        [
+        private static string[] BuildEmployeeCodes()
+        {
+            return [
             PermissionCodes.HomeView,
             PermissionCodes.MobileAccess,
             PermissionCodes.OperateTimekeepingView,
@@ -425,5 +461,6 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.OperateOvertimeCreate,
             PermissionCodes.WorkflowInbox,
         ];
+        }
     }
 }

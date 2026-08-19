@@ -1,9 +1,8 @@
-using System.Net.Http;
-using System.Net.Http.Json;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Domain.Entities.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
 
 namespace HrmApi.Application.Common.Services
 {
@@ -25,7 +24,10 @@ namespace HrmApi.Application.Common.Services
 
         public async Task PublishAsync(string eventType, object payload, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(eventType)) return;
+            if (string.IsNullOrWhiteSpace(eventType))
+            {
+                return;
+            }
 
             List<WebhookSubscriptionEntity> subs;
             try
@@ -43,7 +45,10 @@ namespace HrmApi.Application.Common.Services
             List<WebhookSubscriptionEntity> targets = subs
                 .Where(x => MatchesEvent(x.EventTypes, eventType))
                 .ToList();
-            if (targets.Count == 0) return;
+            if (targets.Count == 0)
+            {
+                return;
+            }
 
             var body = new
             {
@@ -59,12 +64,14 @@ namespace HrmApi.Application.Common.Services
                 {
                     try
                     {
-                        using var request = new HttpRequestMessage(HttpMethod.Post, sub.Url)
+                        using HttpRequestMessage request = new(HttpMethod.Post, sub.Url)
                         {
                             Content = JsonContent.Create(body),
                         };
                         if (!string.IsNullOrWhiteSpace(sub.Secret))
-                            request.Headers.TryAddWithoutValidation("X-Webhook-Secret", sub.Secret);
+                        {
+                            _ = request.Headers.TryAddWithoutValidation("X-Webhook-Secret", sub.Secret);
+                        }
 
                         using HttpResponseMessage response = await client.SendAsync(request);
                         if (!response.IsSuccessStatusCode)
@@ -87,8 +94,7 @@ namespace HrmApi.Application.Common.Services
 
         private static bool MatchesEvent(string eventTypes, string eventType)
         {
-            if (string.IsNullOrWhiteSpace(eventTypes)) return false;
-            return eventTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            return !string.IsNullOrWhiteSpace(eventTypes) && eventTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Any(x => string.Equals(x, eventType, StringComparison.OrdinalIgnoreCase)
                     || x == "*"
                     || string.Equals(x, "ALL", StringComparison.OrdinalIgnoreCase));

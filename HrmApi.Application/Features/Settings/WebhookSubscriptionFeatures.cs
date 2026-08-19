@@ -12,12 +12,19 @@ namespace HrmApi.Application.Features.Settings
     public class GetWebhookSubscriptionsPagedQueryHandler : IRequestHandler<GetWebhookSubscriptionsPagedQuery, PagedResult<WebhookSubscriptionDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetWebhookSubscriptionsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWebhookSubscriptionsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<WebhookSubscriptionDto>> Handle(GetWebhookSubscriptionsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<WebhookSubscriptionEntity> query = _context.WebhookSubscriptionEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -32,18 +39,21 @@ namespace HrmApi.Application.Features.Settings
             return new PagedResult<WebhookSubscriptionDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static WebhookSubscriptionDto ToDto(WebhookSubscriptionEntity e) => new()
+        internal static WebhookSubscriptionDto ToDto(WebhookSubscriptionEntity e)
         {
-            Id = e.Id,
-            Name = e.Name,
-            Url = e.Url,
-            EventTypes = e.EventTypes,
-            Secret = e.Secret,
-            IsActive = e.IsActive,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Name = e.Name,
+                Url = e.Url,
+                EventTypes = e.EventTypes,
+                Secret = e.Secret,
+                IsActive = e.IsActive,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetWebhookSubscriptionByIdQuery : SettingsIdRequest, IRequest<WebhookSubscriptionDto?> { }
@@ -51,7 +61,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetWebhookSubscriptionByIdQueryHandler : IRequestHandler<GetWebhookSubscriptionByIdQuery, WebhookSubscriptionDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetWebhookSubscriptionByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetWebhookSubscriptionByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<WebhookSubscriptionDto?> Handle(GetWebhookSubscriptionByIdQuery request, CancellationToken cancellationToken)
         {
@@ -94,12 +107,26 @@ namespace HrmApi.Application.Features.Settings
 
         internal static void Validate(WebhookSubscriptionCommandFields request)
         {
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên webhook là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Url)) throw new InvalidOperationException("URL webhook là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.EventTypes)) throw new InvalidOperationException("EventTypes là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên webhook là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Url))
+            {
+                throw new InvalidOperationException("URL webhook là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.EventTypes))
+            {
+                throw new InvalidOperationException("EventTypes là bắt buộc.");
+            }
+
             if (!Uri.TryCreate(request.Url.Trim(), UriKind.Absolute, out Uri? uri)
                 || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
                 throw new InvalidOperationException("URL webhook không hợp lệ.");
+            }
         }
     }
 
@@ -122,7 +149,10 @@ namespace HrmApi.Application.Features.Settings
         {
             WebhookSubscriptionEntity? entity = await _context.WebhookSubscriptionEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateWebhookSubscriptionCommandHandler.Validate(request);
             entity.Name = request.Name!.Trim();
@@ -154,7 +184,11 @@ namespace HrmApi.Application.Features.Settings
         {
             WebhookSubscriptionEntity? entity = await _context.WebhookSubscriptionEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;

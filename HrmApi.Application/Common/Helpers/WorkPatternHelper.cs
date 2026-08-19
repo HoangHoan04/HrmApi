@@ -11,27 +11,12 @@ namespace HrmApi.Application.Common.Helpers
                 return false;
             }
 
-            if (date < pattern.EffectiveFrom)
-            {
-                return false;
-            }
-
-            if (pattern.EffectiveTo.HasValue && date > pattern.EffectiveTo.Value)
-            {
-                return false;
-            }
-
-            return true;
+            return date >= pattern.EffectiveFrom && (!pattern.EffectiveTo.HasValue || date <= pattern.EffectiveTo.Value);
         }
 
         public static bool IsWorkDay(EmployeeWorkPatternEntity pattern, DateOnly date)
         {
-            if (!IsEffectiveOn(pattern, date))
-            {
-                return false;
-            }
-
-            return date.DayOfWeek switch
+            return IsEffectiveOn(pattern, date) && date.DayOfWeek switch
             {
                 DayOfWeek.Monday => pattern.WorkOnMonday,
                 DayOfWeek.Tuesday => pattern.WorkOnTuesday,

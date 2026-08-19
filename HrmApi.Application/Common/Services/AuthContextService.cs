@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Auth;
@@ -35,9 +30,9 @@ namespace HrmApi.Application.Common.Services
 
         private async Task<AuthContextDto> LoadFromDatabaseAsync(Guid userId, CancellationToken cancellationToken)
         {
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
 
-            var userType = await _context.UserEntities.AsNoTracking()
+            string? userType = await _context.UserEntities.AsNoTracking()
                 .Where(x => x.Id == userId && !x.IsDeleted)
                 .Select(x => x.Type)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -63,7 +58,7 @@ namespace HrmApi.Application.Common.Services
             var roleIds = roleRows.Select(x => x.Id).Distinct().ToList();
             List<string> permissions = [];
 
-            var isAdmin =
+            bool isAdmin =
                 string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
                 || roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
 
@@ -82,7 +77,7 @@ namespace HrmApi.Application.Common.Services
             }
             else
             {
-                var employeeRoleId = await _context.RoleEntities.AsNoTracking()
+                Guid? employeeRoleId = await _context.RoleEntities.AsNoTracking()
                     .Where(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive)
                     .Select(x => (Guid?)x.Id)
                     .FirstOrDefaultAsync(cancellationToken);

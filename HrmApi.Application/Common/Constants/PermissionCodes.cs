@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using System.Reflection;
 
 namespace HrmApi.Application.Common.Constants
@@ -104,6 +102,8 @@ namespace HrmApi.Application.Common.Constants
         public const string HrContractTypeUpdate = "HUMAN_RESOURCE_CONTRACT_TYPE_UPDATE";
         public const string HrContractTypeDeactivate = "HUMAN_RESOURCE_CONTRACT_TYPE_DEACTIVATE";
         public const string HrContractTypeActivate = "HUMAN_RESOURCE_CONTRACT_TYPE_ACTIVATE";
+        public const string HrContractTypeImportExcel = "HUMAN_RESOURCE_CONTRACT_TYPE_IMPORT_EXCEL";
+        public const string HrContractTypeExportExcel = "HUMAN_RESOURCE_CONTRACT_TYPE_EXPORT_EXCEL";
 
         // HR - CONTRACT
         public const string HrContractView = "HUMAN_RESOURCE_CONTRACT_VIEW";
@@ -132,6 +132,8 @@ namespace HrmApi.Application.Common.Constants
         public const string HrTransferReject = "HUMAN_RESOURCE_TRANSFER_REJECT";
         public const string HrTransferApply = "HUMAN_RESOURCE_TRANSFER_APPLY";
         public const string HrTransferCancel = "HUMAN_RESOURCE_TRANSFER_CANCEL";
+        public const string HrTransferImportExcel = "HUMAN_RESOURCE_TRANSFER_IMPORT_EXCEL";
+        public const string HrTransferExportExcel = "HUMAN_RESOURCE_TRANSFER_EXPORT_EXCEL";
 
         // ── OPERATE ───────────────────────────────────
         public const string OperateView = "OPERATE_VIEW";
@@ -144,6 +146,8 @@ namespace HrmApi.Application.Common.Constants
         public const string OperateTimekeepingStandardUpdate = "OPERATE_TIMEKEEPING_STANDARD_UPDATE";
         public const string OperateTimekeepingStandardDeactivate = "OPERATE_TIMEKEEPING_STANDARD_DEACTIVATE";
         public const string OperateTimekeepingStandardActivate = "OPERATE_TIMEKEEPING_STANDARD_ACTIVATE";
+        public const string OperateTimekeepingStandardImportExcel = "OPERATE_TIMEKEEPING_STANDARD_IMPORT_EXCEL";
+        public const string OperateTimekeepingStandardExportExcel = "OPERATE_TIMEKEEPING_STANDARD_EXPORT_EXCEL";
 
         // OPERATE - TIMEKEEPING
         public const string OperateTimekeepingView = "OPERATE_TIMEKEEPING_VIEW";
@@ -170,6 +174,8 @@ namespace HrmApi.Application.Common.Constants
         public const string OperateDayOffConfigUpdate = "OPERATE_DAY_OFF_CONFIG_UPDATE";
         public const string OperateDayOffConfigDeactivate = "OPERATE_DAY_OFF_CONFIG_DEACTIVATE";
         public const string OperateDayOffConfigActivate = "OPERATE_DAY_OFF_CONFIG_ACTIVATE";
+        public const string OperateDayOffConfigImportExcel = "OPERATE_DAY_OFF_CONFIG_IMPORT_EXCEL";
+        public const string OperateDayOffConfigExportExcel = "OPERATE_DAY_OFF_CONFIG_EXPORT_EXCEL";
 
         // OPERATE - PUBLIC_HOLIDAY
         public const string OperatePublicHolidayView = "OPERATE_PUBLIC_HOLIDAY_VIEW";
@@ -178,6 +184,8 @@ namespace HrmApi.Application.Common.Constants
         public const string OperatePublicHolidayUpdate = "OPERATE_PUBLIC_HOLIDAY_UPDATE";
         public const string OperatePublicHolidayDeactivate = "OPERATE_PUBLIC_HOLIDAY_DEACTIVATE";
         public const string OperatePublicHolidayActivate = "OPERATE_PUBLIC_HOLIDAY_ACTIVATE";
+        public const string OperatePublicHolidayImportExcel = "OPERATE_PUBLIC_HOLIDAY_IMPORT_EXCEL";
+        public const string OperatePublicHolidayExportExcel = "OPERATE_PUBLIC_HOLIDAY_EXPORT_EXCEL";
 
         // OPERATE - LEAVE
         public const string OperateLeaveView = "OPERATE_LEAVE_VIEW";
@@ -200,6 +208,8 @@ namespace HrmApi.Application.Common.Constants
         public const string OperateShiftUpdate = "OPERATE_SHIFT_UPDATE";
         public const string OperateShiftDeactivate = "OPERATE_SHIFT_DEACTIVATE";
         public const string OperateShiftActivate = "OPERATE_SHIFT_ACTIVATE";
+        public const string OperateShiftImportExcel = "OPERATE_SHIFT_IMPORT_EXCEL";
+        public const string OperateShiftExportExcel = "OPERATE_SHIFT_EXPORT_EXCEL";
 
         // OPERATE - WORK_SCHEDULE
         public const string OperateWorkScheduleView = "OPERATE_WORK_SCHEDULE_VIEW";
@@ -207,6 +217,8 @@ namespace HrmApi.Application.Common.Constants
         public const string OperateWorkScheduleCreate = "OPERATE_WORK_SCHEDULE_CREATE";
         public const string OperateWorkScheduleUpdate = "OPERATE_WORK_SCHEDULE_UPDATE";
         public const string OperateWorkScheduleDeactivate = "OPERATE_WORK_SCHEDULE_DEACTIVATE";
+        public const string OperateWorkScheduleImportExcel = "OPERATE_WORK_SCHEDULE_IMPORT_EXCEL";
+        public const string OperateWorkScheduleExportExcel = "OPERATE_WORK_SCHEDULE_EXPORT_EXCEL";
 
         // OPERATE - WORK_PATTERN
         public const string OperateWorkPatternView = "OPERATE_WORK_PATTERN_VIEW";
@@ -215,6 +227,8 @@ namespace HrmApi.Application.Common.Constants
         public const string OperateWorkPatternUpdate = "OPERATE_WORK_PATTERN_UPDATE";
         public const string OperateWorkPatternDeactivate = "OPERATE_WORK_PATTERN_DEACTIVATE";
         public const string OperateWorkPatternBulkAssign = "OPERATE_WORK_PATTERN_BULK_ASSIGN";
+        public const string OperateWorkPatternImportExcel = "OPERATE_WORK_PATTERN_IMPORT_EXCEL";
+        public const string OperateWorkPatternExportExcel = "OPERATE_WORK_PATTERN_EXPORT_EXCEL";
 
         // ── PAYROLL ───────────────────────────────────────────
         public const string PayrollView = "PAYROLL_VIEW";
@@ -339,12 +353,29 @@ namespace HrmApi.Application.Common.Constants
         // ── ASSET ─────────────────────────────────────────────
         public const string AssetView = "ASSET_VIEW";
         public const string AssetManage = "ASSET_MANAGE";
+
         public const string AssetInventoryView = "ASSET_INVENTORY_VIEW";
         public const string AssetInventoryManage = "ASSET_INVENTORY_MANAGE";
         public const string AssetInventoryCreate = "ASSET_INVENTORY_CREATE";
         public const string AssetInventoryUpdate = "ASSET_INVENTORY_UPDATE";
         public const string AssetInventoryImportExcel = "ASSET_INVENTORY_IMPORT_EXCEL";
         public const string AssetInventoryExportExcel = "ASSET_INVENTORY_EXPORT_EXCEL";
+
+        public const string AssetTypeView = "ASSET_TYPE_VIEW";
+        public const string AssetTypeManage = "ASSET_TYPE_MANAGE";
+        public const string AssetTypeCreate = "ASSET_TYPE_CREATE";
+        public const string AssetTypeUpdate = "ASSET_TYPE_UPDATE";
+        public const string AssetTypeImportExcel = "ASSET_TYPE_IMPORT_EXCEL";
+        public const string AssetTypeExportExcel = "ASSET_TYPE_EXPORT_EXCEL";
+
+        public const string AssetTicketView = "ASSET_TICKET_VIEW";
+        public const string AssetTicketManage = "ASSET_TICKET_MANAGE";
+        public const string AssetTicketCreate = "ASSET_TICKET_CREATE";
+        public const string AssetTicketUpdate = "ASSET_TICKET_UPDATE";
+        public const string AssetTicketComplete = "ASSET_TICKET_COMPLETE";
+        public const string AssetTicketCancel = "ASSET_TICKET_CANCEL";
+        public const string AssetTicketImportExcel = "ASSET_TICKET_IMPORT_EXCEL";
+        public const string AssetTicketExportExcel = "ASSET_TICKET_EXPORT_EXCEL";
 
         // ── SYSTEM / ROLE MANAGER ─────────────────────────────
         public const string RoleView = "ROLE_VIEW";

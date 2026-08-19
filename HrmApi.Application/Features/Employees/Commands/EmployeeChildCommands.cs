@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
-using HrmApi.Application.DTOs;
+using HrmApi.Application.DTOs.Employee;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Enums;
@@ -57,7 +52,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             EmployeeChildHelpers.ValidateDependent(request);
 
-            var entity = new EmployeeDependentEntity
+            EmployeeDependentEntity entity = new()
             {
                 EmployeeId = request.EmployeeId,
                 FullName = request.FullName.Trim(),
@@ -74,8 +69,8 @@ namespace HrmApi.Application.Features.Employees.Commands
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.EmployeeDependentEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.EmployeeDependentEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -102,14 +97,17 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(UpdateEmployeeDependentCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeDependentEntities
+            EmployeeDependentEntity? entity = await _context.EmployeeDependentEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             EmployeeChildHelpers.ValidateDependent(request);
 
-            var oldValue = EmployeeMapper.ToDependentDto(entity);
+            EmployeeDependentDto oldValue = EmployeeMapper.ToDependentDto(entity);
             entity.EmployeeId = request.EmployeeId;
             entity.FullName = request.FullName.Trim();
             entity.Relationship = request.Relationship.Trim();
@@ -123,7 +121,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             entity.Note = EmployeeChildHelpers.TrimOrNull(request.Note);
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -150,13 +148,16 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(DeleteEmployeeDependentCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeDependentEntities
+            EmployeeDependentEntity? entity = await _context.EmployeeDependentEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -210,9 +211,11 @@ namespace HrmApi.Application.Features.Employees.Commands
         {
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             if (string.IsNullOrWhiteSpace(request.SchoolName))
+            {
                 throw new InvalidOperationException("Tên trường là bắt buộc.");
+            }
 
-            var entity = new EmployeeEducationEntity
+            EmployeeEducationEntity entity = new()
             {
                 EmployeeId = request.EmployeeId,
                 SchoolName = request.SchoolName.Trim(),
@@ -225,8 +228,8 @@ namespace HrmApi.Application.Features.Employees.Commands
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.EmployeeEducationEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.EmployeeEducationEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -253,15 +256,20 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(UpdateEmployeeEducationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeEducationEntities
+            EmployeeEducationEntity? entity = await _context.EmployeeEducationEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             if (string.IsNullOrWhiteSpace(request.SchoolName))
+            {
                 throw new InvalidOperationException("Tên trường là bắt buộc.");
+            }
 
-            var oldValue = EmployeeMapper.ToEducationDto(entity);
+            EmployeeEducationDto oldValue = EmployeeMapper.ToEducationDto(entity);
             entity.EmployeeId = request.EmployeeId;
             entity.SchoolName = request.SchoolName.Trim();
             entity.Degree = EmployeeChildHelpers.TrimOrNull(request.Degree);
@@ -271,7 +279,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             entity.Gpa = EmployeeChildHelpers.TrimOrNull(request.Gpa);
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -298,13 +306,16 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(DeleteEmployeeEducationCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeEducationEntities
+            EmployeeEducationEntity? entity = await _context.EmployeeEducationEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -358,9 +369,11 @@ namespace HrmApi.Application.Features.Employees.Commands
         {
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên chứng chỉ là bắt buộc.");
+            }
 
-            var entity = new EmployeeCertificateEntity
+            EmployeeCertificateEntity entity = new()
             {
                 EmployeeId = request.EmployeeId,
                 Name = request.Name.Trim(),
@@ -373,8 +386,8 @@ namespace HrmApi.Application.Features.Employees.Commands
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.EmployeeCertificateEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.EmployeeCertificateEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -401,15 +414,20 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(UpdateEmployeeCertificateCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeCertificateEntities
+            EmployeeCertificateEntity? entity = await _context.EmployeeCertificateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên chứng chỉ là bắt buộc.");
+            }
 
-            var oldValue = EmployeeMapper.ToCertificateDto(entity);
+            EmployeeCertificateDto oldValue = EmployeeMapper.ToCertificateDto(entity);
             entity.EmployeeId = request.EmployeeId;
             entity.Name = request.Name.Trim();
             entity.IssuingOrganization = EmployeeChildHelpers.TrimOrNull(request.IssuingOrganization);
@@ -419,7 +437,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             entity.ImageUrl = EmployeeChildHelpers.TrimOrNull(request.ImageUrl);
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -446,13 +464,16 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(DeleteEmployeeCertificateCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeCertificateEntities
+            EmployeeCertificateEntity? entity = await _context.EmployeeCertificateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -507,14 +528,22 @@ namespace HrmApi.Application.Features.Employees.Commands
         {
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             if (string.IsNullOrWhiteSpace(request.FileCategory))
+            {
                 throw new InvalidOperationException("Loại tài liệu là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.FileName))
+            {
                 throw new InvalidOperationException("Tên file là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.FileUrl))
+            {
                 throw new InvalidOperationException("URL file là bắt buộc.");
+            }
 
             var category = request.FileCategory.Trim();
-            var previous = await _context.EmployeeFileEntities
+            EmployeeFileEntity? previous = await _context.EmployeeFileEntities
                 .Where(x => x.EmployeeId == request.EmployeeId
                     && !x.IsDeleted
                     && x.FileCategory == category
@@ -530,7 +559,7 @@ namespace HrmApi.Application.Features.Employees.Commands
                 previous.UpdatedAt = DateTime.UtcNow;
             }
 
-            var entity = new EmployeeFileEntity
+            EmployeeFileEntity entity = new()
             {
                 EmployeeId = request.EmployeeId,
                 FileCategory = category,
@@ -547,8 +576,8 @@ namespace HrmApi.Application.Features.Employees.Commands
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.EmployeeFileEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.EmployeeFileEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -577,19 +606,30 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(UpdateEmployeeFileCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeFileEntities
+            EmployeeFileEntity? entity = await _context.EmployeeFileEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             if (string.IsNullOrWhiteSpace(request.FileCategory))
+            {
                 throw new InvalidOperationException("Loại tài liệu là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.FileName))
-                throw new InvalidOperationException("Tên file là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.FileUrl))
-                throw new InvalidOperationException("URL file là bắt buộc.");
+            }
 
-            var oldValue = EmployeeMapper.ToFileDto(entity);
+            if (string.IsNullOrWhiteSpace(request.FileName))
+            {
+                throw new InvalidOperationException("Tên file là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.FileUrl))
+            {
+                throw new InvalidOperationException("URL file là bắt buộc.");
+            }
+
+            EmployeeFileDto oldValue = EmployeeMapper.ToFileDto(entity);
             entity.EmployeeId = request.EmployeeId;
             entity.FileCategory = request.FileCategory.Trim();
             entity.FileName = request.FileName.Trim();
@@ -600,7 +640,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             entity.ExpiryDate = request.ExpiryDate;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -627,13 +667,16 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(DeleteEmployeeFileCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeFileEntities
+            EmployeeFileEntity? entity = await _context.EmployeeFileEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -691,7 +734,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             EmployeeChildHelpers.ValidateSalaryHistory(request);
 
-            var entity = new EmployeeSalaryHistoryEntity
+            EmployeeSalaryHistoryEntity entity = new()
             {
                 EmployeeId = request.EmployeeId,
                 EffectiveDate = request.EffectiveDate,
@@ -707,8 +750,8 @@ namespace HrmApi.Application.Features.Employees.Commands
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.EmployeeSalaryHistoryEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.EmployeeSalaryHistoryEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -735,14 +778,17 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(UpdateEmployeeSalaryHistoryCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeSalaryHistoryEntities
+            EmployeeSalaryHistoryEntity? entity = await _context.EmployeeSalaryHistoryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await EmployeeChildHelpers.EnsureEmployeeExistsAsync(request.EmployeeId, _context, cancellationToken);
             EmployeeChildHelpers.ValidateSalaryHistory(request);
 
-            var oldValue = EmployeeMapper.ToSalaryHistoryDto(entity);
+            EmployeeSalaryHistoryDto oldValue = EmployeeMapper.ToSalaryHistoryDto(entity);
             entity.EmployeeId = request.EmployeeId;
             entity.EffectiveDate = request.EffectiveDate;
             entity.OldBasicSalary = request.OldBasicSalary;
@@ -755,7 +801,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             entity.Note = EmployeeChildHelpers.TrimOrNull(request.Note);
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -782,13 +828,16 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(DeleteEmployeeSalaryHistoryCommand request, CancellationToken cancellationToken)
         {
-            var entity = await _context.EmployeeSalaryHistoryEntities
+            EmployeeSalaryHistoryEntity? entity = await _context.EmployeeSalaryHistoryEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -813,26 +862,40 @@ namespace HrmApi.Application.Features.Employees.Commands
             var exists = await context.EmployeeEntities
                 .AnyAsync(x => x.Id == employeeId, cancellationToken);
             if (!exists)
+            {
                 throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
         }
 
         public static void ValidateDependent(EmployeeDependentFields request)
         {
             if (string.IsNullOrWhiteSpace(request.FullName))
+            {
                 throw new InvalidOperationException("Họ tên người phụ thuộc là bắt buộc.");
+            }
+
             if (string.IsNullOrWhiteSpace(request.Relationship))
+            {
                 throw new InvalidOperationException("Mối quan hệ là bắt buộc.");
+            }
         }
 
         public static void ValidateSalaryHistory(EmployeeSalaryHistoryFields request)
         {
             if (request.EffectiveDate == default)
+            {
                 throw new InvalidOperationException("Ngày hiệu lực là bắt buộc.");
+            }
+
             if (request.NewBasicSalary < 0)
+            {
                 throw new InvalidOperationException("Lương cơ bản mới không hợp lệ.");
+            }
         }
 
-        public static string? TrimOrNull(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        public static string? TrimOrNull(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
     }
 }

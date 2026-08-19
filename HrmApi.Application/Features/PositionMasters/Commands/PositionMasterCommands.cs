@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
@@ -30,7 +27,7 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
         {
             await ValidateAsync(request, null, cancellationToken, _context);
 
-            var entity = new PositionMasterEntity
+            PositionMasterEntity entity = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -38,8 +35,8 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
 
             PositionMasterMapper.ApplyCommandFields(entity, request);
 
-            _context.PositionMasterEntities.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.PositionMasterEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -59,25 +56,33 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
             IApplicationDbContext context)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã mẫu chức danh là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên mẫu chức danh là bắt buộc.");
+            }
 
-            var exists = await context.PositionMasterEntities
+            bool exists = await context.PositionMasterEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
             if (exists)
+            {
                 throw new InvalidOperationException("Mã mẫu chức danh đã tồn tại trong hệ thống.");
+            }
 
             if (request.CompanyId.HasValue)
             {
-                var companyExists = await context.CompanyEntities
+                bool companyExists = await context.CompanyEntities
                     .AnyAsync(x => x.Id == request.CompanyId.Value, cancellationToken);
 
                 if (!companyExists)
+                {
                     throw new InvalidOperationException("Công ty không tồn tại.");
+                }
             }
         }
     }
@@ -105,16 +110,19 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
             var entity = await _context.PositionMasterEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             await CreatePositionMasterCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            var oldValue = PositionMasterMapper.ToLogObject(entity);
+            object oldValue = PositionMasterMapper.ToLogObject(entity);
 
             PositionMasterMapper.ApplyCommandFields(entity, request);
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -151,12 +159,15 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
             var entity = await _context.PositionMasterEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = false;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
@@ -193,12 +204,15 @@ namespace HrmApi.Application.Features.PositionMasters.Commands
             var entity = await _context.PositionMasterEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,

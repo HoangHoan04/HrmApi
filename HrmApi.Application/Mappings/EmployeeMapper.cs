@@ -261,7 +261,7 @@ namespace HrmApi.Application.Mappings
 
         public static EmployeeFileDto ToFileDto(EmployeeFileEntity entity)
         {
-            var today = DateTime.UtcNow.Date;
+            DateTime today = DateTime.UtcNow.Date;
             return new()
             {
                 Id = entity.Id,

@@ -219,7 +219,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _context.EmployeeEntities
+            EmployeeEntity? employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
             if (employee == null)
@@ -234,7 +234,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             EmployeeMapper.ApplyCommandFields(employee, request);
             employee.UpdatedAt = DateTime.UtcNow;
 
-            var user = await _context.UserEntities
+            UserEntity? user = await _context.UserEntities
                 .FirstOrDefaultAsync(u => u.EmployeeId == employee.Id && !u.IsDeleted, cancellationToken);
             if (user != null)
             {
@@ -281,7 +281,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(ActivateEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _context.EmployeeEntities
+            EmployeeEntity? employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
             if (employee == null)
@@ -326,7 +326,7 @@ namespace HrmApi.Application.Features.Employees.Commands
 
         public async Task<bool> Handle(DeactivateEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _context.EmployeeEntities
+            EmployeeEntity? employee = await _context.EmployeeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
             if (employee == null)

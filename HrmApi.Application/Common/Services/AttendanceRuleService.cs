@@ -66,12 +66,7 @@ namespace HrmApi.Application.Common.Services
                     IsScheduledWorkDay = WorkPatternHelper.IsWorkDay(pattern, workDate),
                 }, master);
 
-                if (!patternWindow.IsScheduledWorkDay)
-                {
-                    return patternWindow;
-                }
-
-                return patternWindow;
+                return !patternWindow.IsScheduledWorkDay ? patternWindow : patternWindow;
             }
 
             if (employee.PositionId.HasValue)
@@ -229,15 +224,18 @@ namespace HrmApi.Application.Common.Services
             };
         }
 
-        private static AttendanceStandardResult ToStandardResult(TimeKeepingStandardEntity std) => new()
+        private static AttendanceStandardResult ToStandardResult(TimeKeepingStandardEntity std)
         {
-            StandardId = std.Id,
-            AllowedRadiusMeters = std.AllowedRadiusMeters > 0 ? std.AllowedRadiusMeters : 200,
-            LateGraceMinutes = std.LateGraceMinutes,
-            EarlyLeaveGraceMinutes = std.EarlyLeaveGraceMinutes,
-            NightStartTime = std.NightStartTime,
-            NightEndTime = std.NightEndTime,
-        };
+            return new()
+            {
+                StandardId = std.Id,
+                AllowedRadiusMeters = std.AllowedRadiusMeters > 0 ? std.AllowedRadiusMeters : 200,
+                LateGraceMinutes = std.LateGraceMinutes,
+                EarlyLeaveGraceMinutes = std.EarlyLeaveGraceMinutes,
+                NightStartTime = std.NightStartTime,
+                NightEndTime = std.NightEndTime,
+            };
+        }
 
         public double ValidateGeofence(double? siteLat, double? siteLng, double punchLat, double punchLng, int allowedRadiusMeters)
         {
@@ -362,7 +360,7 @@ namespace HrmApi.Application.Common.Services
                 return;
             }
 
-            var approvedOt = await _context.OvertimeRequestEntities.AsNoTracking()
+            List<OvertimeRequestEntity> approvedOt = await _context.OvertimeRequestEntities.AsNoTracking()
                 .Where(x =>
                     x.EmployeeId == record.EmployeeId
                     && x.WorkDate == record.WorkDate
@@ -371,7 +369,7 @@ namespace HrmApi.Application.Common.Services
                 .ToListAsync(cancellationToken);
 
             int otTotal = 0;
-            foreach (var ot in approvedOt)
+            foreach (OvertimeRequestEntity? ot in approvedOt)
             {
                 DateTime otStart = BusinessDateHelper.ToUtc(record.WorkDate, ot.FromTime);
                 DateTime otEnd = BusinessDateHelper.ToUtc(record.WorkDate, ot.ToTime);
@@ -419,21 +417,18 @@ namespace HrmApi.Application.Common.Services
         {
             DateTime start = aStart > bStart ? aStart : bStart;
             DateTime end = aEnd < bEnd ? aEnd : bEnd;
-            if (end <= start)
-            {
-                return 0;
-            }
-
-            return Math.Max(0, (int)Math.Floor((end - start).TotalSeconds / 60.0));
+            return end <= start ? 0 : Math.Max(0, (int)Math.Floor((end - start).TotalSeconds / 60.0));
         }
 
-        private static DateTime NormalizeUtc(DateTime value) =>
-            value.Kind switch
+        private static DateTime NormalizeUtc(DateTime value)
+        {
+            return value.Kind switch
             {
                 DateTimeKind.Utc => value,
                 DateTimeKind.Local => value.ToUniversalTime(),
                 _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
             };
+        }
 
         public async Task<TimekeepingEntity> GetOrCreateTodayRecordAsync(EmployeeEntity employee, DateOnly workDate, CancellationToken cancellationToken = default)
         {

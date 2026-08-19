@@ -16,14 +16,24 @@ namespace HrmApi.Application.Features.Settings
     public class GetNotificationTemplatesPagedQueryHandler : IRequestHandler<GetNotificationTemplatesPagedQuery, PagedResult<NotificationTemplateDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetNotificationTemplatesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetNotificationTemplatesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<NotificationTemplateDto>> Handle(GetNotificationTemplatesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<NotificationTemplateEntity> query = _context.NotificationTemplateEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Channel))
+            {
                 query = query.Where(x => x.Channel == request.Channel.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -38,18 +48,21 @@ namespace HrmApi.Application.Features.Settings
             return new PagedResult<NotificationTemplateDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static NotificationTemplateDto ToDto(NotificationTemplateEntity e) => new()
+        internal static NotificationTemplateDto ToDto(NotificationTemplateEntity e)
         {
-            Id = e.Id,
-            Code = e.Code,
-            Channel = e.Channel,
-            Subject = e.Subject,
-            Body = e.Body,
-            IsActive = e.IsActive,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Code = e.Code,
+                Channel = e.Channel,
+                Subject = e.Subject,
+                Body = e.Body,
+                IsActive = e.IsActive,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetNotificationTemplateByIdQuery : SettingsIdRequest, IRequest<NotificationTemplateDto?> { }
@@ -57,7 +70,10 @@ namespace HrmApi.Application.Features.Settings
     public class GetNotificationTemplateByIdQueryHandler : IRequestHandler<GetNotificationTemplateByIdQuery, NotificationTemplateDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetNotificationTemplateByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetNotificationTemplateByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<NotificationTemplateDto?> Handle(GetNotificationTemplateByIdQuery request, CancellationToken cancellationToken)
         {
@@ -84,7 +100,9 @@ namespace HrmApi.Application.Features.Settings
             Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.NotificationTemplateEntities.AnyAsync(x => !x.IsDeleted && x.Code == code, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã mẫu thông báo đã tồn tại.");
+            }
 
             NotificationTemplateEntity entity = new()
             {
@@ -104,8 +122,15 @@ namespace HrmApi.Application.Features.Settings
 
         internal static void Validate(NotificationTemplateCommandFields request)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã mẫu thông báo là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Body)) throw new InvalidOperationException("Nội dung mẫu thông báo là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã mẫu thông báo là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Body))
+            {
+                throw new InvalidOperationException("Nội dung mẫu thông báo là bắt buộc.");
+            }
         }
 
         internal static string NormalizeChannel(string? channel)
@@ -136,12 +161,17 @@ namespace HrmApi.Application.Features.Settings
         {
             NotificationTemplateEntity? entity = await _context.NotificationTemplateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateNotificationTemplateCommandHandler.Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.NotificationTemplateEntities.AnyAsync(x => !x.IsDeleted && x.Code == code && x.Id != request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã mẫu thông báo đã tồn tại.");
+            }
 
             entity.Code = code;
             entity.Channel = CreateNotificationTemplateCommandHandler.NormalizeChannel(request.Channel);
@@ -172,7 +202,11 @@ namespace HrmApi.Application.Features.Settings
         {
             NotificationTemplateEntity? entity = await _context.NotificationTemplateEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

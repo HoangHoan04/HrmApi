@@ -14,14 +14,24 @@ namespace HrmApi.Application.Features.Discipline
     public class GetViolationTypesPagedQueryHandler : IRequestHandler<GetViolationTypesPagedQuery, PagedResult<ViolationTypeDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetViolationTypesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetViolationTypesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<ViolationTypeDto>> Handle(GetViolationTypesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<ViolationTypeEntity> query = _context.ViolationTypeEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Severity))
+            {
                 query = query.Where(x => x.Severity == request.Severity.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -37,18 +47,21 @@ namespace HrmApi.Application.Features.Discipline
             return new PagedResult<ViolationTypeDto>(rows.Select(ToDto).ToList(), total, request.PageIndex, request.PageSize);
         }
 
-        internal static ViolationTypeDto ToDto(ViolationTypeEntity e) => new()
+        internal static ViolationTypeDto ToDto(ViolationTypeEntity e)
         {
-            Id = e.Id,
-            Code = e.Code,
-            Name = e.Name,
-            Description = e.Description,
-            Severity = e.Severity,
-            IsActive = e.IsActive,
-            DisplayOrder = e.DisplayOrder,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Code = e.Code,
+                Name = e.Name,
+                Description = e.Description,
+                Severity = e.Severity,
+                IsActive = e.IsActive,
+                DisplayOrder = e.DisplayOrder,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class GetViolationTypeByIdQuery : IdRequest, IRequest<ViolationTypeDto?> { }
@@ -56,7 +69,10 @@ namespace HrmApi.Application.Features.Discipline
     public class GetViolationTypeByIdQueryHandler : IRequestHandler<GetViolationTypeByIdQuery, ViolationTypeDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetViolationTypeByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetViolationTypeByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<ViolationTypeDto?> Handle(GetViolationTypeByIdQuery request, CancellationToken cancellationToken)
         {
@@ -83,7 +99,9 @@ namespace HrmApi.Application.Features.Discipline
             Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.ViolationTypeEntities.AnyAsync(x => !x.IsDeleted && x.Code == code, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã loại vi phạm đã tồn tại.");
+            }
 
             ViolationTypeEntity entity = new()
             {
@@ -103,8 +121,15 @@ namespace HrmApi.Application.Features.Discipline
 
         internal static void Validate(ViolationTypeCommandFields request)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã loại vi phạm là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên loại vi phạm là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã loại vi phạm là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên loại vi phạm là bắt buộc.");
+            }
         }
     }
 
@@ -127,12 +152,17 @@ namespace HrmApi.Application.Features.Discipline
         {
             ViolationTypeEntity? entity = await _context.ViolationTypeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateViolationTypeCommandHandler.Validate(request);
             string code = request.Code!.Trim().ToUpperInvariant();
             if (await _context.ViolationTypeEntities.AnyAsync(x => !x.IsDeleted && x.Code == code && x.Id != request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Mã loại vi phạm đã tồn tại.");
+            }
 
             entity.Code = code;
             entity.Name = request.Name!.Trim();
@@ -163,9 +193,16 @@ namespace HrmApi.Application.Features.Discipline
         {
             ViolationTypeEntity? entity = await _context.ViolationTypeEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (await _context.ViolationEntities.AnyAsync(x => !x.IsDeleted && x.ViolationTypeId == request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Loại vi phạm đang được dùng — không thể xóa.");
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

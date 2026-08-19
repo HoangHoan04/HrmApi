@@ -12,12 +12,19 @@ namespace HrmApi.Application.Features.Integrations
     public class GetSmsGatewayConfigsPagedQueryHandler : IRequestHandler<GetSmsGatewayConfigsPagedQuery, PagedResult<SmsGatewayConfigDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetSmsGatewayConfigsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSmsGatewayConfigsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<SmsGatewayConfigDto>> Handle(GetSmsGatewayConfigsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<SmsGatewayConfigEntity> query = _context.SmsGatewayConfigEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.IsActive.HasValue) query = query.Where(x => x.IsActive == request.IsActive);
+            if (request.IsActive.HasValue)
+            {
+                query = query.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -33,24 +40,25 @@ namespace HrmApi.Application.Features.Integrations
             return new PagedResult<SmsGatewayConfigDto>(rows.Select(ToDto).ToList(), total, pageIndex, pageSize);
         }
 
-        internal static SmsGatewayConfigDto ToDto(SmsGatewayConfigEntity e) => new()
+        internal static SmsGatewayConfigDto ToDto(SmsGatewayConfigEntity e)
         {
-            Id = e.Id,
-            Provider = e.Provider,
-            ApiUrl = e.ApiUrl,
-            ApiKey = MaskKey(e.ApiKey),
-            SenderId = e.SenderId,
-            IsActive = e.IsActive,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                Provider = e.Provider,
+                ApiUrl = e.ApiUrl,
+                ApiKey = MaskKey(e.ApiKey),
+                SenderId = e.SenderId,
+                IsActive = e.IsActive,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
 
         private static string MaskKey(string key)
         {
-            if (string.IsNullOrEmpty(key)) return string.Empty;
-            if (key.Length <= 4) return "****";
-            return new string('*', Math.Min(8, key.Length - 4)) + key[^4..];
+            return string.IsNullOrEmpty(key) ? string.Empty : key.Length <= 4 ? "****" : new string('*', Math.Min(8, key.Length - 4)) + key[^4..];
         }
     }
 
@@ -59,25 +67,29 @@ namespace HrmApi.Application.Features.Integrations
     public class GetSmsGatewayConfigByIdQueryHandler : IRequestHandler<GetSmsGatewayConfigByIdQuery, SmsGatewayConfigDto?>
     {
         private readonly IApplicationDbContext _context;
-        public GetSmsGatewayConfigByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetSmsGatewayConfigByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<SmsGatewayConfigDto?> Handle(GetSmsGatewayConfigByIdQuery request, CancellationToken cancellationToken)
         {
             SmsGatewayConfigEntity? e = await _context.SmsGatewayConfigEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return new SmsGatewayConfigDto
-            {
-                Id = e.Id,
-                Provider = e.Provider,
-                ApiUrl = e.ApiUrl,
-                ApiKey = e.ApiKey,
-                SenderId = e.SenderId,
-                IsActive = e.IsActive,
-                Note = e.Note,
-                CreatedAt = e.CreatedAt,
-                UpdatedAt = e.UpdatedAt,
-            };
+            return e == null
+                ? null
+                : new SmsGatewayConfigDto
+                {
+                    Id = e.Id,
+                    Provider = e.Provider,
+                    ApiUrl = e.ApiUrl,
+                    ApiKey = e.ApiKey,
+                    SenderId = e.SenderId,
+                    IsActive = e.IsActive,
+                    Note = e.Note,
+                    CreatedAt = e.CreatedAt,
+                    UpdatedAt = e.UpdatedAt,
+                };
         }
     }
 
@@ -114,11 +126,25 @@ namespace HrmApi.Application.Features.Integrations
 
         internal static void Validate(SmsGatewayConfigCommandFields request)
         {
-            if (string.IsNullOrWhiteSpace(request.Provider)) throw new InvalidOperationException("Provider là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.ApiUrl)) throw new InvalidOperationException("ApiUrl là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.ApiKey)) throw new InvalidOperationException("ApiKey là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Provider))
+            {
+                throw new InvalidOperationException("Provider là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ApiUrl))
+            {
+                throw new InvalidOperationException("ApiUrl là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ApiKey))
+            {
+                throw new InvalidOperationException("ApiKey là bắt buộc.");
+            }
+
             if (!Uri.TryCreate(request.ApiUrl.Trim(), UriKind.Absolute, out _))
+            {
                 throw new InvalidOperationException("ApiUrl không hợp lệ.");
+            }
         }
     }
 
@@ -141,7 +167,10 @@ namespace HrmApi.Application.Features.Integrations
         {
             SmsGatewayConfigEntity? entity = await _context.SmsGatewayConfigEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             CreateSmsGatewayConfigCommandHandler.Validate(request);
             entity.Provider = request.Provider!.Trim();
@@ -173,7 +202,11 @@ namespace HrmApi.Application.Features.Integrations
         {
             SmsGatewayConfigEntity? entity = await _context.SmsGatewayConfigEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
@@ -187,26 +220,24 @@ namespace HrmApi.Application.Features.Integrations
     public class SendSmsTestCommandHandler : IRequestHandler<SendSmsTestCommand, string>
     {
         private readonly IApplicationDbContext _context;
-        public SendSmsTestCommandHandler(IApplicationDbContext context) => _context = context;
+        public SendSmsTestCommandHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<string> Handle(SendSmsTestCommand request, CancellationToken cancellationToken)
         {
-            SmsGatewayConfigEntity? config = null;
-            if (request.ConfigId.HasValue && request.ConfigId != Guid.Empty)
-            {
-                config = await _context.SmsGatewayConfigEntities.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.Id == request.ConfigId && !x.IsDeleted, cancellationToken);
-            }
-            else
-            {
-                config = await _context.SmsGatewayConfigEntities.AsNoTracking()
+            SmsGatewayConfigEntity? config = request.ConfigId.HasValue && request.ConfigId != Guid.Empty
+                ? await _context.SmsGatewayConfigEntities.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == request.ConfigId && !x.IsDeleted, cancellationToken)
+                : await _context.SmsGatewayConfigEntities.AsNoTracking()
                     .Where(x => !x.IsDeleted && x.IsActive)
                     .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken);
-            }
-
             if (config == null)
+            {
                 throw new InvalidOperationException("Chưa cấu hình SMS gateway active.");
+            }
 
             string phone = string.IsNullOrWhiteSpace(request.PhoneNumber) ? "0000000000" : request.PhoneNumber.Trim();
             string message = string.IsNullOrWhiteSpace(request.Message) ? "HRM SMS test" : request.Message.Trim();

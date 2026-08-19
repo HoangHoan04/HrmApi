@@ -1,9 +1,7 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Domain.Entities.AuditLog;
 using HrmApi.Domain.Enums;
-using System;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace HrmApi.Application.Services
 {
@@ -26,11 +24,11 @@ namespace HrmApi.Application.Services
             object? newValue,
             string? note = null)
         {
-            var userId = _currentUserService.UserId ?? Guid.Empty;
-            var userCode = _currentUserService.UserCode ?? "SYSTEM";
-            var username = _currentUserService.Username ?? "SYSTEM";
-            var ip = _currentUserService.IpAddress;
-            var userAgent = _currentUserService.UserAgent;
+            Guid userId = _currentUserService.UserId ?? Guid.Empty;
+            string userCode = _currentUserService.UserCode ?? "SYSTEM";
+            string username = _currentUserService.Username ?? "SYSTEM";
+            string? ip = _currentUserService.IpAddress;
+            string? userAgent = _currentUserService.UserAgent;
 
             string? oldValJson = null;
             string? newValJson = null;
@@ -72,8 +70,8 @@ namespace HrmApi.Application.Services
                 CreatedBy = userId
             };
 
-            _context.ActionLogEntities.Add(log);
-            await _context.SaveChangesAsync(default);
+            _ = _context.ActionLogEntities.Add(log);
+            _ = await _context.SaveChangesAsync(default);
         }
     }
 }

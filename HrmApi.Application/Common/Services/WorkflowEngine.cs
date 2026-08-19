@@ -28,7 +28,9 @@ namespace HrmApi.Application.Common.Services
         {
             string type = NormalizeEntityType(entityType);
             if (string.IsNullOrEmpty(type) || entityId == Guid.Empty)
+            {
                 return null;
+            }
 
             bool alreadyRunning = await _context.WorkflowInstanceEntities.AsNoTracking()
                 .AnyAsync(x =>
@@ -38,11 +40,15 @@ namespace HrmApi.Application.Common.Services
                     && x.Status == WorkflowInstanceStatus.Running,
                     cancellationToken);
             if (alreadyRunning)
+            {
                 return null;
+            }
 
             WorkflowDefinitionEntity? definition = await ResolveActiveDefinitionAsync(type, companyId, cancellationToken);
             if (definition == null)
+            {
                 return null;
+            }
 
             List<WorkflowStepEntity> steps = await _context.WorkflowStepEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.DefinitionId == definition.Id)
@@ -59,7 +65,7 @@ namespace HrmApi.Application.Common.Services
             Guid? assigneeId = await ResolveAssigneeAsync(first, subjectEmployeeId, cancellationToken);
 
             DateTime now = DateTime.UtcNow;
-            var instance = new WorkflowInstanceEntity
+            WorkflowInstanceEntity instance = new()
             {
                 DefinitionId = definition.Id,
                 EntityType = type,
@@ -94,9 +100,15 @@ namespace HrmApi.Application.Common.Services
         {
             WorkflowInstanceEntity? instance = await _context.WorkflowInstanceEntities
                 .FirstOrDefaultAsync(x => x.Id == instanceId && !x.IsDeleted, cancellationToken);
-            if (instance == null) return false;
+            if (instance == null)
+            {
+                return false;
+            }
+
             if (instance.Status != WorkflowInstanceStatus.Running)
+            {
                 throw new InvalidOperationException("Workflow instance không còn RUNNING.");
+            }
 
             WorkflowTaskEntity? task = await _context.WorkflowTaskEntities
                 .Where(x =>
@@ -202,7 +214,10 @@ namespace HrmApi.Application.Common.Services
                     && x.Status == WorkflowInstanceStatus.Running)
                 .OrderByDescending(x => x.StartedAt)
                 .FirstOrDefaultAsync(cancellationToken);
-            if (instance == null) return false;
+            if (instance == null)
+            {
+                return false;
+            }
 
             try
             {
@@ -222,7 +237,10 @@ namespace HrmApi.Application.Common.Services
             Guid employeeId,
             CancellationToken cancellationToken = default)
         {
-            if (employeeId == Guid.Empty) return [];
+            if (employeeId == Guid.Empty)
+            {
+                return [];
+            }
 
             List<string> roleCodes = await GetEmployeeRoleCodesAsync(employeeId, cancellationToken);
             bool isHr = roleCodes.Any(c =>
@@ -233,7 +251,7 @@ namespace HrmApi.Application.Common.Services
                 from t in _context.WorkflowTaskEntities.AsNoTracking()
                 join i in _context.WorkflowInstanceEntities.AsNoTracking() on t.InstanceId equals i.Id
                 join s in _context.WorkflowStepEntities.AsNoTracking()
-                    on new { i.DefinitionId, t.StepOrder } equals new { DefinitionId = s.DefinitionId, StepOrder = s.StepOrder }
+                    on new { i.DefinitionId, t.StepOrder } equals new { s.DefinitionId, s.StepOrder }
                 where !t.IsDeleted && !i.IsDeleted && !s.IsDeleted
                     && t.Status == WorkflowTaskStatus.Pending
                     && i.Status == WorkflowInstanceStatus.Running
@@ -253,7 +271,10 @@ namespace HrmApi.Application.Common.Services
                         && !string.IsNullOrWhiteSpace(row.Step.RequiredRoleCode)
                         && roleCodes.Contains(row.Step.RequiredRoleCode.Trim().ToUpperInvariant()));
 
-                if (!match) continue;
+                if (!match)
+                {
+                    continue;
+                }
 
                 result.Add(new WorkflowInboxItemDto
                 {
@@ -287,7 +308,10 @@ namespace HrmApi.Application.Common.Services
                     .Where(x => x.CompanyId == companyId)
                     .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken);
-                if (companyDef != null) return companyDef;
+                if (companyDef != null)
+                {
+                    return companyDef;
+                }
             }
 
             return await q
@@ -302,10 +326,9 @@ namespace HrmApi.Application.Common.Services
             CancellationToken cancellationToken)
         {
             string resolver = (step.ApproverResolver ?? string.Empty).Trim().ToUpperInvariant();
-            if (resolver == WorkflowApproverResolver.Manager && subjectEmployeeId.HasValue)
-                return await LeaveApproverResolver.ResolveAsync(_context, subjectEmployeeId.Value, cancellationToken);
-
-            return null;
+            return resolver == WorkflowApproverResolver.Manager && subjectEmployeeId.HasValue
+                ? await LeaveApproverResolver.ResolveAsync(_context, subjectEmployeeId.Value, cancellationToken)
+                : null;
         }
 
         private async Task<Guid?> ResolveSubjectEmployeeIdAsync(
@@ -351,9 +374,9 @@ namespace HrmApi.Application.Common.Services
                 .Where(x => !x.IsDeleted && x.EmployeeId == employeeId)
                 .Select(x => (Guid?)x.Id)
                 .FirstOrDefaultAsync(cancellationToken);
-            if (!userId.HasValue) return [];
-
-            return await (
+            return !userId.HasValue
+                ? []
+                : await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
                 join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
                 where !ur.IsDeleted && !r.IsDeleted && ur.UserId == userId.Value && r.IsActive

@@ -1,5 +1,3 @@
-using System;
-
 namespace HrmApi.Application.Common.Models
 {
     public class PagedRequest

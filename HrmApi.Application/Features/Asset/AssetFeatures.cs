@@ -14,19 +14,34 @@ namespace HrmApi.Application.Features.Asset
     public class GetAssetsPagedQueryHandler : IRequestHandler<GetAssetsPagedQuery, PagedResult<AssetDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetAssetsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetAssetsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<AssetDto>> Handle(GetAssetsPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<AssetEntity> query = _context.AssetEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
             if (request.AssetTypeId.HasValue && request.AssetTypeId != Guid.Empty)
+            {
                 query = query.Where(x => x.AssetTypeId == request.AssetTypeId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -47,38 +62,61 @@ namespace HrmApi.Application.Features.Asset
 
         internal async Task<List<AssetDto>> MapManyAsync(List<AssetEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var typeIds = rows.Select(x => x.AssetTypeId).Distinct().ToList();
-            var companyIds = rows.Select(x => x.CompanyId).Distinct().ToList();
-            var branchIds = rows.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var types = await _context.AssetTypeEntities.AsNoTracking()
+            List<Guid> assetIds = rows.Select(x => x.Id).ToList();
+            List<Guid> typeIds = rows.Select(x => x.AssetTypeId).Distinct().ToList();
+            List<Guid> companyIds = rows.Select(x => x.CompanyId).Distinct().ToList();
+            List<Guid> branchIds = rows.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+
+            Dictionary<Guid, string> types = await _context.AssetTypeEntities.AsNoTracking()
                 .Where(x => typeIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-            var companies = await _context.CompanyEntities.AsNoTracking()
+            Dictionary<Guid, string> companies = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => companyIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-            var branches = branchIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branches = branchIds.Count == 0
+                ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            return rows.Select(e => new AssetDto
+            Dictionary<Guid, AssetAssignmentEntity> activeAssignments = await _context.AssetAssignmentEntities.AsNoTracking()
+                .Include(x => x.Employee)
+                .Where(x => !x.IsDeleted && assetIds.Contains(x.AssetId) && !x.ReturnedAt.HasValue)
+                .ToDictionaryAsync(x => x.AssetId, x => x, cancellationToken);
+
+            return rows.Select(e =>
             {
-                Id = e.Id,
-                Code = e.Code,
-                Name = e.Name,
-                AssetTypeId = e.AssetTypeId,
-                AssetTypeName = types.GetValueOrDefault(e.AssetTypeId),
-                CompanyId = e.CompanyId,
-                CompanyName = companies.GetValueOrDefault(e.CompanyId),
-                BranchId = e.BranchId,
-                BranchName = e.BranchId.HasValue ? branches.GetValueOrDefault(e.BranchId.Value) : null,
-                SerialNumber = e.SerialNumber,
-                PurchaseDate = e.PurchaseDate,
-                PurchaseCost = e.PurchaseCost,
-                Status = e.Status,
-                Note = e.Note,
-                CreatedAt = e.CreatedAt,
-                UpdatedAt = e.UpdatedAt,
+                _ = activeAssignments.TryGetValue(e.Id, out AssetAssignmentEntity? assignment);
+                string? empName = assignment?.Employee != null ? (assignment.Employee.FullName ?? $"{assignment.Employee.LastName} {assignment.Employee.FirstName}".Trim()) : null;
+
+                return new AssetDto
+                {
+                    Id = e.Id,
+                    Code = e.Code,
+                    Name = e.Name,
+                    AssetTypeId = e.AssetTypeId,
+                    AssetTypeName = types.GetValueOrDefault(e.AssetTypeId),
+                    CompanyId = e.CompanyId,
+                    CompanyName = companies.GetValueOrDefault(e.CompanyId),
+                    BranchId = e.BranchId,
+                    BranchName = e.BranchId.HasValue ? branches.GetValueOrDefault(e.BranchId.Value) : null,
+                    SerialNumber = e.SerialNumber,
+                    PurchaseDate = e.PurchaseDate,
+                    PurchaseCost = e.PurchaseCost,
+                    WarrantyExpiryDate = e.WarrantyExpiryDate,
+                    Vendor = e.Vendor,
+                    Model = e.Model,
+                    Location = e.Location,
+                    Status = e.Status,
+                    Note = e.Note,
+                    CurrentHolderEmployeeId = assignment?.EmployeeId,
+                    CurrentHolderEmployeeCode = assignment?.Employee?.Code,
+                    CurrentHolderEmployeeName = empName,
+                    CreatedAt = e.CreatedAt,
+                    UpdatedAt = e.UpdatedAt,
+                };
             }).ToList();
         }
     }
@@ -99,8 +137,54 @@ namespace HrmApi.Application.Features.Asset
         {
             AssetEntity? e = await _context.AssetEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+        }
+    }
+
+    public class GetAssetSelectBoxQuery : IRequest<List<AssetSelectBoxDto>>
+    {
+        public Guid? CompanyId { get; set; }
+        public string? Status { get; set; }
+    }
+
+    public class AssetSelectBoxDto
+    {
+        public Guid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? SerialNumber { get; set; }
+    }
+
+    public class GetAssetSelectBoxQueryHandler : IRequestHandler<GetAssetSelectBoxQuery, List<AssetSelectBoxDto>>
+    {
+        private readonly IApplicationDbContext _context;
+        public GetAssetSelectBoxQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<AssetSelectBoxDto>> Handle(GetAssetSelectBoxQuery request, CancellationToken cancellationToken)
+        {
+            IQueryable<AssetEntity> query = _context.AssetEntities.AsNoTracking().Where(x => !x.IsDeleted);
+            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Status))
+            {
+                query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
+
+            return await query.OrderBy(x => x.Code).Select(x => new AssetSelectBoxDto
+            {
+                Id = x.Id,
+                Code = x.Code,
+                Name = x.Name,
+                Status = x.Status,
+                SerialNumber = x.SerialNumber
+            }).ToListAsync(cancellationToken);
         }
     }
 
@@ -110,10 +194,13 @@ namespace HrmApi.Application.Features.Asset
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
-        public CreateAssetCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        private readonly IActionLogService _actionLog;
+
+        public CreateAssetCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IActionLogService actionLog)
         {
             _context = context;
             _currentUser = currentUser;
+            _actionLog = actionLog;
         }
 
         public async Task<Guid> Handle(CreateAssetCommand request, CancellationToken cancellationToken)
@@ -126,9 +213,13 @@ namespace HrmApi.Application.Features.Asset
                 AssetTypeId = request.AssetTypeId!.Value,
                 CompanyId = request.CompanyId!.Value,
                 BranchId = request.BranchId,
-                SerialNumber = request.SerialNumber,
+                SerialNumber = string.IsNullOrWhiteSpace(request.SerialNumber) ? null : request.SerialNumber.Trim(),
                 PurchaseDate = request.PurchaseDate,
                 PurchaseCost = request.PurchaseCost,
+                WarrantyExpiryDate = request.WarrantyExpiryDate,
+                Vendor = request.Vendor,
+                Model = request.Model,
+                Location = request.Location,
                 Status = string.IsNullOrWhiteSpace(request.Status) ? AssetStatus.Available : request.Status.Trim().ToUpperInvariant(),
                 Note = request.Note,
                 CreatedAt = DateTime.UtcNow,
@@ -136,35 +227,71 @@ namespace HrmApi.Application.Features.Asset
             };
             _ = _context.AssetEntities.Add(entity);
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.CREATE,
+                "AssetEntity",
+                entity.Id,
+                null,
+                new { entity.Id, entity.Code, entity.Name },
+                "Tạo mới tài sản " + entity.Name);
+
             return entity.Id;
         }
 
         internal async Task ValidateAsync(AssetCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã tài sản là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên tài sản là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã tài sản là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên tài sản là bắt buộc.");
+            }
+
             if (!request.AssetTypeId.HasValue || request.AssetTypeId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Loại tài sản là bắt buộc.");
+            }
+
             if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Công ty là bắt buộc.");
+            }
 
             string code = request.Code.Trim().ToUpperInvariant();
             if (await _context.AssetEntities.AnyAsync(
-                    x => !x.IsDeleted && x.Code == code && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
-                throw new InvalidOperationException("Mã tài sản đã tồn tại.");
+                    x => !x.IsDeleted && x.Code == code && x.CompanyId == request.CompanyId && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+            {
+                throw new InvalidOperationException("Mã tài sản đã tồn tại trong công ty.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.SerialNumber))
+            {
+                string serial = request.SerialNumber.Trim().ToUpperInvariant();
+                if (await _context.AssetEntities.AnyAsync(
+                        x => !x.IsDeleted && x.SerialNumber != null && x.SerialNumber.ToUpper() == serial && x.CompanyId == request.CompanyId && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+                {
+                    throw new InvalidOperationException("Số Serial đã tồn tại trong công ty.");
+                }
+            }
+
             if (!await _context.AssetTypeEntities.AnyAsync(x => x.Id == request.AssetTypeId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Loại tài sản không tồn tại.");
+            }
+
             if (!await _context.CompanyEntities.AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Công ty không tồn tại.");
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty
                 && !await _context.BranchEntities.AnyAsync(x => x.Id == request.BranchId && !x.IsDeleted, cancellationToken))
-                throw new InvalidOperationException("Chi nhánh không tồn tại.");
-
-            if (!string.IsNullOrWhiteSpace(request.Status))
             {
-                string status = request.Status.Trim().ToUpperInvariant();
-                if (status is not (AssetStatus.Available or AssetStatus.Assigned or AssetStatus.Maintenance or AssetStatus.Retired))
-                    throw new InvalidOperationException("Trạng thái tài sản không hợp lệ.");
+                throw new InvalidOperationException("Chi nhánh không tồn tại.");
             }
         }
     }
@@ -178,19 +305,25 @@ namespace HrmApi.Application.Features.Asset
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly IActionLogService _actionLog;
         private readonly CreateAssetCommandHandler _create;
-        public UpdateAssetCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+
+        public UpdateAssetCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IActionLogService actionLog)
         {
             _context = context;
             _currentUser = currentUser;
-            _create = new CreateAssetCommandHandler(context, currentUser);
+            _actionLog = actionLog;
+            _create = new CreateAssetCommandHandler(context, currentUser, actionLog);
         }
 
         public async Task<bool> Handle(UpdateAssetCommand request, CancellationToken cancellationToken)
         {
             AssetEntity? entity = await _context.AssetEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.Code ??= entity.Code;
             request.Name ??= entity.Name;
@@ -203,14 +336,32 @@ namespace HrmApi.Application.Features.Asset
             entity.AssetTypeId = request.AssetTypeId!.Value;
             entity.CompanyId = request.CompanyId!.Value;
             entity.BranchId = request.BranchId;
-            entity.SerialNumber = request.SerialNumber;
-            entity.PurchaseDate = request.PurchaseDate;
-            entity.PurchaseCost = request.PurchaseCost;
-            entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim().ToUpperInvariant();
+            entity.SerialNumber = string.IsNullOrWhiteSpace(request.SerialNumber) ? null : request.SerialNumber.Trim();
+            entity.PurchaseDate = request.PurchaseDate ?? entity.PurchaseDate;
+            entity.PurchaseCost = request.PurchaseCost ?? entity.PurchaseCost;
+            entity.WarrantyExpiryDate = request.WarrantyExpiryDate ?? entity.WarrantyExpiryDate;
+            entity.Vendor = request.Vendor ?? entity.Vendor;
+            entity.Model = request.Model ?? entity.Model;
+            entity.Location = request.Location ?? entity.Location;
+            if (!string.IsNullOrWhiteSpace(request.Status))
+            {
+                entity.Status = request.Status.Trim().ToUpperInvariant();
+            }
+
             entity.Note = request.Note;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
+
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.UPDATE,
+                "AssetEntity",
+                entity.Id,
+                null,
+                new { entity.Id, entity.Code, entity.Name },
+                "Cập nhật tài sản " + entity.Name);
+
             return true;
         }
     }
@@ -221,23 +372,43 @@ namespace HrmApi.Application.Features.Asset
     {
         private readonly IApplicationDbContext _context;
         private readonly ICurrentUserService _currentUser;
-        public DeleteAssetCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+        private readonly IActionLogService _actionLog;
+
+        public DeleteAssetCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IActionLogService actionLog)
         {
             _context = context;
             _currentUser = currentUser;
+            _actionLog = actionLog;
         }
 
         public async Task<bool> Handle(DeleteAssetCommand request, CancellationToken cancellationToken)
         {
             AssetEntity? entity = await _context.AssetEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
-            if (await _context.AssetTicketEntities.AnyAsync(x => !x.IsDeleted && x.AssetId == request.Id, cancellationToken))
-                throw new InvalidOperationException("Tài sản đang có phiếu cấp/thu hồi — không thể xóa.");
+            if (entity == null)
+            {
+                return false;
+            }
+
+            bool hasTickets = await _context.AssetTicketEntities.AnyAsync(x => x.AssetId == request.Id && !x.IsDeleted, cancellationToken);
+            if (hasTickets)
+            {
+                throw new InvalidOperationException("Tài sản đã phát sinh phiếu giao dịch — không thể xóa.");
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            await _actionLog.LogActionAsync(
+                ActionType.DELETE,
+                "AssetEntity",
+                entity.Id,
+                null,
+                null,
+                "Xóa tài sản " + entity.Name);
+
             return true;
         }
     }

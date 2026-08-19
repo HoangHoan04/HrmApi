@@ -340,5 +340,23 @@ namespace HrmApi.WebApi.Controllers
             return Ok(result);
         }
         #endregion
+
+        #region Assets
+        [HttpPost("assets")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
+        public async Task<ActionResult<HrmApi.Application.DTOs.Asset.EmployeeAssetSummaryDto>> GetEmployeeAssets(
+            [FromBody] HrmApi.Application.Features.Asset.Queries.GetEmployeeAssetsQuery query)
+        {
+            var result = await _mediator.Send(query);
+            if (result == null) return NotFound("Không tìm thấy thông tin nhân viên.");
+            return Ok(result);
+        }
+
+        [HttpPost("asset-clearance")]
+        [RequirePermission(PermissionCodes.HrEmployeeView)]
+        public async Task<ActionResult<HrmApi.Application.DTOs.Asset.EmployeeAssetClearanceDto>> CheckAssetClearance(
+            [FromBody] HrmApi.Application.Features.Asset.Queries.CheckEmployeeAssetClearanceQuery query)
+            => Ok(await _mediator.Send(query));
+        #endregion
     }
 }

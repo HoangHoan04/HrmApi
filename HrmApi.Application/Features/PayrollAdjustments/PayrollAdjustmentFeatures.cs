@@ -70,15 +70,24 @@ namespace HrmApi.Application.Features.PayrollAdjustments
     public class GetAllowancesPagedQueryHandler : IRequestHandler<GetAllowancesPagedQuery, PagedResult<AllowanceDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetAllowancesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetAllowancesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<AllowanceDto>> Handle(GetAllowancesPagedQuery request, CancellationToken ct)
         {
-            var q = _context.AllowanceEntities.AsNoTracking().Where(x => !x.IsDeleted);
+            IQueryable<AllowanceEntity> q = _context.AllowanceEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 q = q.Where(x => x.CompanyId == request.CompanyId || x.CompanyId == null);
+            }
+
             if (request.IsActive.HasValue)
+            {
                 q = q.Where(x => x.IsActive == request.IsActive);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -86,16 +95,16 @@ namespace HrmApi.Application.Features.PayrollAdjustments
             }
 
             int total = await q.CountAsync(ct);
-            var rows = await q.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Code)
+            List<AllowanceEntity> rows = await q.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Code)
                 .Skip((request.PageIndex - 1) * request.PageSize).Take(request.PageSize).ToListAsync(ct);
 
-            var companyIds = rows.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
-            var companies = companyIds.Count == 0
-                ? new Dictionary<Guid, string>()
+            List<Guid> companyIds = rows.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
+            Dictionary<Guid, string> companies = companyIds.Count == 0
+                ? []
                 : await _context.CompanyEntities.AsNoTracking().Where(x => companyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
-            var items = rows.Select(x => new AllowanceDto
+            List<AllowanceDto> items = rows.Select(x => new AllowanceDto
             {
                 Id = x.Id,
                 Code = x.Code,
@@ -141,7 +150,9 @@ namespace HrmApi.Application.Features.PayrollAdjustments
         public async Task<Guid> Handle(UpsertAllowanceCommand request, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Mã và tên phụ cấp bắt buộc.");
+            }
 
             string code = request.Code.Trim().ToUpperInvariant();
             AllowanceEntity? entity = null;
@@ -154,7 +165,10 @@ namespace HrmApi.Application.Features.PayrollAdjustments
             bool dup = await _context.AllowanceEntities.AnyAsync(x =>
                 !x.IsDeleted && x.Code == code && x.CompanyId == request.CompanyId
                 && (!request.Id.HasValue || x.Id != request.Id), ct);
-            if (dup) throw new InvalidOperationException("Mã phụ cấp đã tồn tại.");
+            if (dup)
+            {
+                throw new InvalidOperationException("Mã phụ cấp đã tồn tại.");
+            }
 
             if (entity == null)
             {
@@ -163,7 +177,7 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUser.UserId ?? Guid.Empty,
                 };
-                _context.AllowanceEntities.Add(entity);
+                _ = _context.AllowanceEntities.Add(entity);
             }
 
             entity.Code = code;
@@ -177,7 +191,7 @@ namespace HrmApi.Application.Features.PayrollAdjustments
             entity.DisplayOrder = request.DisplayOrder;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
             return entity.Id;
         }
     }
@@ -200,12 +214,16 @@ namespace HrmApi.Application.Features.PayrollAdjustments
 
         public async Task<bool> Handle(SetAllowanceActiveCommand request, CancellationToken ct)
         {
-            var entity = await _context.AllowanceEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
-            if (entity == null) return false;
+            AllowanceEntity? entity = await _context.AllowanceEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
+            if (entity == null)
+            {
+                return false;
+            }
+
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
             return true;
         }
     }
@@ -223,22 +241,36 @@ namespace HrmApi.Application.Features.PayrollAdjustments
     public class GetAdvancesPagedQueryHandler : IRequestHandler<GetAdvancesPagedQuery, PagedResult<AdvanceDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetAdvancesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetAdvancesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<AdvanceDto>> Handle(GetAdvancesPagedQuery request, CancellationToken ct)
         {
-            var q = _context.AdvanceEntities.AsNoTracking().Where(x => !x.IsDeleted);
-            if (request.EmployeeId.HasValue) q = q.Where(x => x.EmployeeId == request.EmployeeId);
+            IQueryable<AdvanceEntity> q = _context.AdvanceEntities.AsNoTracking().Where(x => !x.IsDeleted);
+            if (request.EmployeeId.HasValue)
+            {
+                q = q.Where(x => x.EmployeeId == request.EmployeeId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
             {
                 string st = request.Status.Trim().ToUpperInvariant();
                 q = q.Where(x => x.Status == st);
             }
-            if (request.DeductYear.HasValue) q = q.Where(x => x.DeductYear == request.DeductYear);
-            if (request.DeductMonth.HasValue) q = q.Where(x => x.DeductMonth == request.DeductMonth);
+            if (request.DeductYear.HasValue)
+            {
+                q = q.Where(x => x.DeductYear == request.DeductYear);
+            }
+
+            if (request.DeductMonth.HasValue)
+            {
+                q = q.Where(x => x.DeductMonth == request.DeductMonth);
+            }
 
             int total = await q.CountAsync(ct);
-            var rows = await q.OrderByDescending(x => x.RequestDate)
+            List<AdvanceEntity> rows = await q.OrderByDescending(x => x.RequestDate)
                 .Skip((request.PageIndex - 1) * request.PageSize).Take(request.PageSize).ToListAsync(ct);
             return new PagedResult<AdvanceDto>(await PayrollAdjustmentMaps.MapAdvances(_context, rows, ct), total, request.PageIndex, request.PageSize);
         }
@@ -268,12 +300,23 @@ namespace HrmApi.Application.Features.PayrollAdjustments
 
         public async Task<Guid> Handle(CreateAdvanceCommand request, CancellationToken ct)
         {
-            if (request.Amount <= 0) throw new InvalidOperationException("Số tiền tạm ứng phải > 0.");
-            if (request.DeductMonth is < 1 or > 12) throw new InvalidOperationException("Tháng khấu trừ không hợp lệ.");
-            bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, ct);
-            if (!empOk) throw new InvalidOperationException("Nhân viên không tồn tại.");
+            if (request.Amount <= 0)
+            {
+                throw new InvalidOperationException("Số tiền tạm ứng phải > 0.");
+            }
 
-            var entity = new AdvanceEntity
+            if (request.DeductMonth is < 1 or > 12)
+            {
+                throw new InvalidOperationException("Tháng khấu trừ không hợp lệ.");
+            }
+
+            bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, ct);
+            if (!empOk)
+            {
+                throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
+
+            AdvanceEntity entity = new()
             {
                 EmployeeId = request.EmployeeId,
                 Amount = Math.Round(request.Amount, 0, MidpointRounding.AwayFromZero),
@@ -286,8 +329,8 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = _currentUser.UserId ?? Guid.Empty,
             };
-            _context.AdvanceEntities.Add(entity);
-            await _context.SaveChangesAsync(ct);
+            _ = _context.AdvanceEntities.Add(entity);
+            _ = await _context.SaveChangesAsync(ct);
             return entity.Id;
         }
     }
@@ -311,18 +354,28 @@ namespace HrmApi.Application.Features.PayrollAdjustments
 
         public async Task<bool> Handle(ReviewAdvanceCommand request, CancellationToken ct)
         {
-            var entity = await _context.AdvanceEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
-            if (entity == null) return false;
+            AdvanceEntity? entity = await _context.AdvanceEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.Status is not (SlipStatus.Pending or SlipStatus.Draft))
+            {
                 throw new InvalidOperationException("Chỉ duyệt được tạm ứng đang chờ.");
+            }
 
             entity.Status = request.Approve ? SlipStatus.Approved : SlipStatus.Rejected;
             entity.ApprovedDate = DateTime.UtcNow;
             entity.ApprovedBy = _currentUser.UserId?.ToString();
-            if (!string.IsNullOrWhiteSpace(request.Note)) entity.Note = request.Note.Trim();
+            if (!string.IsNullOrWhiteSpace(request.Note))
+            {
+                entity.Note = request.Note.Trim();
+            }
+
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
             return true;
         }
     }
@@ -344,14 +397,21 @@ namespace HrmApi.Application.Features.PayrollAdjustments
 
         public async Task<bool> Handle(CancelAdvanceCommand request, CancellationToken ct)
         {
-            var entity = await _context.AdvanceEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
-            if (entity == null) return false;
+            AdvanceEntity? entity = await _context.AdvanceEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (entity.Status == SlipStatus.Applied)
+            {
                 throw new InvalidOperationException("Tạm ứng đã áp vào lương, không hủy được.");
+            }
+
             entity.Status = SlipStatus.Cancelled;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
             return true;
         }
     }
@@ -370,40 +430,67 @@ namespace HrmApi.Application.Features.PayrollAdjustments
     public class GetPayrollSlipsPagedQueryHandler : IRequestHandler<GetPayrollSlipsPagedQuery, PagedResult<PayrollSlipDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetPayrollSlipsPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetPayrollSlipsPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<PayrollSlipDto>> Handle(GetPayrollSlipsPagedQuery request, CancellationToken ct)
         {
             string kind = (request.Kind ?? SlipKind.Deduction).Trim().ToUpperInvariant();
             if (kind == SlipKind.Addition)
             {
-                var q = _context.CashAdditionSlipEntities.AsNoTracking().Where(x => !x.IsDeleted);
-                if (request.EmployeeId.HasValue) q = q.Where(x => x.EmployeeId == request.EmployeeId);
+                IQueryable<CashAdditionSlipEntity> q = _context.CashAdditionSlipEntities.AsNoTracking().Where(x => !x.IsDeleted);
+                if (request.EmployeeId.HasValue)
+                {
+                    q = q.Where(x => x.EmployeeId == request.EmployeeId);
+                }
+
                 if (!string.IsNullOrWhiteSpace(request.Status))
                 {
                     string st = request.Status.Trim().ToUpperInvariant();
                     q = q.Where(x => x.Status == st);
                 }
-                if (request.ApplyYear.HasValue) q = q.Where(x => x.ApplyYear == request.ApplyYear);
-                if (request.ApplyMonth.HasValue) q = q.Where(x => x.ApplyMonth == request.ApplyMonth);
+                if (request.ApplyYear.HasValue)
+                {
+                    q = q.Where(x => x.ApplyYear == request.ApplyYear);
+                }
+
+                if (request.ApplyMonth.HasValue)
+                {
+                    q = q.Where(x => x.ApplyMonth == request.ApplyMonth);
+                }
+
                 int total = await q.CountAsync(ct);
-                var rows = await q.OrderByDescending(x => x.AdditionDate)
+                List<CashAdditionSlipEntity> rows = await q.OrderByDescending(x => x.AdditionDate)
                     .Skip((request.PageIndex - 1) * request.PageSize).Take(request.PageSize).ToListAsync(ct);
                 return new PagedResult<PayrollSlipDto>(await PayrollAdjustmentMaps.MapAdditions(_context, rows, ct), total, request.PageIndex, request.PageSize);
             }
             else
             {
-                var q = _context.DeductionSlipEntities.AsNoTracking().Where(x => !x.IsDeleted);
-                if (request.EmployeeId.HasValue) q = q.Where(x => x.EmployeeId == request.EmployeeId);
+                IQueryable<DeductionSlipEntity> q = _context.DeductionSlipEntities.AsNoTracking().Where(x => !x.IsDeleted);
+                if (request.EmployeeId.HasValue)
+                {
+                    q = q.Where(x => x.EmployeeId == request.EmployeeId);
+                }
+
                 if (!string.IsNullOrWhiteSpace(request.Status))
                 {
                     string st = request.Status.Trim().ToUpperInvariant();
                     q = q.Where(x => x.Status == st);
                 }
-                if (request.ApplyYear.HasValue) q = q.Where(x => x.ApplyYear == request.ApplyYear);
-                if (request.ApplyMonth.HasValue) q = q.Where(x => x.ApplyMonth == request.ApplyMonth);
+                if (request.ApplyYear.HasValue)
+                {
+                    q = q.Where(x => x.ApplyYear == request.ApplyYear);
+                }
+
+                if (request.ApplyMonth.HasValue)
+                {
+                    q = q.Where(x => x.ApplyMonth == request.ApplyMonth);
+                }
+
                 int total = await q.CountAsync(ct);
-                var rows = await q.OrderByDescending(x => x.DeductionDate)
+                List<DeductionSlipEntity> rows = await q.OrderByDescending(x => x.DeductionDate)
                     .Skip((request.PageIndex - 1) * request.PageSize).Take(request.PageSize).ToListAsync(ct);
                 return new PagedResult<PayrollSlipDto>(await PayrollAdjustmentMaps.MapDeductions(_context, rows, ct), total, request.PageIndex, request.PageSize);
             }
@@ -436,16 +523,27 @@ namespace HrmApi.Application.Features.PayrollAdjustments
 
         public async Task<Guid> Handle(CreatePayrollSlipCommand request, CancellationToken ct)
         {
-            if (request.Amount <= 0) throw new InvalidOperationException("Số tiền phải > 0.");
-            if (request.ApplyMonth is < 1 or > 12) throw new InvalidOperationException("Tháng áp dụng không hợp lệ.");
+            if (request.Amount <= 0)
+            {
+                throw new InvalidOperationException("Số tiền phải > 0.");
+            }
+
+            if (request.ApplyMonth is < 1 or > 12)
+            {
+                throw new InvalidOperationException("Tháng áp dụng không hợp lệ.");
+            }
+
             bool empOk = await _context.EmployeeEntities.AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, ct);
-            if (!empOk) throw new InvalidOperationException("Nhân viên không tồn tại.");
+            if (!empOk)
+            {
+                throw new InvalidOperationException("Nhân viên không tồn tại.");
+            }
 
             string status = request.AutoApprove ? SlipStatus.Approved : SlipStatus.Pending;
             string kind = (request.Kind ?? SlipKind.Deduction).Trim().ToUpperInvariant();
             if (kind == SlipKind.Addition)
             {
-                var entity = new CashAdditionSlipEntity
+                CashAdditionSlipEntity entity = new()
                 {
                     EmployeeId = request.EmployeeId,
                     Amount = Math.Round(request.Amount, 0, MidpointRounding.AwayFromZero),
@@ -463,13 +561,13 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUser.UserId ?? Guid.Empty,
                 };
-                _context.CashAdditionSlipEntities.Add(entity);
-                await _context.SaveChangesAsync(ct);
+                _ = _context.CashAdditionSlipEntities.Add(entity);
+                _ = await _context.SaveChangesAsync(ct);
                 return entity.Id;
             }
             else
             {
-                var entity = new DeductionSlipEntity
+                DeductionSlipEntity entity = new()
                 {
                     EmployeeId = request.EmployeeId,
                     Amount = Math.Round(request.Amount, 0, MidpointRounding.AwayFromZero),
@@ -487,8 +585,8 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = _currentUser.UserId ?? Guid.Empty,
                 };
-                _context.DeductionSlipEntities.Add(entity);
-                await _context.SaveChangesAsync(ct);
+                _ = _context.DeductionSlipEntities.Add(entity);
+                _ = await _context.SaveChangesAsync(ct);
                 return entity.Id;
             }
         }
@@ -517,8 +615,12 @@ namespace HrmApi.Application.Features.PayrollAdjustments
             string status = request.Approve ? SlipStatus.Approved : SlipStatus.Rejected;
             if (kind == SlipKind.Addition)
             {
-                var entity = await _context.CashAdditionSlipEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
-                if (entity == null) return false;
+                CashAdditionSlipEntity? entity = await _context.CashAdditionSlipEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
+                if (entity == null)
+                {
+                    return false;
+                }
+
                 entity.Status = status;
                 entity.ApprovedDate = DateTime.UtcNow;
                 entity.ApprovedBy = _currentUser.UserId?.ToString();
@@ -527,15 +629,19 @@ namespace HrmApi.Application.Features.PayrollAdjustments
             }
             else
             {
-                var entity = await _context.DeductionSlipEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
-                if (entity == null) return false;
+                DeductionSlipEntity? entity = await _context.DeductionSlipEntities.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
+                if (entity == null)
+                {
+                    return false;
+                }
+
                 entity.Status = status;
                 entity.ApprovedDate = DateTime.UtcNow;
                 entity.ApprovedBy = _currentUser.UserId?.ToString();
                 entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = _currentUser.UserId;
             }
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
             return true;
         }
     }
@@ -545,7 +651,8 @@ namespace HrmApi.Application.Features.PayrollAdjustments
     internal static class PayrollAdjustmentMaps
     {
         public static Task<List<AdvanceDto>> MapAdvances(IApplicationDbContext context, List<AdvanceEntity> rows, CancellationToken ct)
-            => MapEmp(context, rows, ct, (e, emp) => new AdvanceDto
+        {
+            return MapEmp(context, rows, ct, (e, emp) => new AdvanceDto
             {
                 Id = e.Id,
                 EmployeeId = e.EmployeeId,
@@ -561,9 +668,11 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                 ApprovedBy = e.ApprovedBy,
                 ApprovedDate = e.ApprovedDate,
             });
+        }
 
         public static Task<List<PayrollSlipDto>> MapDeductions(IApplicationDbContext context, List<DeductionSlipEntity> rows, CancellationToken ct)
-            => MapEmp(context, rows, ct, (e, emp) => new PayrollSlipDto
+        {
+            return MapEmp(context, rows, ct, (e, emp) => new PayrollSlipDto
             {
                 Id = e.Id,
                 Kind = SlipKind.Deduction,
@@ -581,9 +690,11 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                 ApprovedBy = e.ApprovedBy,
                 ApprovedDate = e.ApprovedDate,
             });
+        }
 
         public static Task<List<PayrollSlipDto>> MapAdditions(IApplicationDbContext context, List<CashAdditionSlipEntity> rows, CancellationToken ct)
-            => MapEmp(context, rows, ct, (e, emp) => new PayrollSlipDto
+        {
+            return MapEmp(context, rows, ct, (e, emp) => new PayrollSlipDto
             {
                 Id = e.Id,
                 Kind = SlipKind.Addition,
@@ -601,6 +712,7 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                 ApprovedBy = e.ApprovedBy,
                 ApprovedDate = e.ApprovedDate,
             });
+        }
 
         private static async Task<List<TOut>> MapEmp<TIn, TOut>(
             IApplicationDbContext context,
@@ -608,8 +720,12 @@ namespace HrmApi.Application.Features.PayrollAdjustments
             CancellationToken ct,
             Func<TIn, EmpInfo?, TOut> map) where TIn : class
         {
-            if (rows.Count == 0) return [];
-            var empIds = rows.Select(r =>
+            if (rows.Count == 0)
+            {
+                return [];
+            }
+
+            List<Guid> empIds = rows.Select(r =>
             {
                 return r switch
                 {
@@ -620,7 +736,7 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                 };
             }).Where(x => x != Guid.Empty).Distinct().ToList();
 
-            var empMap = await context.EmployeeEntities.AsNoTracking()
+            Dictionary<Guid, EmpInfo> empMap = await context.EmployeeEntities.AsNoTracking()
                 .Where(x => empIds.Contains(x.Id))
                 .ToDictionaryAsync(
                     x => x.Id,
@@ -636,7 +752,7 @@ namespace HrmApi.Application.Features.PayrollAdjustments
                     CashAdditionSlipEntity c => c.EmployeeId,
                     _ => Guid.Empty,
                 };
-                empMap.TryGetValue(id, out var emp);
+                _ = empMap.TryGetValue(id, out EmpInfo? emp);
                 return map(r, emp);
             }).ToList();
         }

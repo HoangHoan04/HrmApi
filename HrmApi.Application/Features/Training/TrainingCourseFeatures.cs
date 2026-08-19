@@ -14,17 +14,29 @@ namespace HrmApi.Application.Features.Training
     public class GetTrainingCoursesPagedQueryHandler : IRequestHandler<GetTrainingCoursesPagedQuery, PagedResult<TrainingCourseDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetTrainingCoursesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetTrainingCoursesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<TrainingCourseDto>> Handle(GetTrainingCoursesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<TrainingCourseEntity> query = _context.TrainingCourseEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -44,13 +56,17 @@ namespace HrmApi.Application.Features.Training
 
         internal async Task<List<TrainingCourseDto>> MapManyAsync(List<TrainingCourseEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var companyIds = rows.Select(x => x.CompanyId).Distinct().ToList();
-            var branchIds = rows.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var companies = await _context.CompanyEntities.AsNoTracking()
+            List<Guid> companyIds = rows.Select(x => x.CompanyId).Distinct().ToList();
+            List<Guid> branchIds = rows.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+
+            Dictionary<Guid, string> companies = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => companyIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-            var branches = branchIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branches = branchIds.Count == 0 ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
@@ -90,8 +106,7 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingCourseEntity? e = await _context.TrainingCourseEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -131,17 +146,32 @@ namespace HrmApi.Application.Features.Training
 
         internal async Task ValidateAsync(TrainingCourseCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã khóa học là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên khóa học là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã khóa học là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên khóa học là bắt buộc.");
+            }
+
             if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Công ty là bắt buộc.");
+            }
 
             string code = request.Code.Trim().ToUpperInvariant();
             if (await _context.TrainingCourseEntities.AnyAsync(
                     x => !x.IsDeleted && x.Code == code && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+            {
                 throw new InvalidOperationException("Mã khóa học đã tồn tại.");
+            }
+
             if (!await _context.CompanyEntities.AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Công ty không tồn tại.");
+            }
         }
     }
 
@@ -166,7 +196,10 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingCourseEntity? entity = await _context.TrainingCourseEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.Code ??= entity.Code;
             request.Name ??= entity.Name;
@@ -205,9 +238,16 @@ namespace HrmApi.Application.Features.Training
         {
             TrainingCourseEntity? entity = await _context.TrainingCourseEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (await _context.TrainingEnrollmentEntities.AnyAsync(x => !x.IsDeleted && x.CourseId == request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Khóa học đang có đăng ký — không thể xóa.");
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

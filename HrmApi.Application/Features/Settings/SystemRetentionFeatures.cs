@@ -31,7 +31,10 @@ namespace HrmApi.Application.Features.Settings
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (entity != null) return entity;
+            if (entity != null)
+            {
+                return entity;
+            }
 
             entity = new SystemRetentionConfigEntity
             {
@@ -45,15 +48,18 @@ namespace HrmApi.Application.Features.Settings
             return entity;
         }
 
-        internal static SystemRetentionConfigDto ToDto(SystemRetentionConfigEntity e) => new()
+        internal static SystemRetentionConfigDto ToDto(SystemRetentionConfigEntity e)
         {
-            Id = e.Id,
-            SoftDeleteRetentionDays = e.SoftDeleteRetentionDays,
-            IsPurgeEnabled = e.IsPurgeEnabled,
-            Note = e.Note,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt,
-        };
+            return new()
+            {
+                Id = e.Id,
+                SoftDeleteRetentionDays = e.SoftDeleteRetentionDays,
+                IsPurgeEnabled = e.IsPurgeEnabled,
+                Note = e.Note,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt,
+            };
+        }
     }
 
     public class UpdateSystemRetentionConfigCommand : SystemRetentionConfigCommandFields, IRequest<SystemRetentionConfigDto> { }
@@ -70,18 +76,23 @@ namespace HrmApi.Application.Features.Settings
 
         public async Task<SystemRetentionConfigDto> Handle(UpdateSystemRetentionConfigCommand request, CancellationToken cancellationToken)
         {
-            var ensureHandler = new GetSystemRetentionConfigQueryHandler(_context, _currentUser);
+            GetSystemRetentionConfigQueryHandler ensureHandler = new(_context, _currentUser);
             SystemRetentionConfigEntity entity = await ensureHandler.EnsureAsync(cancellationToken);
 
             if (request.SoftDeleteRetentionDays.HasValue)
             {
                 if (request.SoftDeleteRetentionDays < 1)
+                {
                     throw new InvalidOperationException("SoftDeleteRetentionDays phải >= 1.");
+                }
+
                 entity.SoftDeleteRetentionDays = request.SoftDeleteRetentionDays.Value;
             }
 
             if (request.IsPurgeEnabled.HasValue)
+            {
                 entity.IsPurgeEnabled = request.IsPurgeEnabled.Value;
+            }
 
             entity.Note = request.Note;
             entity.UpdatedAt = DateTime.UtcNow;

@@ -123,7 +123,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
                 .ToListAsync(cancellationToken);
 
             bool dirty = false;
-            List<MobileMonthDayDto> days = new();
+            List<MobileMonthDayDto> days = [];
             foreach (TimekeepingEntity record in records)
             {
                 if (record.CheckInAt.HasValue && record.CheckOutAt.HasValue)
@@ -137,7 +137,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
                     {
                         if (record.ShiftMasterId.HasValue)
                         {
-                            var master = await _context.ShiftMasterEntities.AsNoTracking()
+                            ShiftMasterEntity? master = await _context.ShiftMasterEntities.AsNoTracking()
                                 .FirstOrDefaultAsync(x => x.Id == record.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
                             if (master != null)
                             {
@@ -173,7 +173,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
 
             if (dirty)
             {
-                await _context.SaveChangesAsync(cancellationToken);
+                _ = await _context.SaveChangesAsync(cancellationToken);
             }
 
             WorkWindowResult? window = await ResolveMonthReferenceWindowAsync(
@@ -214,7 +214,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             DateOnly to,
             CancellationToken cancellationToken)
         {
-            List<DateOnly> candidates = new();
+            List<DateOnly> candidates = [];
 
             DateOnly today = BusinessDateHelper.Today();
             if (today >= from && today <= to)
@@ -273,7 +273,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
 
             if (window.ShiftMasterId.HasValue)
             {
-                var master = await _context.ShiftMasterEntities.AsNoTracking()
+                ShiftMasterEntity? master = await _context.ShiftMasterEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == window.ShiftMasterId.Value && !x.IsDeleted, cancellationToken);
                 if (master != null)
                 {
@@ -283,11 +283,11 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             }
             else if (window.ShiftId.HasValue)
             {
-                var shift = await _context.ShiftEntities.AsNoTracking()
+                ShiftEntity? shift = await _context.ShiftEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == window.ShiftId.Value && !x.IsDeleted, cancellationToken);
                 if (shift?.ShiftMasterId is Guid masterId)
                 {
-                    var master = await _context.ShiftMasterEntities.AsNoTracking()
+                    ShiftMasterEntity? master = await _context.ShiftMasterEntities.AsNoTracking()
                         .FirstOrDefaultAsync(x => x.Id == masterId && !x.IsDeleted, cancellationToken);
                     if (master != null)
                     {
@@ -313,7 +313,10 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             if (breakMinutes <= 0 && window.BreakStartTime.HasValue && window.BreakEndTime.HasValue)
             {
                 breakMinutes = (int)(window.BreakEndTime.Value - window.BreakStartTime.Value).TotalMinutes;
-                if (breakMinutes < 0) breakMinutes += 24 * 60;
+                if (breakMinutes < 0)
+                {
+                    breakMinutes += 24 * 60;
+                }
             }
 
             return Math.Max(0, (int)Math.Round(span.TotalMinutes) - Math.Max(0, breakMinutes));
@@ -358,7 +361,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Queries
             {
                 if (recurring.Any(h => h.HolidayDate.Month == d.Month && h.HolidayDate.Day == d.Day))
                 {
-                    holidays.Add(d);
+                    _ = holidays.Add(d);
                 }
             }
 

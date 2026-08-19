@@ -453,7 +453,7 @@ namespace HrmApi.Application.Features.Contracts.Commands
             }
 
             DateTime startDate = request.StartDate
-                ?? (oldContract.EndDate?.Date.AddDays(1) ?? DateTime.UtcNow.Date);
+                ?? oldContract.EndDate?.Date.AddDays(1) ?? DateTime.UtcNow.Date;
             DateTime? endDate = request.EndDate;
             if (contractType != null)
             {

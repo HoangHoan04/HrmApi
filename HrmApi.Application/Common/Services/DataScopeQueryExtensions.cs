@@ -15,11 +15,13 @@ namespace HrmApi.Application.Common.Services
             string permissionCode,
             CancellationToken cancellationToken = default)
         {
-            var scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
+            string scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
             if (scope == DataScopes.All)
+            {
                 return query;
+            }
 
-            var actor = await dataScope.GetActorAsync(cancellationToken);
+            DataScopeActor actor = await dataScope.GetActorAsync(cancellationToken);
 
             return scope switch
             {
@@ -43,11 +45,13 @@ namespace HrmApi.Application.Common.Services
             string permissionCode,
             CancellationToken cancellationToken = default)
         {
-            var scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
+            string scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
             if (scope == DataScopes.All)
+            {
                 return query;
+            }
 
-            var actor = await dataScope.GetActorAsync(cancellationToken);
+            DataScopeActor actor = await dataScope.GetActorAsync(cancellationToken);
 
             return scope switch
             {
@@ -69,11 +73,13 @@ namespace HrmApi.Application.Common.Services
             string permissionCode,
             CancellationToken cancellationToken = default)
         {
-            var scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
+            string scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
             if (scope == DataScopes.All)
+            {
                 return query;
+            }
 
-            var actor = await dataScope.GetActorAsync(cancellationToken);
+            DataScopeActor actor = await dataScope.GetActorAsync(cancellationToken);
 
             return scope switch
             {
@@ -93,11 +99,13 @@ namespace HrmApi.Application.Common.Services
             string permissionCode,
             CancellationToken cancellationToken = default)
         {
-            var scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
+            string scope = await dataScope.GetEffectiveScopeAsync(permissionCode, cancellationToken);
             if (scope == DataScopes.All)
+            {
                 return query;
+            }
 
-            var actor = await dataScope.GetActorAsync(cancellationToken);
+            DataScopeActor actor = await dataScope.GetActorAsync(cancellationToken);
 
             return scope switch
             {
@@ -123,7 +131,7 @@ namespace HrmApi.Application.Common.Services
             string permissionCode,
             CancellationToken cancellationToken = default)
         {
-            var scopedEmployees = await employees.ApplyEmployeeDataScopeAsync(
+            IQueryable<EmployeeEntity> scopedEmployees = await employees.ApplyEmployeeDataScopeAsync(
                 dataScope, permissionCode, cancellationToken);
             return query.Where(x => scopedEmployees.Select(e => e.Id).Contains(x.EmployeeId));
         }

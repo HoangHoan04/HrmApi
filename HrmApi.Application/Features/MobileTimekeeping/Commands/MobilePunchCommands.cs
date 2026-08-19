@@ -1,11 +1,10 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Timekeeping;
 using HrmApi.Application.Mappings;
+using HrmApi.Domain.Entities.Employee;
+using HrmApi.Domain.Entities.Organization;
+using HrmApi.Domain.Entities.Timekeeping;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -35,36 +34,45 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
 
         public async Task<MobileTodayDto> Handle(MobileCheckInCommand request, CancellationToken cancellationToken)
         {
-            var employeeId = await ResolveEmployeeIdAsync(cancellationToken);
-            var employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
-            var today = BusinessDateHelper.Today();
+            Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
+            EmployeeEntity employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
+            DateOnly today = BusinessDateHelper.Today();
 
             if (await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken))
+            {
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");
+            }
 
-            var record = await _rules.GetOrCreateTodayRecordAsync(employee, today, cancellationToken);
+            TimekeepingEntity record = await _rules.GetOrCreateTodayRecordAsync(employee, today, cancellationToken);
             if (record.Status == AttendanceStatus.LEAVE)
+            {
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");
-            if (record.CheckInAt.HasValue)
-                throw new InvalidOperationException("Bạn đã chấm vào ca hôm nay.");
+            }
 
-            var window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
+            if (record.CheckInAt.HasValue)
+            {
+                throw new InvalidOperationException("Bạn đã chấm vào ca hôm nay.");
+            }
+
+            WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
             if (!window.IsScheduledWorkDay)
+            {
                 throw new InvalidOperationException(
                     "Hôm nay không phải ngày làm theo ca mặc định. Cần lịch ngày (ngoại lệ/OT) nếu muốn chấm công.");
+            }
 
-            var branchId = window.BranchId ?? employee.BranchId;
-            var standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
-            var site = await PunchSiteResolver.ResolveAsync(_context, branchId, employee.CompanyId, cancellationToken);
+            Guid? branchId = window.BranchId ?? employee.BranchId;
+            AttendanceStandardResult standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
+            (Guid? BranchId, string SiteName, double? Latitude, double? Longitude) = await PunchSiteResolver.ResolveAsync(_context, branchId, employee.CompanyId, cancellationToken);
 
-            var distance = _rules.ValidateGeofence(
-                site.Latitude, site.Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
+            double distance = _rules.ValidateGeofence(
+                Latitude, Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
 
             record.CheckInAt = DateTime.UtcNow;
             record.CheckInLatitude = request.Latitude;
             record.CheckInLongitude = request.Longitude;
             record.CheckInDistanceM = distance;
-            record.BranchId = site.BranchId;
+            record.BranchId = BranchId;
             record.CompanyId = employee.CompanyId;
             record.ShiftId = window.ShiftId;
             record.ShiftMasterId = window.ShiftMasterId;
@@ -72,7 +80,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
 
             _rules.ComputeStatus(record, window, standard);
             await _rules.FinalizeOtAndNightAsync(record, window, standard, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -82,22 +90,26 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 TimekeepingMapper.ToLogObject(record),
                 "Mobile check-in");
 
-            return TimekeepingMapper.ToTodayDto(record, today, false, window, site.SiteName, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, false, window, SiteName, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
         {
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 return _currentUser.EmployeeId.Value;
+            }
 
             if (_currentUser.UserId.HasValue)
             {
-                var empId = await _context.UserEntities.AsNoTracking()
+                Guid? empId = await _context.UserEntities.AsNoTracking()
                     .Where(x => x.Id == _currentUser.UserId.Value)
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên. Không thể chấm công.");
@@ -127,27 +139,34 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
 
         public async Task<MobileTodayDto> Handle(MobileCheckOutCommand request, CancellationToken cancellationToken)
         {
-            var employeeId = await ResolveEmployeeIdAsync(cancellationToken);
-            var employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
-            var today = BusinessDateHelper.Today();
+            Guid employeeId = await ResolveEmployeeIdAsync(cancellationToken);
+            EmployeeEntity employee = await _rules.ResolveEmployeeAsync(employeeId, cancellationToken);
+            DateOnly today = BusinessDateHelper.Today();
 
             if (await _rules.HasApprovedLeaveAsync(employee.Id, today, cancellationToken))
+            {
                 throw new InvalidOperationException("Bạn đang trong ngày nghỉ phép đã duyệt, không thể chấm công.");
+            }
 
-            var record = await _context.TimekeepingEntities
+            TimekeepingEntity? record = await _context.TimekeepingEntities
                 .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id && x.WorkDate == today && !x.IsDeleted, cancellationToken);
             if (record == null || !record.CheckInAt.HasValue)
+            {
                 throw new InvalidOperationException("Bạn chưa chấm vào ca hôm nay.");
+            }
+
             if (record.CheckOutAt.HasValue)
+            {
                 throw new InvalidOperationException("Bạn đã chấm ra ca hôm nay.");
+            }
 
-            var window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
-            var branchId = record.BranchId ?? window.BranchId ?? employee.BranchId;
-            var standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
-            var site = await PunchSiteResolver.ResolveAsync(_context, branchId, employee.CompanyId, cancellationToken);
+            WorkWindowResult window = await _rules.ResolveWorkWindowAsync(employee, today, cancellationToken);
+            Guid? branchId = record.BranchId ?? window.BranchId ?? employee.BranchId;
+            AttendanceStandardResult standard = await _rules.ResolveStandardAsync(branchId, employee.CompanyId, cancellationToken);
+            (Guid? BranchId, string SiteName, double? Latitude, double? Longitude) = await PunchSiteResolver.ResolveAsync(_context, branchId, employee.CompanyId, cancellationToken);
 
-            var distance = _rules.ValidateGeofence(
-                site.Latitude, site.Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
+            double distance = _rules.ValidateGeofence(
+                Latitude, Longitude, request.Latitude, request.Longitude, standard.AllowedRadiusMeters);
 
             record.CheckOutAt = DateTime.UtcNow;
             record.CheckOutLatitude = request.Latitude;
@@ -157,7 +176,7 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
 
             _rules.ComputeStatus(record, window, standard);
             await _rules.FinalizeOtAndNightAsync(record, window, standard, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -167,22 +186,26 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
                 TimekeepingMapper.ToLogObject(record),
                 "Mobile check-out");
 
-            return TimekeepingMapper.ToTodayDto(record, today, false, window, site.SiteName, standard.AllowedRadiusMeters);
+            return TimekeepingMapper.ToTodayDto(record, today, false, window, SiteName, standard.AllowedRadiusMeters);
         }
 
         private async Task<Guid> ResolveEmployeeIdAsync(CancellationToken cancellationToken)
         {
             if (_currentUser.EmployeeId.HasValue && _currentUser.EmployeeId != Guid.Empty)
+            {
                 return _currentUser.EmployeeId.Value;
+            }
 
             if (_currentUser.UserId.HasValue)
             {
-                var empId = await _context.UserEntities.AsNoTracking()
+                Guid? empId = await _context.UserEntities.AsNoTracking()
                     .Where(x => x.Id == _currentUser.UserId.Value)
                     .Select(x => x.EmployeeId)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
+                {
                     return empId.Value;
+                }
             }
 
             throw new InvalidOperationException("Tài khoản chưa gắn nhân viên. Không thể chấm công.");
@@ -199,18 +222,22 @@ namespace HrmApi.Application.Features.MobileTimekeeping.Commands
         {
             if (branchId.HasValue && branchId != Guid.Empty)
             {
-                var branch = await context.BranchEntities.AsNoTracking()
+                BranchEntity? branch = await context.BranchEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == branchId.Value && !x.IsDeleted, cancellationToken);
                 if (branch != null && branch.Latitude.HasValue && branch.Longitude.HasValue)
+                {
                     return (branch.Id, branch.Name, branch.Latitude, branch.Longitude);
+                }
             }
 
             if (companyId.HasValue && companyId != Guid.Empty)
             {
-                var company = await context.CompanyEntities.AsNoTracking()
+                CompanyEntity? company = await context.CompanyEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == companyId.Value && !x.IsDeleted, cancellationToken);
                 if (company != null && company.Latitude.HasValue && company.Longitude.HasValue)
+                {
                     return (null, company.Name, company.Latitude, company.Longitude);
+                }
             }
 
             throw new InvalidOperationException(

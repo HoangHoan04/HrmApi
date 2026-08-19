@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Role;
 using HrmApi.Domain.Entities.Permission;
@@ -19,7 +16,10 @@ namespace HrmApi.Application.Features.Users
     {
         private readonly IApplicationDbContext _context;
 
-        public GetUserByIdQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetUserByIdQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<UserDetailDto?> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
         {
@@ -55,7 +55,10 @@ namespace HrmApi.Application.Features.Users
                 }
             ).FirstOrDefaultAsync(cancellationToken);
 
-            if (row == null) return null;
+            if (row == null)
+            {
+                return null;
+            }
 
             var roles = await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
@@ -125,16 +128,22 @@ namespace HrmApi.Application.Features.Users
         {
             string username = (request.Username ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(username))
+            {
                 throw new InvalidOperationException("Tên đăng nhập không được để trống.");
+            }
 
             string type = (request.Type ?? UserType.Employee).Trim().ToUpperInvariant();
             if (type is not (UserType.Admin or UserType.Employee or UserType.Hr or UserType.Manager))
+            {
                 type = UserType.Employee;
+            }
 
             bool exists = await _context.UserEntities.AsNoTracking()
                 .AnyAsync(x => !x.IsDeleted && x.Username.ToLower() == username.ToLower(), cancellationToken);
             if (exists)
+            {
                 throw new InvalidOperationException($"Tên đăng nhập '{username}' đã tồn tại.");
+            }
 
             Guid? companyId = request.CompanyId;
             Guid? branchId = request.BranchId;
@@ -146,7 +155,9 @@ namespace HrmApi.Application.Features.Users
                 bool employeeTaken = await _context.UserEntities.AsNoTracking()
                     .AnyAsync(x => !x.IsDeleted && x.EmployeeId == request.EmployeeId, cancellationToken);
                 if (employeeTaken)
+                {
                     throw new InvalidOperationException("Nhân viên này đã có tài khoản.");
+                }
 
                 var employee = await _context.EmployeeEntities.AsNoTracking()
                     .Where(x => x.Id == request.EmployeeId && !x.IsDeleted)
@@ -165,11 +176,13 @@ namespace HrmApi.Application.Features.Users
                 bool companyOk = await _context.CompanyEntities.AsNoTracking()
                     .AnyAsync(x => x.Id == companyId && !x.IsDeleted, cancellationToken);
                 if (!companyOk)
+                {
                     throw new InvalidOperationException("Công ty không hợp lệ.");
+                }
             }
 
             string password = string.IsNullOrWhiteSpace(request.Password) ? "123@123@" : request.Password.Trim();
-            var user = new UserEntity
+            UserEntity user = new()
             {
                 Username = username,
                 Type = type,
@@ -186,8 +199,8 @@ namespace HrmApi.Application.Features.Users
             };
             user.PasswordHash = _passwordHasher.HashPassword(user, password);
 
-            _context.UserEntities.Add(user);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.UserEntities.Add(user);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -232,25 +245,31 @@ namespace HrmApi.Application.Features.Users
 
         public async Task<bool> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
         {
-            var user = await _context.UserEntities
+            UserEntity user = await _context.UserEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy tài khoản.");
 
             string type = (request.Type ?? user.Type).Trim().ToUpperInvariant();
             if (type is not (UserType.Admin or UserType.Employee or UserType.Hr or UserType.Manager))
+            {
                 type = user.Type;
+            }
 
             if (request.EmployeeId.HasValue && request.EmployeeId != user.EmployeeId)
             {
                 bool employeeTaken = await _context.UserEntities.AsNoTracking()
                     .AnyAsync(x => !x.IsDeleted && x.EmployeeId == request.EmployeeId && x.Id != user.Id, cancellationToken);
                 if (employeeTaken)
+                {
                     throw new InvalidOperationException("Nhân viên này đã có tài khoản.");
+                }
 
                 bool employeeExists = await _context.EmployeeEntities.AsNoTracking()
                     .AnyAsync(x => x.Id == request.EmployeeId && !x.IsDeleted, cancellationToken);
                 if (!employeeExists)
+                {
                     throw new InvalidOperationException("Không tìm thấy nhân viên.");
+                }
             }
 
             var before = new { user.Email, user.PhoneNumber, user.Type, user.IsActive, user.IsLocked, user.EmployeeId, user.CompanyId };
@@ -271,7 +290,7 @@ namespace HrmApi.Application.Features.Users
             user.UpdatedAt = DateTime.UtcNow;
             user.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -313,7 +332,7 @@ namespace HrmApi.Application.Features.Users
 
         public async Task<bool> Handle(ResetUserPasswordCommand request, CancellationToken cancellationToken)
         {
-            var user = await _context.UserEntities
+            UserEntity user = await _context.UserEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy tài khoản.");
 
@@ -324,7 +343,7 @@ namespace HrmApi.Application.Features.Users
             user.UpdatedAt = DateTime.UtcNow;
             user.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -361,19 +380,21 @@ namespace HrmApi.Application.Features.Users
 
         public async Task<bool> Handle(DeleteUserCommand request, CancellationToken cancellationToken)
         {
-            var user = await _context.UserEntities
+            UserEntity user = await _context.UserEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy tài khoản.");
 
             if (_currentUser.UserId == user.Id)
+            {
                 throw new InvalidOperationException("Không thể xóa tài khoản đang đăng nhập.");
+            }
 
             user.IsDeleted = true;
             user.IsActive = false;
             user.UpdatedAt = DateTime.UtcNow;
             user.UpdatedBy = _currentUser.UserId;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DELETE,

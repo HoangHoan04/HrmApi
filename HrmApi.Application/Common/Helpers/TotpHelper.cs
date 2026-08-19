@@ -24,11 +24,15 @@ namespace HrmApi.Application.Common.Helpers
         public static bool VerifyCode(string secretBase32, string code, int window = 1)
         {
             if (string.IsNullOrWhiteSpace(secretBase32) || string.IsNullOrWhiteSpace(code))
+            {
                 return false;
+            }
 
             string normalized = code.Trim().Replace(" ", "");
             if (normalized.Length != 6 || !normalized.All(char.IsDigit))
+            {
                 return false;
+            }
 
             byte[] key;
             try
@@ -59,7 +63,9 @@ namespace HrmApi.Application.Common.Helpers
         {
             byte[] counter = BitConverter.GetBytes(timestep);
             if (BitConverter.IsLittleEndian)
+            {
                 Array.Reverse(counter);
+            }
 
             using HMACSHA1 hmac = new(key);
             byte[] hash = hmac.ComputeHash(counter);
@@ -75,8 +81,12 @@ namespace HrmApi.Application.Common.Helpers
 
         public static string ToBase32(byte[] data)
         {
-            if (data.Length == 0) return string.Empty;
-            StringBuilder sb = new((data.Length * 8 + 4) / 5);
+            if (data.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            StringBuilder sb = new(((data.Length * 8) + 4) / 5);
             int buffer = data[0];
             int next = 1;
             int bitsLeft = 8;
@@ -100,7 +110,7 @@ namespace HrmApi.Application.Common.Helpers
 
                 int index = (buffer >> (bitsLeft - 5)) & 0x1F;
                 bitsLeft -= 5;
-                sb.Append(Base32Alphabet[index]);
+                _ = sb.Append(Base32Alphabet[index]);
             }
 
             return sb.ToString();
@@ -109,16 +119,22 @@ namespace HrmApi.Application.Common.Helpers
         public static byte[] FromBase32(string input)
         {
             string cleaned = input.Trim().TrimEnd('=').ToUpperInvariant();
-            if (cleaned.Length == 0) return [];
+            if (cleaned.Length == 0)
+            {
+                return [];
+            }
 
-            List<byte> output = new((cleaned.Length * 5) / 8);
+            List<byte> output = new(cleaned.Length * 5 / 8);
             int buffer = 0;
             int bitsLeft = 0;
             foreach (char c in cleaned)
             {
                 int val = Base32Alphabet.IndexOf(c);
                 if (val < 0)
+                {
                     throw new FormatException("Invalid Base32 character.");
+                }
+
                 buffer = (buffer << 5) | val;
                 bitsLeft += 5;
                 if (bitsLeft >= 8)

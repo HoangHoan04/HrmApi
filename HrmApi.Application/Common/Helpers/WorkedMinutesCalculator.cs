@@ -1,5 +1,3 @@
-using System;
-using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
 
 namespace HrmApi.Application.Common.Helpers
@@ -55,12 +53,7 @@ namespace HrmApi.Application.Common.Helpers
 
                 DateTime overlapStart = inAt > breakStart ? inAt : breakStart;
                 DateTime overlapEnd = outAt < breakEnd ? outAt : breakEnd;
-                if (overlapEnd > overlapStart)
-                {
-                    return Math.Max(0, (int)Math.Floor((overlapEnd - overlapStart).TotalSeconds / 60.0));
-                }
-
-                return 0;
+                return overlapEnd > overlapStart ? Math.Max(0, (int)Math.Floor((overlapEnd - overlapStart).TotalSeconds / 60.0)) : 0;
             }
 
             if (window.BreakMinutes > 0)

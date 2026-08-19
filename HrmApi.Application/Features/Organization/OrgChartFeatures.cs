@@ -1,5 +1,6 @@
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Organization;
+using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,35 +13,43 @@ namespace HrmApi.Application.Features.Organization
     {
         private readonly IApplicationDbContext _context;
 
-        public GetOrgChartTreeQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetOrgChartTreeQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<OrgChartNodeDto?> Handle(GetOrgChartTreeQuery request, CancellationToken cancellationToken)
         {
             if (request.CompanyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("CompanyId là bắt buộc.");
+            }
 
-            var company = await _context.CompanyEntities.AsNoTracking()
+            CompanyEntity? company = await _context.CompanyEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken);
-            if (company == null) return null;
+            if (company == null)
+            {
+                return null;
+            }
 
-            var branches = await _context.BranchEntities.AsNoTracking()
+            List<BranchEntity> branches = await _context.BranchEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CompanyId == request.CompanyId)
                 .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                 .ToListAsync(cancellationToken);
 
-            var departments = await _context.DepartmentEntities.AsNoTracking()
+            List<DepartmentEntity> departments = await _context.DepartmentEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted && x.CompanyId == request.CompanyId)
                 .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                 .ToListAsync(cancellationToken);
 
-            var parts = request.IncludeParts
+            List<PartEntity> parts = request.IncludeParts
                 ? await _context.PartEntities.AsNoTracking()
                     .Where(x => !x.IsDeleted && x.CompanyId == request.CompanyId)
                     .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                     .ToListAsync(cancellationToken)
                 : [];
 
-            var managerIds = branches.Select(x => x.ManagerId)
+            List<Guid> managerIds = branches.Select(x => x.ManagerId)
                 .Concat(departments.Select(x => x.ManagerId))
                 .Concat(parts.Select(x => x.ManagerId))
                 .Where(x => x.HasValue && x != Guid.Empty)
@@ -48,7 +57,7 @@ namespace HrmApi.Application.Features.Organization
                 .Distinct()
                 .ToList();
 
-            var managerNames = await _context.EmployeeEntities.AsNoTracking()
+            Dictionary<Guid, string> managerNames = await _context.EmployeeEntities.AsNoTracking()
                 .Where(x => managerIds.Contains(x.Id))
                 .Select(x => new { x.Id, Name = x.FullName ?? (x.LastName + " " + x.FirstName) })
                 .ToDictionaryAsync(x => x.Id, x => x.Name.Trim(), cancellationToken);
@@ -59,17 +68,21 @@ namespace HrmApi.Application.Features.Organization
                 .Select(g => new { g.Key.BranchId, g.Key.DepartmentId, g.Key.PartId, Count = g.Count() })
                 .ToListAsync(cancellationToken);
 
-            int CountFor(Guid? branchId, Guid? deptId, Guid? partId) =>
-                empCounts.Where(x =>
+            int CountFor(Guid? branchId, Guid? deptId, Guid? partId)
+            {
+                return empCounts.Where(x =>
                         (!partId.HasValue || x.PartId == partId)
                         && (!deptId.HasValue || x.DepartmentId == deptId)
                         && (!branchId.HasValue || x.BranchId == branchId))
                     .Sum(x => x.Count);
+            }
 
-            string? Mgr(Guid? id) =>
-                id.HasValue && managerNames.TryGetValue(id.Value, out var n) ? n : null;
+            string? Mgr(Guid? id)
+            {
+                return id.HasValue && managerNames.TryGetValue(id.Value, out var n) ? n : null;
+            }
 
-            var root = new OrgChartNodeDto
+            OrgChartNodeDto root = new()
             {
                 Id = company.Id,
                 NodeType = OrgChartNodeTypes.Company,
@@ -82,7 +95,7 @@ namespace HrmApi.Application.Features.Organization
 
             if (branches.Count > 0)
             {
-                var branchNodes = branches.ToDictionary(
+                Dictionary<Guid, OrgChartNodeDto> branchNodes = branches.ToDictionary(
                     b => b.Id,
                     b => new OrgChartNodeDto
                     {
@@ -98,13 +111,17 @@ namespace HrmApi.Application.Features.Organization
                         EmployeeCount = CountFor(b.Id, null, null),
                     });
 
-                foreach (var b in branches)
+                foreach (BranchEntity? b in branches)
                 {
-                    var node = branchNodes[b.Id];
-                    if (b.ParentBranchId.HasValue && branchNodes.TryGetValue(b.ParentBranchId.Value, out var parent))
+                    OrgChartNodeDto node = branchNodes[b.Id];
+                    if (b.ParentBranchId.HasValue && branchNodes.TryGetValue(b.ParentBranchId.Value, out OrgChartNodeDto? parent))
+                    {
                         parent.Children.Add(node);
+                    }
                     else
+                    {
                         root.Children.Add(node);
+                    }
                 }
 
                 AttachDepartments(departments, parts, branchNodes, root, company.Id, Mgr, CountFor, underBranch: true);
@@ -127,7 +144,7 @@ namespace HrmApi.Application.Features.Organization
             Func<Guid?, Guid?, Guid?, int> countFor,
             bool underBranch)
         {
-            var deptNodes = departments.ToDictionary(
+            Dictionary<Guid, OrgChartNodeDto> deptNodes = departments.ToDictionary(
                 d => d.Id,
                 d => new OrgChartNodeDto
                 {
@@ -145,17 +162,17 @@ namespace HrmApi.Application.Features.Organization
                     EmployeeCount = countFor(d.BranchId, d.Id, null),
                 });
 
-            foreach (var d in departments)
+            foreach (DepartmentEntity d in departments)
             {
-                var node = deptNodes[d.Id];
-                if (d.ParentDepartmentId.HasValue && deptNodes.TryGetValue(d.ParentDepartmentId.Value, out var parentDept))
+                OrgChartNodeDto node = deptNodes[d.Id];
+                if (d.ParentDepartmentId.HasValue && deptNodes.TryGetValue(d.ParentDepartmentId.Value, out OrgChartNodeDto? parentDept))
                 {
                     parentDept.Children.Add(node);
                     continue;
                 }
 
                 if (underBranch && d.BranchId.HasValue && branchNodes != null
-                    && branchNodes.TryGetValue(d.BranchId.Value, out var parentBranch))
+                    && branchNodes.TryGetValue(d.BranchId.Value, out OrgChartNodeDto? parentBranch))
                 {
                     parentBranch.Children.Add(node);
                 }
@@ -165,10 +182,12 @@ namespace HrmApi.Application.Features.Organization
                 }
             }
 
-            foreach (var p in parts)
+            foreach (PartEntity p in parts)
             {
-                if (!p.DepartmentId.HasValue || !deptNodes.TryGetValue(p.DepartmentId.Value, out var parent))
+                if (!p.DepartmentId.HasValue || !deptNodes.TryGetValue(p.DepartmentId.Value, out OrgChartNodeDto? parent))
+                {
                     continue;
+                }
 
                 parent.Children.Add(new OrgChartNodeDto
                 {
@@ -214,7 +233,7 @@ namespace HrmApi.Application.Features.Organization
 
         private async Task<bool> ReparentBranchAsync(ReparentOrgChartNodeCommand request, CancellationToken ct)
         {
-            var entity = await _context.BranchEntities
+            BranchEntity entity = await _context.BranchEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct)
                 ?? throw new InvalidOperationException("Chi nhánh không tồn tại.");
 
@@ -223,20 +242,27 @@ namespace HrmApi.Application.Features.Organization
                 && request.NewParentId != entity.CompanyId)
             {
                 if (request.NewParentId == entity.Id)
+                {
                     throw new InvalidOperationException("Không thể đặt cha là chính nó.");
+                }
 
-                var parent = await _context.BranchEntities.AsNoTracking()
+                BranchEntity parent = await _context.BranchEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == request.NewParentId && !x.IsDeleted, ct)
                     ?? throw new InvalidOperationException("Chi nhánh cha không tồn tại.");
 
                 if (parent.CompanyId != entity.CompanyId)
+                {
                     throw new InvalidOperationException("Chi nhánh cha phải cùng công ty.");
+                }
 
-                var cursor = parent.ParentBranchId;
+                Guid? cursor = parent.ParentBranchId;
                 while (cursor.HasValue)
                 {
                     if (cursor == entity.Id)
+                    {
                         throw new InvalidOperationException("Không thể tạo vòng lặp phân cấp chi nhánh.");
+                    }
+
                     cursor = await _context.BranchEntities.AsNoTracking()
                         .Where(x => x.Id == cursor).Select(x => x.ParentBranchId).FirstOrDefaultAsync(ct);
                 }
@@ -247,9 +273,12 @@ namespace HrmApi.Application.Features.Organization
             var old = new { entity.ParentBranchId, entity.DisplayOrder };
             entity.ParentBranchId = newParentBranchId;
             if (request.DisplayOrder.HasValue)
+            {
                 entity.DisplayOrder = request.DisplayOrder.Value;
+            }
+
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE, "BranchEntity", entity.Id, old,
@@ -260,7 +289,7 @@ namespace HrmApi.Application.Features.Organization
 
         private async Task<bool> ReparentDepartmentAsync(ReparentOrgChartNodeCommand request, CancellationToken ct)
         {
-            var entity = await _context.DepartmentEntities
+            DepartmentEntity entity = await _context.DepartmentEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct)
                 ?? throw new InvalidOperationException("Phòng ban không tồn tại.");
 
@@ -270,20 +299,27 @@ namespace HrmApi.Application.Features.Organization
             if (request.NewParentId.HasValue && request.NewParentId != Guid.Empty)
             {
                 if (request.NewParentId == entity.Id)
+                {
                     throw new InvalidOperationException("Không thể đặt cha là chính nó.");
+                }
 
-                var parentDept = await _context.DepartmentEntities.AsNoTracking()
+                DepartmentEntity? parentDept = await _context.DepartmentEntities.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.Id == request.NewParentId && !x.IsDeleted, ct);
                 if (parentDept != null)
                 {
                     if (parentDept.CompanyId != entity.CompanyId)
+                    {
                         throw new InvalidOperationException("Phòng ban cha phải cùng công ty.");
+                    }
 
-                    var cursor = parentDept.ParentDepartmentId;
+                    Guid? cursor = parentDept.ParentDepartmentId;
                     while (cursor.HasValue)
                     {
                         if (cursor == entity.Id)
+                        {
                             throw new InvalidOperationException("Không thể tạo vòng lặp phân cấp phòng ban.");
+                        }
+
                         cursor = await _context.DepartmentEntities.AsNoTracking()
                             .Where(x => x.Id == cursor).Select(x => x.ParentDepartmentId).FirstOrDefaultAsync(ct);
                     }
@@ -293,12 +329,15 @@ namespace HrmApi.Application.Features.Organization
                 }
                 else
                 {
-                    var parentBranch = await _context.BranchEntities.AsNoTracking()
+                    BranchEntity? parentBranch = await _context.BranchEntities.AsNoTracking()
                         .FirstOrDefaultAsync(x => x.Id == request.NewParentId && !x.IsDeleted, ct);
                     if (parentBranch != null)
                     {
                         if (parentBranch.CompanyId != entity.CompanyId)
+                        {
                             throw new InvalidOperationException("Chi nhánh phải cùng công ty.");
+                        }
+
                         newBranchId = parentBranch.Id;
                         newParentDeptId = null;
                     }
@@ -315,7 +354,9 @@ namespace HrmApi.Application.Features.Organization
             }
 
             if (request.NewBranchId.HasValue)
+            {
                 newBranchId = request.NewBranchId == Guid.Empty ? null : request.NewBranchId;
+            }
 
             var old = new { entity.ParentDepartmentId, entity.BranchId, entity.Level, entity.DisplayOrder };
             entity.ParentDepartmentId = newParentDeptId;
@@ -326,9 +367,12 @@ namespace HrmApi.Application.Features.Organization
                        .Select(x => x.Level).FirstOrDefaultAsync(ct)) + 1
                 : 1;
             if (request.DisplayOrder.HasValue)
+            {
                 entity.DisplayOrder = request.DisplayOrder.Value;
+            }
+
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE, "DepartmentEntity", entity.Id, old,
@@ -339,27 +383,34 @@ namespace HrmApi.Application.Features.Organization
 
         private async Task<bool> ReparentPartAsync(ReparentOrgChartNodeCommand request, CancellationToken ct)
         {
-            var entity = await _context.PartEntities
+            PartEntity entity = await _context.PartEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct)
                 ?? throw new InvalidOperationException("Bộ phận không tồn tại.");
 
             if (!request.NewParentId.HasValue || request.NewParentId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Bộ phận phải thuộc một phòng ban.");
+            }
 
-            var dept = await _context.DepartmentEntities.AsNoTracking()
+            DepartmentEntity dept = await _context.DepartmentEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.NewParentId && !x.IsDeleted, ct)
                 ?? throw new InvalidOperationException("Phòng ban đích không tồn tại.");
 
             if (dept.CompanyId != entity.CompanyId)
+            {
                 throw new InvalidOperationException("Phòng ban đích phải cùng công ty.");
+            }
 
             var old = new { entity.DepartmentId, entity.BranchId, entity.DisplayOrder };
             entity.DepartmentId = dept.Id;
             entity.BranchId = dept.BranchId;
             if (request.DisplayOrder.HasValue)
+            {
                 entity.DisplayOrder = request.DisplayOrder.Value;
+            }
+
             entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync(ct);
+            _ = await _context.SaveChangesAsync(ct);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE, "PartEntity", entity.Id, old,

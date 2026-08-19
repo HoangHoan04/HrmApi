@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
@@ -30,7 +27,7 @@ namespace HrmApi.Application.Features.Branches.Commands
         {
             await ValidateAsync(request, null, cancellationToken, _context);
 
-            var branch = new BranchEntity
+            BranchEntity branch = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow,
@@ -39,8 +36,8 @@ namespace HrmApi.Application.Features.Branches.Commands
             BranchMapper.ApplyCommandFields(branch, request);
             await SyncManagerInfoAsync(branch, request, _context, cancellationToken);
 
-            _context.BranchEntities.Add(branch);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.BranchEntities.Add(branch);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -60,36 +57,48 @@ namespace HrmApi.Application.Features.Branches.Commands
             IApplicationDbContext context)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
+            {
                 throw new InvalidOperationException("Mã chi nhánh là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Name))
+            {
                 throw new InvalidOperationException("Tên chi nhánh là bắt buộc.");
+            }
 
-            var exists = await context.BranchEntities
+            bool exists = await context.BranchEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
             if (exists)
+            {
                 throw new InvalidOperationException("Mã chi nhánh đã tồn tại trong hệ thống.");
+            }
 
             if (request.ParentBranchId.HasValue)
             {
                 if (excludeId.HasValue && request.ParentBranchId.Value == excludeId.Value)
+                {
                     throw new InvalidOperationException("Chi nhánh không thể là chi nhánh mẹ của chính nó.");
+                }
 
-                var parentExists = await context.BranchEntities
+                bool parentExists = await context.BranchEntities
                     .AnyAsync(x => x.Id == request.ParentBranchId.Value, cancellationToken);
 
                 if (!parentExists)
+                {
                     throw new InvalidOperationException("Chi nhánh mẹ không tồn tại.");
+                }
             }
 
             if (request.ManagerId.HasValue)
             {
-                var managerExists = await context.EmployeeEntities
+                bool managerExists = await context.EmployeeEntities
                     .AnyAsync(x => x.Id == request.ManagerId.Value && !x.IsDeleted, cancellationToken);
                 if (!managerExists)
+                {
                     throw new InvalidOperationException("Nhân viên quản lý không tồn tại.");
+                }
             }
         }
 
@@ -102,9 +111,15 @@ namespace HrmApi.Application.Features.Branches.Commands
             if (!request.ManagerId.HasValue)
             {
                 if (string.IsNullOrWhiteSpace(request.ManagerName))
+                {
                     branch.ManagerName = null;
+                }
+
                 if (string.IsNullOrWhiteSpace(request.ManagerPhone))
+                {
                     branch.ManagerPhone = null;
+                }
+
                 return;
             }
 
@@ -118,12 +133,20 @@ namespace HrmApi.Application.Features.Branches.Commands
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (employee == null) return;
+            if (employee == null)
+            {
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(request.ManagerName))
+            {
                 branch.ManagerName = string.IsNullOrWhiteSpace(employee.Name) ? null : employee.Name;
+            }
+
             if (string.IsNullOrWhiteSpace(request.ManagerPhone))
+            {
                 branch.ManagerPhone = string.IsNullOrWhiteSpace(employee.Phone) ? null : employee.Phone;
+            }
         }
     }
     #endregion
@@ -147,22 +170,25 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<bool> Handle(UpdateBranchCommand request, CancellationToken cancellationToken)
         {
-            var branch = await _context.BranchEntities
+            BranchEntity? branch = await _context.BranchEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (branch == null) return false;
+            if (branch == null)
+            {
+                return false;
+            }
 
             await CreateBranchCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            var oldValue = BranchMapper.ToLogObject(branch);
+            object oldValue = BranchMapper.ToLogObject(branch);
 
             BranchMapper.ApplyCommandFields(branch, request);
             await CreateBranchCommandHandler.SyncManagerInfoAsync(branch, request, _context, cancellationToken);
             branch.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
-            var newValue = BranchMapper.ToLogObject(branch);
+            object newValue = BranchMapper.ToLogObject(branch);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -196,15 +222,18 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<bool> Handle(ActivateBranchCommand request, CancellationToken cancellationToken)
         {
-            var branch = await _context.BranchEntities
+            BranchEntity? branch = await _context.BranchEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (branch == null) return false;
+            if (branch == null)
+            {
+                return false;
+            }
 
             branch.IsDeleted = false;
             branch.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
@@ -238,15 +267,18 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<bool> Handle(DeactivateBranchCommand request, CancellationToken cancellationToken)
         {
-            var branch = await _context.BranchEntities
+            BranchEntity? branch = await _context.BranchEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (branch == null) return false;
+            if (branch == null)
+            {
+                return false;
+            }
 
             branch.IsDeleted = true;
             branch.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,

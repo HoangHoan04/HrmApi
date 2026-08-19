@@ -42,8 +42,8 @@ namespace HrmApi.Application.Features.TransferEmployees.Queries
 
             return entities.Select(x =>
             {
-                employees.TryGetValue(x.EmployeeId, out var emp);
-                detailMap.TryGetValue(x.Id, out List<TransferEmployeePositionDto>? details);
+                _ = employees.TryGetValue(x.EmployeeId, out (string Code, string? Name) emp);
+                _ = detailMap.TryGetValue(x.Id, out List<TransferEmployeePositionDto>? details);
                 return TransferEmployeeMapper.ToDto(x, emp.Code, emp.Name, details);
             }).ToList();
         }
@@ -140,8 +140,10 @@ namespace HrmApi.Application.Features.TransferEmployees.Queries
                 }
             }
 
-            string? Name(Dictionary<Guid, string> map, Guid? id)
-                => id.HasValue && map.TryGetValue(id.Value, out string? n) ? n : null;
+            static string? Name(Dictionary<Guid, string> map, Guid? id)
+            {
+                return id.HasValue && map.TryGetValue(id.Value, out string? n) ? n : null;
+            }
 
             return details.GroupBy(x => x.TransferEmployeeId)
                 .ToDictionary(
@@ -192,14 +194,7 @@ namespace HrmApi.Application.Features.TransferEmployees.Queries
                 PermissionCodes.HrTransferView,
                 cancellationToken);
 
-            if (request.IsDeleted.HasValue)
-            {
-                query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
-            }
-            else
-            {
-                query = query.Where(x => !x.IsDeleted);
-            }
+            query = request.IsDeleted.HasValue ? query.Where(x => x.IsDeleted == request.IsDeleted.Value) : query.Where(x => !x.IsDeleted);
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
@@ -360,7 +355,7 @@ namespace HrmApi.Application.Features.TransferEmployees.Queries
                 NewPositionId = employee.PositionId,
             };
 
-            var mapped = await TransferEmployeeQueryHelper.MapDetailsAsync(_context, [fake], cancellationToken);
+            Dictionary<Guid, List<TransferEmployeePositionDto>> mapped = await TransferEmployeeQueryHelper.MapDetailsAsync(_context, [fake], cancellationToken);
             return mapped.Values.FirstOrDefault()?.FirstOrDefault();
         }
     }

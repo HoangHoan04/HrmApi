@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using HrmApi.Application.Common.Interfaces;
+﻿using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Organization;
 using HrmApi.Domain.Enums;
@@ -30,7 +27,7 @@ namespace HrmApi.Application.Features.PartMasters.Commands
         {
             await ValidateAsync(request, null, cancellationToken, _context);
 
-            var partMaster = new PartMasterEntity
+            PartMasterEntity partMaster = new()
             {
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -38,8 +35,8 @@ namespace HrmApi.Application.Features.PartMasters.Commands
 
             PartMasterMapper.ApplyCommandFields(partMaster, request);
 
-            _context.PartMasterEntities.Add(partMaster);
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = _context.PartMasterEntities.Add(partMaster);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.CREATE,
@@ -47,7 +44,7 @@ namespace HrmApi.Application.Features.PartMasters.Commands
                 partMaster.Id,
                 null,
                 PartMasterMapper.ToLogObject(partMaster),
-                "Tạo mới mẫu tổ/nhóm " + partMaster.Name + " thành công");
+                "Tạo mới mẫu bộ phận " + partMaster.Name + " thành công");
 
             return partMaster.Id;
         }
@@ -59,25 +56,33 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             IApplicationDbContext context)
         {
             if (string.IsNullOrWhiteSpace(request.Code))
-                throw new InvalidOperationException("Mã mẫu tổ/nhóm là bắt buộc.");
+            {
+                throw new InvalidOperationException("Mã mẫu bộ phận là bắt buộc.");
+            }
 
             if (string.IsNullOrWhiteSpace(request.Name))
-                throw new InvalidOperationException("Tên mẫu tổ/nhóm là bắt buộc.");
+            {
+                throw new InvalidOperationException("Tên mẫu bộ phận là bắt buộc.");
+            }
 
-            var exists = await context.PartMasterEntities
+            bool exists = await context.PartMasterEntities
                 .AnyAsync(x => x.Code.ToLower() == request.Code.Trim().ToLower()
                     && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
 
             if (exists)
-                throw new InvalidOperationException("Mã mẫu tổ/nhóm đã tồn tại trong hệ thống.");
+            {
+                throw new InvalidOperationException("Mã mẫu bộ phận đã tồn tại trong hệ thống.");
+            }
 
             if (request.CompanyId.HasValue)
             {
-                var companyExists = await context.CompanyEntities
+                bool companyExists = await context.CompanyEntities
                     .AnyAsync(x => x.Id == request.CompanyId.Value, cancellationToken);
 
                 if (!companyExists)
+                {
                     throw new InvalidOperationException("Công ty không tồn tại.");
+                }
             }
         }
     }
@@ -105,18 +110,21 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             var partMaster = await _context.PartMasterEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (partMaster == null) return false;
+            if (partMaster == null)
+            {
+                return false;
+            }
 
             await CreatePartMasterCommandHandler.ValidateAsync(request, request.Id, cancellationToken, _context);
 
-            var oldValue = PartMasterMapper.ToLogObject(partMaster);
+            object oldValue = PartMasterMapper.ToLogObject(partMaster);
 
             PartMasterMapper.ApplyCommandFields(partMaster, request);
             partMaster.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
-            var newValue = PartMasterMapper.ToLogObject(partMaster);
+            object newValue = PartMasterMapper.ToLogObject(partMaster);
 
             await _actionLog.LogActionAsync(
                 ActionType.UPDATE,
@@ -124,7 +132,7 @@ namespace HrmApi.Application.Features.PartMasters.Commands
                 partMaster.Id,
                 oldValue,
                 newValue,
-                "Cập nhật thông tin mẫu tổ/nhóm " + partMaster.Name + " thành công");
+                "Cập nhật thông tin mẫu bộ phận " + partMaster.Name + " thành công");
 
             return true;
         }
@@ -153,12 +161,15 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             var partMaster = await _context.PartMasterEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (partMaster == null) return false;
+            if (partMaster == null)
+            {
+                return false;
+            }
 
             partMaster.IsDeleted = false;
             partMaster.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.ACTIVATE,
@@ -166,7 +177,7 @@ namespace HrmApi.Application.Features.PartMasters.Commands
                 partMaster.Id,
                 new { IsDeleted = true },
                 new { IsDeleted = false },
-                "Kích hoạt mẫu tổ/nhóm " + partMaster.Name + " thành công");
+                "Kích hoạt mẫu bộ phận " + partMaster.Name + " thành công");
 
             return true;
         }
@@ -195,12 +206,15 @@ namespace HrmApi.Application.Features.PartMasters.Commands
             var partMaster = await _context.PartMasterEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
-            if (partMaster == null) return false;
+            if (partMaster == null)
+            {
+                return false;
+            }
 
             partMaster.IsDeleted = true;
             partMaster.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            _ = await _context.SaveChangesAsync(cancellationToken);
 
             await _actionLog.LogActionAsync(
                 ActionType.DEACTIVATE,
@@ -208,7 +222,7 @@ namespace HrmApi.Application.Features.PartMasters.Commands
                 partMaster.Id,
                 new { IsDeleted = false },
                 new { IsDeleted = true },
-                "Ngưng hoạt động mẫu tổ/nhóm " + partMaster.Name + " thành công");
+                "Ngưng hoạt động mẫu bộ phận " + partMaster.Name + " thành công");
 
             return true;
         }

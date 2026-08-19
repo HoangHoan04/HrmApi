@@ -14,17 +14,29 @@ namespace HrmApi.Application.Features.Performance
     public class GetReviewCyclesPagedQueryHandler : IRequestHandler<GetReviewCyclesPagedQuery, PagedResult<PerformanceReviewCycleDto>>
     {
         private readonly IApplicationDbContext _context;
-        public GetReviewCyclesPagedQueryHandler(IApplicationDbContext context) => _context = context;
+        public GetReviewCyclesPagedQueryHandler(IApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         public async Task<PagedResult<PerformanceReviewCycleDto>> Handle(GetReviewCyclesPagedQuery request, CancellationToken cancellationToken)
         {
             IQueryable<PerformanceReviewCycleEntity> query = _context.PerformanceReviewCycleEntities.AsNoTracking().Where(x => !x.IsDeleted);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            {
                 query = query.Where(x => x.CompanyId == request.CompanyId);
+            }
+
             if (request.BranchId.HasValue && request.BranchId != Guid.Empty)
+            {
                 query = query.Where(x => x.BranchId == request.BranchId);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Status))
+            {
                 query = query.Where(x => x.Status == request.Status.Trim().ToUpperInvariant());
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
@@ -43,13 +55,17 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task<List<PerformanceReviewCycleDto>> MapManyAsync(List<PerformanceReviewCycleEntity> rows, CancellationToken cancellationToken)
         {
-            if (rows.Count == 0) return [];
-            var companyIds = rows.Select(x => x.CompanyId).Distinct().ToList();
-            var branchIds = rows.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+            if (rows.Count == 0)
+            {
+                return [];
+            }
 
-            var companies = await _context.CompanyEntities.AsNoTracking()
+            List<Guid> companyIds = rows.Select(x => x.CompanyId).Distinct().ToList();
+            List<Guid> branchIds = rows.Where(x => x.BranchId.HasValue).Select(x => x.BranchId!.Value).Distinct().ToList();
+
+            Dictionary<Guid, string> companies = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => companyIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
-            var branches = branchIds.Count == 0 ? new Dictionary<Guid, string>()
+            Dictionary<Guid, string> branches = branchIds.Count == 0 ? []
                 : await _context.BranchEntities.AsNoTracking()
                     .Where(x => branchIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
@@ -88,8 +104,7 @@ namespace HrmApi.Application.Features.Performance
         {
             PerformanceReviewCycleEntity? e = await _context.PerformanceReviewCycleEntities.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (e == null) return null;
-            return (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
+            return e == null ? null : (await _mapper.MapManyAsync([e], cancellationToken)).FirstOrDefault();
         }
     }
 
@@ -128,21 +143,47 @@ namespace HrmApi.Application.Features.Performance
 
         internal async Task ValidateAsync(PerformanceReviewCycleCommandFields request, Guid? excludeId, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.Code)) throw new InvalidOperationException("Mã chu kỳ đánh giá là bắt buộc.");
-            if (string.IsNullOrWhiteSpace(request.Name)) throw new InvalidOperationException("Tên chu kỳ đánh giá là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                throw new InvalidOperationException("Mã chu kỳ đánh giá là bắt buộc.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new InvalidOperationException("Tên chu kỳ đánh giá là bắt buộc.");
+            }
+
             if (!request.CompanyId.HasValue || request.CompanyId == Guid.Empty)
+            {
                 throw new InvalidOperationException("Công ty là bắt buộc.");
-            if (!request.PeriodFrom.HasValue) throw new InvalidOperationException("Ngày bắt đầu là bắt buộc.");
-            if (!request.PeriodTo.HasValue) throw new InvalidOperationException("Ngày kết thúc là bắt buộc.");
+            }
+
+            if (!request.PeriodFrom.HasValue)
+            {
+                throw new InvalidOperationException("Ngày bắt đầu là bắt buộc.");
+            }
+
+            if (!request.PeriodTo.HasValue)
+            {
+                throw new InvalidOperationException("Ngày kết thúc là bắt buộc.");
+            }
+
             if (request.PeriodTo < request.PeriodFrom)
+            {
                 throw new InvalidOperationException("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.");
+            }
 
             string code = request.Code.Trim().ToUpperInvariant();
             if (await _context.PerformanceReviewCycleEntities.AnyAsync(
                     x => !x.IsDeleted && x.Code == code && (!excludeId.HasValue || x.Id != excludeId), cancellationToken))
+            {
                 throw new InvalidOperationException("Mã chu kỳ đánh giá đã tồn tại.");
+            }
+
             if (!await _context.CompanyEntities.AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken))
+            {
                 throw new InvalidOperationException("Công ty không tồn tại.");
+            }
         }
     }
 
@@ -167,7 +208,10 @@ namespace HrmApi.Application.Features.Performance
         {
             PerformanceReviewCycleEntity? entity = await _context.PerformanceReviewCycleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             request.Code ??= entity.Code;
             request.Name ??= entity.Name;
@@ -207,9 +251,16 @@ namespace HrmApi.Application.Features.Performance
         {
             PerformanceReviewCycleEntity? entity = await _context.PerformanceReviewCycleEntities
                 .FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, cancellationToken);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
+
             if (await _context.KpiGoalEntities.AnyAsync(x => !x.IsDeleted && x.CycleId == request.Id, cancellationToken))
+            {
                 throw new InvalidOperationException("Chu kỳ đang có mục tiêu KPI — không thể xóa.");
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = _currentUser.UserId;

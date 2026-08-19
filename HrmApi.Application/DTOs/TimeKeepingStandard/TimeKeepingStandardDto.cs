@@ -1,5 +1,3 @@
-using System;
-
 namespace HrmApi.Application.DTOs.TimeKeepingStandard
 {
     public class TimeKeepingStandardDto : BaseDto

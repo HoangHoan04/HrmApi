@@ -78,5 +78,42 @@ namespace HrmApi.WebApi.Controllers
         [RequirePermission(PermissionCodes.OperateShiftView)]
         public async Task<ActionResult<List<ShiftMasterSelectBoxDto>>> GetSelectBox([FromBody] GetShiftMasterSelectBoxQuery query)
             => Ok(await _mediator.Send(query));
+
+        [HttpPost("excel/template")]
+        [RequirePermission(PermissionCodes.OperateShiftImportExcel)]
+        public async Task<IActionResult> DownloadExcelTemplate()
+        {
+            byte[] content = await _mediator.Send(new DownloadShiftMasterExcelTemplateQuery());
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Mau_Import_Ca_Lam_Viec.xlsx");
+        }
+
+        [HttpPost("excel/export")]
+        [RequirePermission(PermissionCodes.OperateShiftExportExcel)]
+        public async Task<IActionResult> ExportExcel([FromBody] ExportShiftMastersExcelQuery query)
+        {
+            byte[] content = await _mediator.Send(query);
+            string fileName = $"Danh_Sach_Ca_Lam_Viec_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        [HttpPost("excel/import")]
+        [RequirePermission(PermissionCodes.OperateShiftImportExcel)]
+        public async Task<ActionResult<ShiftMasterImportResultDto>> ImportExcel(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file Excel hợp lệ.");
+            }
+
+            using MemoryStream memoryStream = new();
+            await file.CopyToAsync(memoryStream);
+
+            ShiftMasterImportResultDto result = await _mediator.Send(new ImportShiftMastersExcelCommand
+            {
+                FileContent = memoryStream.ToArray()
+            });
+
+            return Ok(result);
+        }
     }
 }

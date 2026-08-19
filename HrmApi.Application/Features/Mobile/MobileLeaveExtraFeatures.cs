@@ -31,7 +31,9 @@ namespace HrmApi.Application.Features.Mobile
             CancellationToken cancellationToken)
         {
             if (request.To < request.From)
+            {
                 throw new InvalidOperationException("Đến ngày phải >= Từ ngày.");
+            }
 
             Guid employeeId = await MobileEmployeeHelper.ResolveEmployeeIdAsync(_context, _currentUser, cancellationToken);
             var me = await _context.EmployeeEntities.AsNoTracking()
@@ -40,19 +42,18 @@ namespace HrmApi.Application.Features.Mobile
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new InvalidOperationException("Không tìm thấy nhân viên.");
 
-            if (!me.CompanyId.HasValue || me.CompanyId == Guid.Empty)
-                throw new InvalidOperationException("Nhân viên chưa gắn công ty.");
-
-            return await _mediator.Send(new GetLeaveCalendarRangeQuery
-            {
-                FromDate = request.From,
-                ToDate = request.To,
-                CompanyId = me.CompanyId,
-                BranchId = me.BranchId,
-                Status = DayOffStatus.APPROVED,
-                IncludeHolidays = true,
-                IncludePending = false,
-            }, cancellationToken);
+            return !me.CompanyId.HasValue || me.CompanyId == Guid.Empty
+                ? throw new InvalidOperationException("Nhân viên chưa gắn công ty.")
+                : await _mediator.Send(new GetLeaveCalendarRangeQuery
+                {
+                    FromDate = request.From,
+                    ToDate = request.To,
+                    CompanyId = me.CompanyId,
+                    BranchId = me.BranchId,
+                    Status = DayOffStatus.APPROVED,
+                    IncludeHolidays = true,
+                    IncludePending = false,
+                }, cancellationToken);
         }
     }
 }

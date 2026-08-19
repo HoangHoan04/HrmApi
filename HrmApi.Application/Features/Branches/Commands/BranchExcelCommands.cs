@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
@@ -32,17 +27,17 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<byte[]> Handle(ExportBranchesExcelQuery request, CancellationToken cancellationToken)
         {
-            var query = _context.BranchEntities.AsNoTracking();
+            IQueryable<BranchEntity> query = _context.BranchEntities.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
-                var code = request.Code.Trim().ToLower();
+                string code = request.Code.Trim().ToLower();
                 query = query.Where(x => x.Code.ToLower().Contains(code));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var name = request.Name.Trim().ToLower();
+                string name = request.Name.Trim().ToLower();
                 query = query.Where(x => x.Name.ToLower().Contains(name));
             }
 
@@ -51,25 +46,25 @@ namespace HrmApi.Application.Features.Branches.Commands
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
             }
 
-            var branches = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            List<BranchEntity> branches = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
+            Dictionary<Guid, string> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .ToDictionaryAsync(x => x.Id, x => x.Code, cancellationToken);
 
-            using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("DanhSachChiNhanh");
+            using XLWorkbook workbook = new();
+            IXLWorksheet worksheet = workbook.Worksheets.Add("DanhSachChiNhanh");
             BranchExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: true);
 
-            for (var i = 0; i < branches.Count; i++)
+            for (int i = 0; i < branches.Count; i++)
             {
-                var branch = branches[i];
-                string? companyCode = branch.CompanyId.HasValue && companyDict.TryGetValue(branch.CompanyId.Value, out var cc) ? cc : null;
+                BranchEntity branch = branches[i];
+                string? companyCode = branch.CompanyId.HasValue && companyDict.TryGetValue(branch.CompanyId.Value, out string? cc) ? cc : null;
                 BranchExcelWriter.WriteBranchRow(worksheet, i + 2, branch, companyCode, includeExportOnlyColumns: true);
             }
 
             ExcelHelper.ApplyColumnWidths(worksheet);
             ExcelHelper.FreezeHeaderRow(worksheet);
 
-            using var stream = new MemoryStream();
+            using MemoryStream stream = new();
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
@@ -90,8 +85,8 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<byte[]> Handle(DownloadBranchExcelTemplateQuery request, CancellationToken cancellationToken)
         {
-            using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("ChiNhanh");
+            using XLWorkbook workbook = new();
+            IXLWorksheet worksheet = workbook.Worksheets.Add("ChiNhanh");
             BranchExcelWriter.WriteHeaders(worksheet, includeExportOnlyColumns: false);
             BranchExcelWriter.WriteTemplateSampleRow(worksheet);
             ExcelHelper.ApplyColumnWidths(worksheet);
@@ -104,7 +99,7 @@ namespace HrmApi.Application.Features.Branches.Commands
                 .ToListAsync(cancellationToken);
             ExcelHelper.WriteReferenceSheet(workbook, "CongTy", "Mã công ty", "Tên công ty", companies.Select(x => (x.Code, x.Name)));
 
-            using var stream = new MemoryStream();
+            using MemoryStream stream = new();
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
@@ -120,7 +115,7 @@ namespace HrmApi.Application.Features.Branches.Commands
         public int TotalRows { get; set; }
         public int SuccessCount { get; set; }
         public int ErrorCount { get; set; }
-        public List<string> Errors { get; set; } = new();
+        public List<string> Errors { get; set; } = [];
     }
 
     public class ImportBranchesExcelCommandHandler : IRequestHandler<ImportBranchesExcelCommand, BranchImportResultDto>
@@ -136,25 +131,25 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public async Task<BranchImportResultDto> Handle(ImportBranchesExcelCommand request, CancellationToken cancellationToken)
         {
-            var result = new BranchImportResultDto();
+            BranchImportResultDto result = new();
 
-            using var stream = new MemoryStream(request.FileContent);
-            using var workbook = new XLWorkbook(stream);
-            var worksheet = workbook.Worksheet(1);
-            var rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? new List<IXLRangeRow>();
+            using MemoryStream stream = new(request.FileContent);
+            using XLWorkbook workbook = new(stream);
+            IXLWorksheet worksheet = workbook.Worksheet(1);
+            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
 
             result.TotalRows = rows.Count;
 
-            var companyDict = await _context.CompanyEntities.AsNoTracking()
+            Dictionary<string, Guid> companyDict = await _context.CompanyEntities.AsNoTracking()
                 .Where(x => !x.IsDeleted)
                 .ToDictionaryAsync(x => x.Code.Trim().ToLower(), x => x.Id, cancellationToken);
 
-            foreach (var row in rows)
+            foreach (IXLRangeRow? row in rows)
             {
-                var rowNumber = row.RowNumber();
+                int rowNumber = row.RowNumber();
                 try
                 {
-                    var command = ReadRow(row, companyDict);
+                    BranchCommandFields command = ReadRow(row, companyDict);
                     if (string.IsNullOrWhiteSpace(command.Code) && string.IsNullOrWhiteSpace(command.Name))
                     {
                         result.TotalRows--;
@@ -169,15 +164,15 @@ namespace HrmApi.Application.Features.Branches.Commands
 
                     await CreateBranchCommandHandler.ValidateAsync(command, null, cancellationToken, _context);
 
-                    var branch = new BranchEntity
+                    BranchEntity branch = new()
                     {
                         IsDeleted = false,
                         CreatedAt = DateTime.UtcNow
                     };
                     BranchMapper.ApplyCommandFields(branch, command);
 
-                    _context.BranchEntities.Add(branch);
-                    await _context.SaveChangesAsync(cancellationToken);
+                    _ = _context.BranchEntities.Add(branch);
+                    _ = await _context.SaveChangesAsync(cancellationToken);
 
                     await _actionLog.LogActionAsync(
                         ActionType.CREATE,
@@ -201,8 +196,8 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         private static BranchCommandFields ReadRow(IXLRangeRow row, Dictionary<string, Guid> companyDict)
         {
-            var companyCode = ExcelHelper.GetCellString(row, 31).Trim().ToLower();
-            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out var cid) ? cid : null;
+            string companyCode = ExcelHelper.GetCellString(row, 31).Trim().ToLower();
+            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out Guid cid) ? cid : null;
 
             return new BranchCommandFields
             {
@@ -217,8 +212,8 @@ namespace HrmApi.Application.Features.Branches.Commands
                 City = ExcelHelper.GetCellString(row, 9),
                 District = ExcelHelper.GetCellString(row, 10),
                 Ward = ExcelHelper.GetCellString(row, 11),
-                Latitude = double.TryParse(ExcelHelper.GetCellString(row, 12), out var lat) ? lat : null,
-                Longitude = double.TryParse(ExcelHelper.GetCellString(row, 13), out var lng) ? lng : null,
+                Latitude = double.TryParse(ExcelHelper.GetCellString(row, 12), out double lat) ? lat : null,
+                Longitude = double.TryParse(ExcelHelper.GetCellString(row, 13), out double lng) ? lng : null,
                 PhoneNumber = ExcelHelper.GetCellString(row, 14),
                 Email = ExcelHelper.GetCellString(row, 15),
                 Fax = ExcelHelper.GetCellString(row, 16),
@@ -286,19 +281,21 @@ namespace HrmApi.Application.Features.Branches.Commands
             new() { Title = "Trạng thái hệ thống", Required = false, ExportOnly = true },
         };
 
-        public static IEnumerable<BranchExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns) =>
-            Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        public static IEnumerable<BranchExcelColumnDefinition> GetColumns(bool includeExportOnlyColumns)
+        {
+            return Definitions.Where(x => includeExportOnlyColumns || !x.ExportOnly);
+        }
     }
 
     internal static class BranchExcelWriter
     {
         public static void WriteHeaders(IXLWorksheet worksheet, bool includeExportOnlyColumns)
         {
-            var columns = BranchExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
+            List<BranchExcelColumnDefinition> columns = BranchExcelColumns.GetColumns(includeExportOnlyColumns).ToList();
 
-            for (var col = 0; col < columns.Count; col++)
+            for (int col = 0; col < columns.Count; col++)
             {
-                var definition = columns[col];
+                BranchExcelColumnDefinition definition = columns[col];
                 ExcelHelper.WriteStyledHeaderCell(worksheet, col + 1, definition.Title, definition.Required);
             }
 
@@ -307,8 +304,8 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         public static void WriteTemplateSampleRow(IXLWorksheet worksheet)
         {
-            var sampleValues = new List<string>
-            {
+            List<string> sampleValues =
+            [
                 "CN001",
                 "Chi nhánh Hà Nội",
                 "CNHN",
@@ -340,11 +337,11 @@ namespace HrmApi.Application.Features.Branches.Commands
                 "100",
                 "SE Asia Standard Time",
                 "CT01"
-            };
+            ];
 
-            for (var col = 0; col < sampleValues.Count; col++)
+            for (int col = 0; col < sampleValues.Count; col++)
             {
-                var cell = worksheet.Cell(2, col + 1);
+                IXLCell cell = worksheet.Cell(2, col + 1);
                 cell.Value = sampleValues[col];
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
@@ -359,8 +356,8 @@ namespace HrmApi.Application.Features.Branches.Commands
             string? companyCode,
             bool includeExportOnlyColumns)
         {
-            var values = new List<string?>
-            {
+            List<string?> values =
+            [
                 branch.Code,
                 branch.Name,
                 branch.ShortName,
@@ -392,16 +389,16 @@ namespace HrmApi.Application.Features.Branches.Commands
                 branch.MaxEmployeeCapacity?.ToString(),
                 branch.TimeZone,
                 companyCode
-            };
+            ];
 
             if (includeExportOnlyColumns)
             {
                 values.Add(branch.IsDeleted ? "Ngưng hoạt động" : "Đang hoạt động");
             }
 
-            for (var col = 0; col < values.Count; col++)
+            for (int col = 0; col < values.Count; col++)
             {
-                var cell = worksheet.Cell(row, col + 1);
+                IXLCell cell = worksheet.Cell(row, col + 1);
                 cell.Value = values[col] ?? string.Empty;
                 cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
