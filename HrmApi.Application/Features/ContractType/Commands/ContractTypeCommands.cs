@@ -1,4 +1,4 @@
-﻿using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Contract;
 using HrmApi.Domain.Enums;
@@ -66,7 +66,20 @@ namespace HrmApi.Application.Features.ContractType.Commands
                 throw new InvalidOperationException("Mã loại hợp đồng đã tồn tại.");
             }
 
-            if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
+            if (request.CompanyIds != null && request.CompanyIds.Count > 0)
+            {
+                List<Guid> validCompanyIds = request.CompanyIds.Where(x => x != Guid.Empty).Distinct().ToList();
+                if (validCompanyIds.Count > 0)
+                {
+                    int existingCount = await context.CompanyEntities
+                        .CountAsync(x => validCompanyIds.Contains(x.Id) && !x.IsDeleted, cancellationToken);
+                    if (existingCount != validCompanyIds.Count)
+                    {
+                        throw new InvalidOperationException("Một hoặc nhiều công ty được chọn không tồn tại.");
+                    }
+                }
+            }
+            else if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
                 bool companyExists = await context.CompanyEntities
                     .AnyAsync(x => x.Id == request.CompanyId && !x.IsDeleted, cancellationToken);

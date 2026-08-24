@@ -1,4 +1,4 @@
-﻿using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.Common.Models;
 using HrmApi.Application.DTOs.ContractType;
 using HrmApi.Application.Mappings;
@@ -49,7 +49,8 @@ namespace HrmApi.Application.Features.ContractType.Queries
             }
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
-                query = query.Where(x => x.CompanyId == request.CompanyId);
+                Guid targetCompanyId = request.CompanyId.Value;
+                query = query.Where(x => x.CompanyIds.Contains(targetCompanyId) || x.CompanyId == targetCompanyId || (x.CompanyIds.Count == 0 && x.CompanyId == null));
             }
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -68,15 +69,23 @@ namespace HrmApi.Application.Features.ContractType.Queries
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            List<Guid> companyIds = entities.Where(x => x.CompanyId.HasValue).Select(x => x.CompanyId!.Value).Distinct().ToList();
-            Dictionary<Guid, string> companyMap = companyIds.Count == 0
+            List<Guid> allCompanyIds = entities
+                .SelectMany(x => (IEnumerable<Guid>)(x.CompanyIds.Count > 0 ? x.CompanyIds : (x.CompanyId.HasValue ? new[] { x.CompanyId.Value } : Array.Empty<Guid>())))
+                .Distinct()
+                .ToList();
+
+            Dictionary<Guid, string> companyMap = allCompanyIds.Count == 0
                 ? []
                 : await _context.CompanyEntities
-                    .Where(x => companyIds.Contains(x.Id))
+                    .Where(x => allCompanyIds.Contains(x.Id))
                     .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
 
-            List<ContractTypeDto> items = entities.Select(x => ContractTypeMapper.ToDto(
-                x, x.CompanyId.HasValue && companyMap.TryGetValue(x.CompanyId.Value, out string? n) ? n : null)).ToList();
+            List<ContractTypeDto> items = entities.Select(x =>
+            {
+                List<Guid> cIds = x.CompanyIds.Count > 0 ? x.CompanyIds : (x.CompanyId.HasValue ? [x.CompanyId.Value] : []);
+                List<string> cNames = cIds.Where(id => companyMap.ContainsKey(id)).Select(id => companyMap[id]).ToList();
+                return ContractTypeMapper.ToDto(x, cIds, cNames);
+            }).ToList();
 
             return new PagedResult<ContractTypeDto>(items, totalCount, request.PageIndex, request.PageSize);
         }
@@ -105,15 +114,16 @@ namespace HrmApi.Application.Features.ContractType.Queries
                 return null;
             }
 
-            string? companyName = null;
-            if (entity.CompanyId.HasValue)
+            List<Guid> cIds = entity.CompanyIds.Count > 0 ? entity.CompanyIds : (entity.CompanyId.HasValue ? [entity.CompanyId.Value] : []);
+            List<string> cNames = [];
+            if (cIds.Count > 0)
             {
-                companyName = await _context.CompanyEntities.AsNoTracking()
-                    .Where(x => x.Id == entity.CompanyId)
+                cNames = await _context.CompanyEntities.AsNoTracking()
+                    .Where(x => cIds.Contains(x.Id))
                     .Select(x => x.Name)
-                    .FirstOrDefaultAsync(cancellationToken);
+                    .ToListAsync(cancellationToken);
             }
-            return ContractTypeMapper.ToDto(entity, companyName);
+            return ContractTypeMapper.ToDto(entity, cIds, cNames);
         }
     }
 
@@ -137,7 +147,8 @@ namespace HrmApi.Application.Features.ContractType.Queries
                 .Where(x => !x.IsDeleted && x.IsActive);
             if (request.CompanyId.HasValue && request.CompanyId != Guid.Empty)
             {
-                query = query.Where(x => x.CompanyId == request.CompanyId || x.CompanyId == null);
+                Guid targetCompanyId = request.CompanyId.Value;
+                query = query.Where(x => x.CompanyIds.Contains(targetCompanyId) || x.CompanyId == targetCompanyId || (x.CompanyIds.Count == 0 && x.CompanyId == null));
             }
 
             return await query.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
@@ -146,7 +157,8 @@ namespace HrmApi.Application.Features.ContractType.Queries
                     Id = x.Id,
                     Code = x.Code,
                     Name = x.Name,
-                    CompanyId = x.CompanyId,
+                    CompanyId = x.CompanyId ?? (x.CompanyIds.Count > 0 ? x.CompanyIds[0] : null),
+                    CompanyIds = x.CompanyIds.Count > 0 ? x.CompanyIds : (x.CompanyId.HasValue ? new List<Guid> { x.CompanyId.Value } : new List<Guid>()),
                     IsProbation = x.IsProbation,
                     IsUnlimited = x.IsUnlimited,
                     DefaultDurationMonths = x.DefaultDurationMonths,

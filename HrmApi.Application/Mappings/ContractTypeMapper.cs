@@ -1,20 +1,26 @@
-﻿using HrmApi.Application.DTOs.ContractType;
+using HrmApi.Application.DTOs.ContractType;
 using HrmApi.Domain.Entities.Contract;
 
 namespace HrmApi.Application.Mappings
 {
     internal class ContractTypeMapper
     {
-        public static ContractTypeDto ToDto(ContractTypeEntity entity, string? companyName = null)
+        public static ContractTypeDto ToDto(ContractTypeEntity entity, List<Guid>? companyIds = null, List<string>? companyNames = null, string? companyName = null)
         {
+            List<Guid> resolvedCompanyIds = companyIds ?? (entity.CompanyIds.Count > 0 ? entity.CompanyIds : (entity.CompanyId.HasValue ? [entity.CompanyId.Value] : []));
+            List<string> resolvedCompanyNames = companyNames ?? [];
+            string? resolvedCompanyName = companyName ?? (resolvedCompanyNames.Count > 0 ? string.Join(", ", resolvedCompanyNames) : null);
+
             return new ContractTypeDto
             {
                 Id = entity.Id,
                 Code = entity.Code,
                 Name = entity.Name,
                 Description = entity.Description,
-                CompanyId = entity.CompanyId,
-                CompanyName = companyName,
+                CompanyId = entity.CompanyId ?? resolvedCompanyIds.FirstOrDefault(),
+                CompanyName = resolvedCompanyName,
+                CompanyIds = resolvedCompanyIds,
+                CompanyNames = resolvedCompanyNames,
                 IsProbation = entity.IsProbation,
                 IsUnlimited = entity.IsUnlimited,
                 DefaultDurationMonths = entity.DefaultDurationMonths,
@@ -36,7 +42,16 @@ namespace HrmApi.Application.Mappings
             entity.Code = fields.Code?.Trim() ?? entity.Code;
             entity.Name = fields.Name?.Trim() ?? entity.Name;
             entity.Description = string.IsNullOrWhiteSpace(fields.Description) ? null : fields.Description.Trim();
-            entity.CompanyId = fields.CompanyId;
+            if (fields.CompanyIds != null)
+            {
+                entity.CompanyIds = fields.CompanyIds.Where(x => x != Guid.Empty).Distinct().ToList();
+                entity.CompanyId = entity.CompanyIds.FirstOrDefault();
+            }
+            else if (fields.CompanyId.HasValue)
+            {
+                entity.CompanyId = fields.CompanyId.Value == Guid.Empty ? null : fields.CompanyId;
+                entity.CompanyIds = entity.CompanyId.HasValue ? [entity.CompanyId.Value] : [];
+            }
             if (fields.IsProbation.HasValue)
             {
                 entity.IsProbation = fields.IsProbation.Value;
@@ -67,6 +82,7 @@ namespace HrmApi.Application.Mappings
                 entity.Name,
                 entity.Description,
                 entity.CompanyId,
+                entity.CompanyIds,
                 entity.IsProbation,
                 entity.IsUnlimited,
                 entity.DefaultDurationMonths,
@@ -84,6 +100,7 @@ namespace HrmApi.Application.Mappings
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public Guid? CompanyId { get; set; }
+        public List<Guid>? CompanyIds { get; set; }
         public bool? IsProbation { get; set; }
         public bool? IsUnlimited { get; set; }
         public int? DefaultDurationMonths { get; set; }

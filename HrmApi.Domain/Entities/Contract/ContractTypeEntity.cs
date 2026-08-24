@@ -1,4 +1,4 @@
-﻿using HrmApi.Domain.Common;
+using HrmApi.Domain.Common;
 using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Domain.Entities.Contract
@@ -26,9 +26,14 @@ namespace HrmApi.Domain.Entities.Contract
         public string? Description { get; set; }
 
         /// <summary>
-        /// Id công ty sở hữu mẫu loại hợp đồng này (null nếu dùng chung cho toàn hệ thống)
+        /// Id công ty sở hữu mẫu loại hợp đồng này (null nếu dùng chung cho toàn hệ thống - duy trì tương thích)
         /// </summary>
         public Guid? CompanyId { get; set; }
+
+        /// <summary>
+        /// Danh sách Id các công ty áp dụng mẫu loại hợp đồng này (rỗng nếu dùng chung cho toàn hệ thống)
+        /// </summary>
+        public List<Guid> CompanyIds { get; set; } = [];
 
         /// <summary>
         /// Có phải loại hợp đồng thử việc hay không (Ảnh hưởng tới quy tắc lương thử việc, thời gian thử việc tối đa)

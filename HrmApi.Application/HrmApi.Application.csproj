@@ -32,7 +32,6 @@
     <Folder Include="Common\Models\" />
     <Folder Include="Features\Employees\Commands\" />
     <Folder Include="Features\Employees\Queries\" />
-    <Folder Include="Mappings\NewFolder\" />
   </ItemGroup>
 
 </Project>

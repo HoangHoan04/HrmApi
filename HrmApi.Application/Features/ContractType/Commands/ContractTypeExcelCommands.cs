@@ -57,8 +57,10 @@ namespace HrmApi.Application.Features.ContractType.Commands
             for (int i = 0; i < contractTypes.Count; i++)
             {
                 ContractTypeEntity contractType = contractTypes[i];
-                string? companyCode = contractType.CompanyId.HasValue && companyDict.TryGetValue(contractType.CompanyId.Value, out string? cc) ? cc : null;
-                ContractTypeExcelWriter.WriteContractTypeRow(worksheet, i + 2, contractType, companyCode, includeExportOnlyColumns: true);
+                List<Guid> cIds = contractType.CompanyIds.Count > 0 ? contractType.CompanyIds : (contractType.CompanyId.HasValue ? [contractType.CompanyId.Value] : []);
+                List<string> cCodes = cIds.Where(id => companyDict.ContainsKey(id)).Select(id => companyDict[id]).ToList();
+                string? companyCodes = cCodes.Count > 0 ? string.Join(", ", cCodes) : null;
+                ContractTypeExcelWriter.WriteContractTypeRow(worksheet, i + 2, contractType, companyCodes, includeExportOnlyColumns: true);
             }
 
             ExcelHelper.ApplyColumnWidths(worksheet);
@@ -196,8 +198,20 @@ namespace HrmApi.Application.Features.ContractType.Commands
 
         private static ContractTypeCommandFields ReadRow(IXLRangeRow row, Dictionary<string, Guid> companyDict)
         {
-            string companyCode = ExcelHelper.GetCellString(row, 4).Trim().ToLower();
-            Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out Guid cid) ? cid : null;
+            string companyCodeCell = ExcelHelper.GetCellString(row, 4).Trim();
+            List<Guid> companyIds = [];
+            if (!string.IsNullOrWhiteSpace(companyCodeCell))
+            {
+                string[] codes = companyCodeCell.Split([',', ';', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (string code in codes)
+                {
+                    if (companyDict.TryGetValue(code.ToLower(), out Guid cid))
+                    {
+                        companyIds.Add(cid);
+                    }
+                }
+            }
+            Guid? companyId = companyIds.FirstOrDefault();
 
             return new ContractTypeCommandFields
             {
@@ -205,6 +219,7 @@ namespace HrmApi.Application.Features.ContractType.Commands
                 Name = ExcelHelper.GetCellString(row, 2),
                 Description = ExcelHelper.GetCellString(row, 3),
                 CompanyId = companyId,
+                CompanyIds = companyIds,
                 IsProbation = ExcelHelper.ParseBool(row.Cell(5)) ?? false,
                 IsUnlimited = ExcelHelper.ParseBool(row.Cell(6)) ?? false,
                 DefaultDurationMonths = ExcelHelper.ParseInt(row.Cell(7)),
