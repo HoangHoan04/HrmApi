@@ -51,10 +51,8 @@ namespace HrmApi.Application.Common.Interfaces
         DbSet<DayOffConfigEmployeeEntity> DayOffConfigEmployeeEntities { get; }
         DbSet<PublicHolidayEntity> PublicHolidayEntities { get; }
         DbSet<RegisterDayOffEntity> RegisterDayOffEntities { get; }
-        DbSet<UserEntity> UserEntities { get; }
         DbSet<RoleEntity> RoleEntities { get; }
         DbSet<UserRoleEntity> UserRoleEntities { get; }
-        DbSet<UserTokenEntity> UserTokenEntities { get; }
         DbSet<RolePermissionEntity> RolePermissionEntities { get; }
         DbSet<ActionLogEntity> ActionLogEntities { get; }
         DbSet<ContractTypeEntity> ContractTypeEntities { get; }

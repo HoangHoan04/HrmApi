@@ -21,7 +21,6 @@ namespace HrmApi.Application.DTOs.Company
         public string? Fax { get; set; }
         public string? Country { get; set; }
         public string? City { get; set; }
-        public string? District { get; set; }
         public string? Ward { get; set; }
         public string? BusinessRegistrationCode { get; set; }
         public DateTime? FoundedDate { get; set; }

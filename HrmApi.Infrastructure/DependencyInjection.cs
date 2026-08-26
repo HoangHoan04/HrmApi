@@ -1,15 +1,12 @@
+using System.Text;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Infrastructure.Persistence;
+using HrmApi.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using HrmApi.Domain.Entities.Permission;
-using Microsoft.AspNetCore.Identity;
-
-using HrmApi.Infrastructure.Services;
 
 namespace HrmApi.Infrastructure
 {
@@ -31,15 +28,15 @@ namespace HrmApi.Infrastructure
                 }));
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
-            services.AddScoped<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
-            services.AddScoped<IPasswordHasherService, PasswordHasherService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddHttpClient(nameof(UploadFileService));
             services.AddScoped<IUploadFileService, UploadFileService>();
+            services.AddHttpClient<IAuthProvisioningService, AuthProvisioningService>();
 
-            var jwtSecret = configuration["JwtSettings:Secret"] ?? "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
-            var key = Encoding.ASCII.GetBytes(jwtSecret);
+            var issuer = configuration["JwtSettings:Issuer"] ?? "https://auth.company.com";
+            var audience = configuration["JwtSettings:Audience"] ?? "erp-ecosystem";
+            var jwksUrl = configuration["JwtSettings:JwksUrl"] ?? "http://localhost:5000/.well-known/jwks.json";
 
             services.AddAuthentication(options =>
             {
@@ -53,13 +50,16 @@ namespace HrmApi.Infrastructure
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+                    {
+                        return HrmApi.Infrastructure.Security.JwksKeyResolver.ResolveSigningKeys(jwksUrl, kid);
+                    },
                     ValidateIssuer = true,
-                    ValidIssuer = configuration["JwtSettings:Issuer"] ?? "HrmApi",
+                    ValidIssuer = issuer,
                     ValidateAudience = true,
-                    ValidAudience = configuration["JwtSettings:Audience"] ?? "HrmAdmin",
+                    ValidAudience = audience,
                     ValidateLifetime = true,
-                    ClockSkew = System.TimeSpan.Zero
+                    ClockSkew = TimeSpan.FromSeconds(30)
                 };
                 options.Events = new JwtBearerEvents
                 {

@@ -61,10 +61,20 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        _ = policy.WithOrigins("http://localhost:4200", "http://localhost:4201", "http://localhost:8081", "http://localhost:19006")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        _ = policy.WithOrigins(
+                "http://localhost:4200",
+                "http://localhost:4201",
+                "http://localhost:4202",
+                "http://localhost:4203",
+                "http://localhost:4300",
+                "http://localhost:5000",
+                "http://localhost:5036",
+                "http://localhost:8081",
+                "http://localhost:19006"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 

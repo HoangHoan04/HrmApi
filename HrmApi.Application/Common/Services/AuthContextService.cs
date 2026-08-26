@@ -32,15 +32,15 @@ namespace HrmApi.Application.Common.Services
         {
             DateTime now = DateTime.UtcNow;
 
-            string? userType = await _context.UserEntities.AsNoTracking()
-                .Where(x => x.Id == userId && !x.IsDeleted)
-                .Select(x => x.Type)
+            Guid? empId = await _context.EmployeeEntities.AsNoTracking()
+                .Where(e => e.UserId == userId && !e.IsDeleted)
+                .Select(e => (Guid?)e.Id)
                 .FirstOrDefaultAsync(cancellationToken);
 
             var roleRows = await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
                 join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
-                where ur.UserId == userId
+                where (ur.UserId == userId || (empId.HasValue && ur.EmployeeId == empId.Value))
                       && !ur.IsDeleted
                       && !r.IsDeleted
                       && r.IsActive
@@ -58,9 +58,7 @@ namespace HrmApi.Application.Common.Services
             var roleIds = roleRows.Select(x => x.Id).Distinct().ToList();
             List<string> permissions = [];
 
-            bool isAdmin =
-                string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
-                || roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
+            bool isAdmin = roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
 
             if (isAdmin)
             {

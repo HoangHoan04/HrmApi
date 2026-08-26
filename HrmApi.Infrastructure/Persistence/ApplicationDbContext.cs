@@ -79,11 +79,9 @@ namespace HrmApi.Infrastructure.Persistence
         public DbSet<PublicHolidayEntity> PublicHolidayEntities { get; set; }
         public DbSet<RegisterDayOffEntity> RegisterDayOffEntities { get; set; }
 
-        public DbSet<UserEntity> UserEntities { get; set; }
         public DbSet<RoleEntity> RoleEntities { get; set; }
         public DbSet<RolePermissionEntity> RolePermissionEntities { get; set; }
         public DbSet<UserRoleEntity> UserRoleEntities { get; set; }
-        public DbSet<UserTokenEntity> UserTokenEntities { get; set; }
         public DbSet<ActionLogEntity> ActionLogEntities { get; set; }
 
         public DbSet<JobDescriptionEntity> JobDescriptionEntities { get; set; }
@@ -594,29 +592,6 @@ namespace HrmApi.Infrastructure.Persistence
 
         private static void ConfigurePermission(ModelBuilder modelBuilder)
         {
-            _ = modelBuilder.Entity<UserEntity>(entity =>
-            {
-                _ = entity.HasOne(u => u.Company)
-                    .WithMany(c => c.UserEntities)
-                    .HasForeignKey(u => u.CompanyId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                _ = entity.HasOne(u => u.Branch)
-                    .WithMany(b => b.UserEntities)
-                    .HasForeignKey(u => u.BranchId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                _ = entity.HasOne(u => u.Employee)
-                    .WithOne(e => e.User)
-                    .HasForeignKey<UserEntity>(u => u.EmployeeId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                // Wave B5: login lookup
-                _ = entity.HasIndex(u => u.Username)
-                    .IsUnique()
-                    .HasDatabaseName("IX_UserEntities_Username");
-            });
-
             _ = modelBuilder.Entity<RoleEntity>(entity =>
             {
                 _ = entity.HasOne(r => r.Company)
@@ -632,15 +607,18 @@ namespace HrmApi.Infrastructure.Persistence
 
             _ = modelBuilder.Entity<UserRoleEntity>(entity =>
             {
-                _ = entity.HasOne(ur => ur.User)
-                    .WithMany(u => u.UserRoles)
-                    .HasForeignKey(ur => ur.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
                 _ = entity.HasOne(ur => ur.Role)
                     .WithMany(r => r.UserRoles)
                     .HasForeignKey(ur => ur.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                _ = entity.HasOne(ur => ur.Employee)
+                    .WithMany()
+                    .HasForeignKey(ur => ur.EmployeeId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                _ = entity.HasIndex(ur => new { ur.UserId, ur.RoleId });
+                _ = entity.HasIndex(ur => new { ur.EmployeeId, ur.RoleId });
             });
 
             _ = modelBuilder.Entity<RolePermissionEntity>(entity =>
@@ -657,23 +635,6 @@ namespace HrmApi.Infrastructure.Persistence
                     .WithMany(r => r.RolePermissions)
                     .HasForeignKey(rp => rp.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            _ = modelBuilder.Entity<UserTokenEntity>(entity =>
-            {
-                _ = entity.HasOne(t => t.User)
-                    .WithMany(u => u.UserTokens)
-                    .HasForeignKey(t => t.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                _ = entity.HasOne<UserTokenEntity>()
-                    .WithMany()
-                    .HasForeignKey(t => t.ReplacedByTokenId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                // Wave B5: lookup refresh token nhanh
-                _ = entity.HasIndex(t => t.RefreshTokenHash)
-                    .HasDatabaseName("IX_UserTokenEntities_RefreshTokenHash");
             });
         }
 

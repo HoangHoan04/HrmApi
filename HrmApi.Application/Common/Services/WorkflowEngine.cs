@@ -370,16 +370,10 @@ namespace HrmApi.Application.Common.Services
             Guid employeeId,
             CancellationToken cancellationToken)
         {
-            Guid? userId = await _context.UserEntities.AsNoTracking()
-                .Where(x => !x.IsDeleted && x.EmployeeId == employeeId)
-                .Select(x => (Guid?)x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-            return !userId.HasValue
-                ? []
-                : await (
+            return await (
                 from ur in _context.UserRoleEntities.AsNoTracking()
                 join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
-                where !ur.IsDeleted && !r.IsDeleted && ur.UserId == userId.Value && r.IsActive
+                where !ur.IsDeleted && !r.IsDeleted && ur.EmployeeId == employeeId && r.IsActive
                 select r.Code.ToUpper()
             ).Distinct().ToListAsync(cancellationToken);
         }

@@ -65,8 +65,8 @@ namespace HrmApi.Application.Common.Services
             using IServiceScope scope = _scopeFactory.CreateScope();
             IApplicationDbContext db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             List<Guid> userIds = await db.UserRoleEntities.AsNoTracking()
-                .Where(x => x.RoleId == roleId && !x.IsDeleted)
-                .Select(x => x.UserId)
+                .Where(x => x.RoleId == roleId && !x.IsDeleted && x.UserId.HasValue)
+                .Select(x => x.UserId!.Value)
                 .Distinct()
                 .ToListAsync(cancellationToken);
 

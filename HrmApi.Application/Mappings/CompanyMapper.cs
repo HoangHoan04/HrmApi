@@ -29,7 +29,6 @@ namespace HrmApi.Application.Mappings
                 Fax = entity.Fax,
                 Country = entity.Country,
                 City = entity.City,
-                District = entity.District,
                 Ward = entity.Ward,
                 BusinessRegistrationCode = entity.BusinessRegistrationCode,
                 FoundedDate = entity.FoundedDate,
@@ -80,7 +79,6 @@ namespace HrmApi.Application.Mappings
             entity.Fax = TrimOrNull(fields.Fax);
             entity.Country = TrimOrNull(fields.Country);
             entity.City = TrimOrNull(fields.City);
-            entity.District = TrimOrNull(fields.District);
             entity.Ward = TrimOrNull(fields.Ward);
             entity.BusinessRegistrationCode = TrimOrNull(fields.BusinessRegistrationCode);
             entity.FoundedDate = fields.FoundedDate;
@@ -130,7 +128,6 @@ namespace HrmApi.Application.Mappings
                 entity.Fax,
                 entity.Country,
                 entity.City,
-                entity.District,
                 entity.Ward,
                 entity.BusinessRegistrationCode,
                 entity.FoundedDate,
@@ -181,7 +178,6 @@ namespace HrmApi.Application.Mappings
         public string? Fax { get; set; }
         public string? Country { get; set; }
         public string? City { get; set; }
-        public string? District { get; set; }
         public string? Ward { get; set; }
         public string? BusinessRegistrationCode { get; set; }
         public DateTime? FoundedDate { get; set; }

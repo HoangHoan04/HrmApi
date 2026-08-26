@@ -17,9 +17,22 @@ namespace HrmApi.Application.Features.Mobile
 
             if (currentUser.UserId.HasValue)
             {
-                Guid? empId = await context.UserEntities.AsNoTracking()
-                    .Where(x => x.Id == currentUser.UserId.Value)
-                    .Select(x => x.EmployeeId)
+                Guid? empId = await context.EmployeeEntities.AsNoTracking()
+                    .Where(x => x.UserId == currentUser.UserId.Value && !x.IsDeleted)
+                    .Select(x => (Guid?)x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId.Value;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentUser.Username))
+            {
+                string identifier = currentUser.Username.Trim().ToLowerInvariant();
+                Guid? empId = await context.EmployeeEntities.AsNoTracking()
+                    .Where(x => !x.IsDeleted && ((x.Email != null && x.Email.ToLower() == identifier) || (x.CompanyEmail != null && x.CompanyEmail.ToLower() == identifier) || (x.Code != null && x.Code.ToLower() == identifier)))
+                    .Select(x => (Guid?)x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
                 {

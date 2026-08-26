@@ -571,15 +571,6 @@ namespace HrmApi.Application.Features.TransferEmployees.Commands
             }
             employee.UpdatedAt = DateTime.UtcNow;
 
-            UserEntity? user = await _context.UserEntities
-                .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id && !x.IsDeleted, cancellationToken);
-            if (user != null)
-            {
-                user.CompanyId = employee.CompanyId;
-                user.BranchId = employee.BranchId;
-                user.UpdatedAt = DateTime.UtcNow;
-            }
-
             entity.Status = TransferStatus.Applied;
             entity.ActualEndDate = entity.TransferType == TransferType.Secondment ? null : DateTime.UtcNow.Date;
             entity.UpdatedAt = DateTime.UtcNow;

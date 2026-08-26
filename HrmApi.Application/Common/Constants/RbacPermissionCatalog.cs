@@ -349,8 +349,6 @@ namespace HrmApi.Application.Common.Constants
             A(PermissionCodes.ReportScheduleView, "Xem lịch báo cáo", "REPORT_SCHEDULE", "VIEW", false);
             A(PermissionCodes.ReportScheduleManage, "Quản lý lịch báo cáo", "REPORT_SCHEDULE", "MANAGE", false);
             A(PermissionCodes.ComplianceView, "Xem tuân thủ", "COMPLIANCE", "VIEW", false);
-            A(PermissionCodes.IntegrationsView, "Xem tích hợp", "INTEGRATIONS", "VIEW", false);
-            A(PermissionCodes.IntegrationsManage, "Quản lý tích hợp", "INTEGRATIONS", "MANAGE", false);
             A(PermissionCodes.WorkflowView, "Xem workflow", "WORKFLOW", "VIEW", false);
             A(PermissionCodes.WorkflowManage, "Quản lý workflow", "WORKFLOW", "MANAGE", false);
             A(PermissionCodes.WorkflowInbox, "Hộp thư duyệt workflow", "WORKFLOW", "INBOX", false);
@@ -424,7 +422,6 @@ namespace HrmApi.Application.Common.Constants
             PermissionCodes.SystemSettingsView, PermissionCodes.SystemSettingsManage,
             PermissionCodes.ReportScheduleView, PermissionCodes.ReportScheduleManage,
             PermissionCodes.ComplianceView,
-            PermissionCodes.IntegrationsView, PermissionCodes.IntegrationsManage,
             PermissionCodes.WorkflowView, PermissionCodes.WorkflowManage, PermissionCodes.WorkflowInbox,
             PermissionCodes.MobileAccess,
         ];

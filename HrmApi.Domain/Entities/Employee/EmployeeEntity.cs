@@ -207,9 +207,9 @@ namespace HrmApi.Domain.Entities.Employee
         public virtual ICollection<EmployeeEntity> DirectReports { get; set; } = [];
 
         /// <summary>
-        /// Navigation property tới tài khoản đăng nhập gắn với nhân viên này (UserEntity)
+        /// ID tài khoản người dùng từ Auth Service (nếu có)
         /// </summary>
-        public virtual Permission.UserEntity? User { get; set; }
+        public Guid? UserId { get; set; }
 
         /// <summary>
         /// Danh sách người phụ thuộc của nhân viên

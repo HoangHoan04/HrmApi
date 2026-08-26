@@ -399,10 +399,6 @@ namespace HrmApi.Application.Common.Constants
         public const string ReportScheduleManage = "REPORT_SCHEDULE_MANAGE";
         public const string ComplianceView = "COMPLIANCE_VIEW";
 
-        // ── INTEGRATIONS ──────────────────────────────────────
-        public const string IntegrationsView = "INTEGRATIONS_VIEW";
-        public const string IntegrationsManage = "INTEGRATIONS_MANAGE";
-
         // ── WORKFLOW ──────────────────────────────────────────
         public const string WorkflowView = "WORKFLOW_VIEW";
         public const string WorkflowManage = "WORKFLOW_MANAGE";

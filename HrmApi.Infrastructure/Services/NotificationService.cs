@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Interfaces;
 using HrmApi.Application.DTOs.Notification;
 using HrmApi.Domain.Entities.Notification;
@@ -36,14 +37,18 @@ namespace HrmApi.Infrastructure.Services
             {
                 if (dto.EmployeeId.HasValue && dto.EmployeeId.Value != Guid.Empty)
                 {
-                    var resolvedUserId = await _context.UserEntities.AsNoTracking()
-                        .Where(u => u.EmployeeId == dto.EmployeeId.Value && !u.IsDeleted && u.IsActive)
-                        .Select(u => u.Id)
+                    var resolvedUserId = await _context.EmployeeEntities.AsNoTracking()
+                        .Where(e => e.Id == dto.EmployeeId.Value && !e.IsDeleted)
+                        .Select(e => e.UserId)
                         .FirstOrDefaultAsync(cancellationToken);
 
-                    if (resolvedUserId != Guid.Empty)
+                    if (resolvedUserId.HasValue && resolvedUserId.Value != Guid.Empty)
                     {
-                        dto.UserId = resolvedUserId;
+                        dto.UserId = resolvedUserId.Value;
+                    }
+                    else
+                    {
+                        dto.UserId = dto.EmployeeId.Value;
                     }
                 }
 
@@ -74,11 +79,11 @@ namespace HrmApi.Infrastructure.Services
                 CreatedBy = dto.SenderId ?? Guid.Empty,
             };
 
-            _ = _context.NotificationEntities.Add(entity);
+            _context.NotificationEntities.Add(entity);
             _ = await _context.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Notification {Id} sent to User {UserId}: {Title}", entity.Id, entity.UserId, entity.Title);
             await TryPublishRealtimeAsync(entity, cancellationToken);
+
             return entity.Id;
         }
 
@@ -94,20 +99,20 @@ namespace HrmApi.Infrastructure.Services
             Guid? senderId = null,
             CancellationToken cancellationToken = default)
         {
-            var user = await _context.UserEntities.AsNoTracking()
-                .Where(u => u.EmployeeId == employeeId && !u.IsDeleted && u.IsActive)
-                .Select(u => new { u.Id })
+            var employee = await _context.EmployeeEntities.AsNoTracking()
+                .Where(e => e.Id == employeeId && !e.IsDeleted)
+                .Select(e => new { e.Id, e.UserId })
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (user == null || user.Id == Guid.Empty)
+            if (employee == null)
             {
-                _logger.LogWarning("Cannot send notification to employee {EmployeeId}: user account not found or inactive.", employeeId);
+                _logger.LogWarning("Cannot send notification to employee {EmployeeId}: employee not found.", employeeId);
                 return Guid.Empty;
             }
 
             return await CreateNotifyAsync(new CreateNotificationDto
             {
-                UserId = user.Id,
+                UserId = employee.UserId ?? employee.Id,
                 EmployeeId = employeeId,
                 Title = title,
                 Content = content,
@@ -132,31 +137,40 @@ namespace HrmApi.Infrastructure.Services
             Guid? senderId = null,
             CancellationToken cancellationToken = default)
         {
-            var query = _context.UserEntities.AsNoTracking()
-                .Where(u => !u.IsDeleted && u.IsActive && (u.Type == Domain.Enums.UserType.Admin || u.Type == Domain.Enums.UserType.Hr));
+            var adminRoleCodes = new[] { RoleCodes.Admin, RoleCodes.Hr };
 
-            if (companyId.HasValue && companyId.Value != Guid.Empty)
+            var adminRolesQuery = from ur in _context.UserRoleEntities.AsNoTracking()
+                                  join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
+                                  where !ur.IsDeleted && !r.IsDeleted && r.IsActive && adminRoleCodes.Contains(r.Code)
+                                  select new { ur.UserId, ur.EmployeeId };
+
+            var adminUserRoles = await adminRolesQuery.ToListAsync(cancellationToken);
+
+            var targetList = new List<(Guid UserId, Guid? EmployeeId)>();
+            var seen = new HashSet<Guid>();
+
+            foreach (var row in adminUserRoles)
             {
-                query = query.Where(u => u.CompanyId == null || u.CompanyId == companyId);
+                Guid id = row.UserId.HasValue && row.UserId.Value != Guid.Empty ? row.UserId.Value : (row.EmployeeId ?? Guid.Empty);
+                if (id != Guid.Empty && (senderId == null || id != senderId.Value) && seen.Add(id))
+                {
+                    targetList.Add((id, row.EmployeeId));
+                }
             }
 
-            var adminUsers = await query.Select(u => new { u.Id, u.EmployeeId }).ToListAsync(cancellationToken);
-
-            var dtoList = adminUsers
-                .Where(u => senderId == null || u.Id != senderId.Value) // Don't notify the sender himself if he is an admin
-                .Select(u => new CreateNotificationDto
-                {
-                    UserId = u.Id,
-                    EmployeeId = u.EmployeeId,
-                    Title = title,
-                    Content = content,
-                    Type = type,
-                    Severity = severity,
-                    TargetUrl = targetUrl,
-                    TargetType = targetType,
-                    TargetId = targetId,
-                    SenderId = senderId,
-                }).ToList();
+            var dtoList = targetList.Select(u => new CreateNotificationDto
+            {
+                UserId = u.UserId,
+                EmployeeId = u.EmployeeId,
+                Title = title,
+                Content = content,
+                Type = type,
+                Severity = severity,
+                TargetUrl = targetUrl,
+                TargetType = targetType,
+                TargetId = targetId,
+                SenderId = senderId,
+            }).ToList();
 
             return await SendManyAsync(dtoList, cancellationToken);
         }
@@ -180,36 +194,40 @@ namespace HrmApi.Infrastructure.Services
             // 1. Resolve Approver
             if (approverEmployeeId.HasValue && approverEmployeeId.Value != Guid.Empty)
             {
-                var approverUser = await _context.UserEntities.AsNoTracking()
-                    .Where(u => u.EmployeeId == approverEmployeeId.Value && !u.IsDeleted && u.IsActive)
-                    .Select(u => new { u.Id, u.EmployeeId })
+                var approverEmp = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(e => e.Id == approverEmployeeId.Value && !e.IsDeleted)
+                    .Select(e => new { e.Id, e.UserId })
                     .FirstOrDefaultAsync(cancellationToken);
 
-                if (approverUser != null && (senderId == null || approverUser.Id != senderId.Value))
+                if (approverEmp != null)
                 {
-                    if (userIdsToNotify.Add(approverUser.Id))
+                    Guid approverId = approverEmp.UserId ?? approverEmp.Id;
+                    if (senderId == null || approverId != senderId.Value)
                     {
-                        targetUsers.Add((approverUser.Id, approverUser.EmployeeId));
+                        if (userIdsToNotify.Add(approverId))
+                        {
+                            targetUsers.Add((approverId, approverEmp.Id));
+                        }
                     }
                 }
             }
 
             // 2. Resolve Admins / HRs
-            var adminQuery = _context.UserEntities.AsNoTracking()
-                .Where(u => !u.IsDeleted && u.IsActive && (u.Type == Domain.Enums.UserType.Admin || u.Type == Domain.Enums.UserType.Hr));
+            var adminRoleCodes = new[] { RoleCodes.Admin, RoleCodes.Hr };
 
-            if (companyId.HasValue && companyId.Value != Guid.Empty)
-            {
-                adminQuery = adminQuery.Where(u => u.CompanyId == null || u.CompanyId == companyId);
-            }
+            var adminRolesQuery = from ur in _context.UserRoleEntities.AsNoTracking()
+                                  join r in _context.RoleEntities.AsNoTracking() on ur.RoleId equals r.Id
+                                  where !ur.IsDeleted && !r.IsDeleted && r.IsActive && adminRoleCodes.Contains(r.Code)
+                                  select new { ur.UserId, ur.EmployeeId };
 
-            var admins = await adminQuery.Select(u => new { u.Id, u.EmployeeId }).ToListAsync(cancellationToken);
-            foreach (var a in admins)
+            var adminUserRoles = await adminRolesQuery.ToListAsync(cancellationToken);
+
+            foreach (var a in adminUserRoles)
             {
-                if (senderId != null && a.Id == senderId.Value) continue;
-                if (userIdsToNotify.Add(a.Id))
+                Guid id = a.UserId.HasValue && a.UserId.Value != Guid.Empty ? a.UserId.Value : (a.EmployeeId ?? Guid.Empty);
+                if (id != Guid.Empty && (senderId == null || id != senderId.Value) && userIdsToNotify.Add(id))
                 {
-                    targetUsers.Add((a.Id, a.EmployeeId));
+                    targetUsers.Add((id, a.EmployeeId));
                 }
             }
 
@@ -232,10 +250,22 @@ namespace HrmApi.Infrastructure.Services
 
         public async Task<List<Guid>> SendManyAsync(IEnumerable<CreateNotificationDto> dtoList, CancellationToken cancellationToken = default)
         {
+            if (dtoList == null) return new List<Guid>();
+
             var entities = new List<NotificationEntity>();
             foreach (var dto in dtoList)
             {
-                if (dto.UserId == Guid.Empty) continue;
+                if (dto.UserId == Guid.Empty)
+                {
+                    if (dto.EmployeeId.HasValue && dto.EmployeeId.Value != Guid.Empty)
+                    {
+                        dto.UserId = dto.EmployeeId.Value;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
 
                 entities.Add(new NotificationEntity
                 {
@@ -274,24 +304,18 @@ namespace HrmApi.Infrastructure.Services
 
         public async Task<int> SendBroadcastAsync(BroadcastNotificationDto dto, Guid? senderId = null, CancellationToken cancellationToken = default)
         {
-            IQueryable<Domain.Entities.Permission.UserEntity> usersQuery = _context.UserEntities.AsNoTracking().Where(u => !u.IsDeleted && u.IsActive);
+            var empQuery = _context.EmployeeEntities.AsNoTracking().Where(e => !e.IsDeleted);
+
+            if (dto.CompanyId.HasValue) empQuery = empQuery.Where(e => e.CompanyId == dto.CompanyId);
+            if (dto.BranchId.HasValue) empQuery = empQuery.Where(e => e.BranchId == dto.BranchId);
+            if (dto.DepartmentId.HasValue) empQuery = empQuery.Where(e => e.DepartmentId == dto.DepartmentId);
 
             if (dto.TargetUserIds != null && dto.TargetUserIds.Count > 0)
             {
-                usersQuery = usersQuery.Where(u => dto.TargetUserIds.Contains(u.Id));
-            }
-            else if (dto.CompanyId.HasValue || dto.BranchId.HasValue || dto.DepartmentId.HasValue)
-            {
-                var empQuery = _context.EmployeeEntities.AsNoTracking().Where(e => !e.IsDeleted);
-                if (dto.CompanyId.HasValue) empQuery = empQuery.Where(e => e.CompanyId == dto.CompanyId);
-                if (dto.BranchId.HasValue) empQuery = empQuery.Where(e => e.BranchId == dto.BranchId);
-                if (dto.DepartmentId.HasValue) empQuery = empQuery.Where(e => e.DepartmentId == dto.DepartmentId);
-
-                var empIds = await empQuery.Select(e => e.Id).ToListAsync(cancellationToken);
-                usersQuery = usersQuery.Where(u => u.EmployeeId.HasValue && empIds.Contains(u.EmployeeId.Value));
+                empQuery = empQuery.Where(e => (e.UserId.HasValue && dto.TargetUserIds.Contains(e.UserId.Value)) || dto.TargetUserIds.Contains(e.Id));
             }
 
-            var recipients = await usersQuery.Select(u => new { u.Id, u.EmployeeId }).ToListAsync(cancellationToken);
+            var recipients = await empQuery.Select(e => new { Id = e.UserId ?? e.Id, EmployeeId = (Guid?)e.Id }).ToListAsync(cancellationToken);
 
             var notifications = recipients.Select(r => new NotificationEntity
             {

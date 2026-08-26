@@ -123,9 +123,22 @@ namespace HrmApi.Application.Features.AttendanceComplaints
 
             if (_currentUser.UserId.HasValue)
             {
-                Guid? empId = await _context.UserEntities.AsNoTracking()
-                    .Where(x => x.Id == _currentUser.UserId.Value)
-                    .Select(x => x.EmployeeId)
+                Guid? empId = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => x.UserId == _currentUser.UserId.Value && !x.IsDeleted)
+                    .Select(x => (Guid?)x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId.Value;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(_currentUser.Username))
+            {
+                string identifier = _currentUser.Username.Trim().ToLowerInvariant();
+                Guid? empId = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => !x.IsDeleted && ((x.Email != null && x.Email.ToLower() == identifier) || (x.CompanyEmail != null && x.CompanyEmail.ToLower() == identifier) || (x.Code != null && x.Code.ToLower() == identifier)))
+                    .Select(x => (Guid?)x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
                 {
@@ -256,9 +269,22 @@ namespace HrmApi.Application.Features.AttendanceComplaints
 
             if (_currentUser.UserId.HasValue)
             {
-                Guid? empId = await _context.UserEntities.AsNoTracking()
-                    .Where(x => x.Id == _currentUser.UserId.Value)
-                    .Select(x => x.EmployeeId)
+                Guid? empId = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => x.UserId == _currentUser.UserId.Value && !x.IsDeleted)
+                    .Select(x => (Guid?)x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (empId.HasValue && empId != Guid.Empty)
+                {
+                    return empId.Value;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(_currentUser.Username))
+            {
+                string identifier = _currentUser.Username.Trim().ToLowerInvariant();
+                Guid? empId = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => !x.IsDeleted && ((x.Email != null && x.Email.ToLower() == identifier) || (x.CompanyEmail != null && x.CompanyEmail.ToLower() == identifier) || (x.Code != null && x.Code.ToLower() == identifier)))
+                    .Select(x => (Guid?)x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (empId.HasValue && empId != Guid.Empty)
                 {
@@ -661,10 +687,21 @@ namespace HrmApi.Application.Features.AttendanceComplaints
             }
             else if (_currentUser.UserId.HasValue)
             {
-                Guid? empId = await _context.UserEntities.AsNoTracking()
-                    .Where(x => x.Id == _currentUser.UserId.Value)
-                    .Select(x => x.EmployeeId)
+                Guid? empId = await _context.EmployeeEntities.AsNoTracking()
+                    .Where(x => x.UserId == _currentUser.UserId.Value && !x.IsDeleted)
+                    .Select(x => (Guid?)x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
+                if (!empId.HasValue || empId == Guid.Empty)
+                {
+                    if (!string.IsNullOrWhiteSpace(_currentUser.Username))
+                    {
+                        string identifier = _currentUser.Username.Trim().ToLowerInvariant();
+                        empId = await _context.EmployeeEntities.AsNoTracking()
+                            .Where(x => !x.IsDeleted && ((x.Email != null && x.Email.ToLower() == identifier) || (x.CompanyEmail != null && x.CompanyEmail.ToLower() == identifier) || (x.Code != null && x.Code.ToLower() == identifier)))
+                            .Select(x => (Guid?)x.Id)
+                            .FirstOrDefaultAsync(cancellationToken);
+                    }
+                }
                 if (!empId.HasValue || empId == Guid.Empty)
                 {
                     throw new InvalidOperationException("Tài khoản chưa gắn nhân viên.");

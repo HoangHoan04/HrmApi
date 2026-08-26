@@ -22,7 +22,8 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                string? idStr = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+                string? idStr = User?.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User?.FindFirstValue("sub");
                 return Guid.TryParse(idStr, out Guid id) ? id : null;
             }
         }
@@ -31,7 +32,7 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                string? idStr = User?.FindFirstValue("EmployeeId");
+                string? idStr = User?.FindFirstValue("EmployeeId") ?? User?.FindFirstValue("employee_id");
                 return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
             }
         }
@@ -40,7 +41,7 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                string? idStr = User?.FindFirstValue("CompanyId");
+                string? idStr = User?.FindFirstValue("company_id") ?? User?.FindFirstValue("CompanyId");
                 return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
             }
         }
@@ -49,14 +50,17 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                string? idStr = User?.FindFirstValue("BranchId");
+                string? idStr = User?.FindFirstValue("BranchId") ?? User?.FindFirstValue("branch_id");
                 return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
             }
         }
 
         public string? UserCode => User?.FindFirstValue("UserCode") ?? Username;
 
-        public string? Username => User?.FindFirstValue(ClaimTypes.Name);
+        public string? Username => User?.FindFirstValue(ClaimTypes.Name)
+            ?? User?.FindFirstValue("name")
+            ?? User?.FindFirstValue(ClaimTypes.Email)
+            ?? User?.FindFirstValue("email");
 
         public string? IpAddress => _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
 
@@ -64,6 +68,7 @@ namespace HrmApi.WebApi.Services
 
         public IReadOnlyList<string> Roles =>
             User?.FindAll(ClaimTypes.Role)
+                .Concat(User?.FindAll("role") ?? Enumerable.Empty<Claim>())
                 .Select(c => c.Value)
                 .Where(v => !string.IsNullOrWhiteSpace(v))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -82,10 +87,16 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                string? userType = User?.FindFirstValue(ClaimTypesEx.UserType);
-                if (string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase))
+                string? userType = User?.FindFirstValue(ClaimTypesEx.UserType)
+                    ?? User?.FindFirstValue("role")
+                    ?? User?.FindFirstValue(ClaimTypes.Role);
+                if (string.Equals(userType, "SuperAdmin", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(userType, "Admin", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase))
                     return true;
-                return Roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
+                return Roles.Any(r => string.Equals(r, "SuperAdmin", StringComparison.OrdinalIgnoreCase)
+                                   || string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase)
+                                   || string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
             }
         }
 

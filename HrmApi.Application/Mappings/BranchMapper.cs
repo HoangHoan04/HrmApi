@@ -1,4 +1,4 @@
-﻿using HrmApi.Application.DTOs.Branch;
+using HrmApi.Application.DTOs.Branch;
 using HrmApi.Domain.Entities.Organization;
 
 namespace HrmApi.Application.Mappings
@@ -22,7 +22,6 @@ namespace HrmApi.Application.Mappings
                 Address = entity.Address,
                 Country = entity.Country,
                 City = entity.City,
-                District = entity.District,
                 Ward = entity.Ward,
                 Latitude = entity.Latitude,
                 Longitude = entity.Longitude,
@@ -77,23 +76,14 @@ namespace HrmApi.Application.Mappings
             }
 
             entity.Address = TrimOrNull(fields.Address) ?? entity.Address;
-            entity.Country = TrimOrNull(fields.Country) ?? entity.Country;
-            entity.City = TrimOrNull(fields.City) ?? entity.City;
-            entity.District = TrimOrNull(fields.District) ?? entity.District;
-            entity.Ward = TrimOrNull(fields.Ward) ?? entity.Ward;
-            if (fields.Latitude.HasValue)
-            {
-                entity.Latitude = fields.Latitude;
-            }
-
-            if (fields.Longitude.HasValue)
-            {
-                entity.Longitude = fields.Longitude;
-            }
-
-            entity.PhoneNumber = TrimOrNull(fields.PhoneNumber) ?? entity.PhoneNumber;
-            entity.Email = TrimOrNull(fields.Email) ?? entity.Email;
-            entity.Fax = TrimOrNull(fields.Fax) ?? entity.Fax;
+            entity.Country = TrimOrNull(fields.Country);
+            entity.City = TrimOrNull(fields.City);
+            entity.Ward = TrimOrNull(fields.Ward);
+            entity.Latitude = fields.Latitude;
+            entity.Longitude = fields.Longitude;
+            entity.PhoneNumber = TrimOrNull(fields.PhoneNumber);
+            entity.Email = TrimOrNull(fields.Email);
+            entity.Fax = TrimOrNull(fields.Fax);
             entity.IpAddress = TrimOrNull(fields.IpAddress) ?? entity.IpAddress;
             entity.ManagerId = fields.ManagerId;
             if (!fields.ManagerId.HasValue)
@@ -164,7 +154,6 @@ namespace HrmApi.Application.Mappings
                 entity.Address,
                 entity.Country,
                 entity.City,
-                entity.District,
                 entity.Ward,
                 entity.Latitude,
                 entity.Longitude,
@@ -209,7 +198,6 @@ namespace HrmApi.Application.Mappings
         public string? Address { get; set; }
         public string? Country { get; set; }
         public string? City { get; set; }
-        public string? District { get; set; }
         public string? Ward { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }

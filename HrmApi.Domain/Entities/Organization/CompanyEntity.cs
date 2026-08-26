@@ -108,11 +108,6 @@ namespace HrmApi.Domain.Entities.Organization
         public string? City { get; set; }
 
         /// <summary>
-        /// Quận / Huyện
-        /// </summary>
-        public string? District { get; set; }
-
-        /// <summary>
         /// Phường / Xã
         /// </summary>
         public string? Ward { get; set; }
@@ -288,10 +283,6 @@ namespace HrmApi.Domain.Entities.Organization
         /// </summary>
         public virtual ICollection<RoleEntity> RoleEntities { get; set; } = [];
 
-        /// <summary>
-        /// Navigation property tới danh sách người dùng thuộc công ty
-        /// </summary>
-        public virtual ICollection<UserEntity> UserEntities { get; set; } = [];
 
         /// <summary>
         /// Navigation property tới danh sách ca làm việc thuộc công ty

@@ -32,10 +32,19 @@ namespace HrmApi.WebApi.Authorization
             }
 
             string? userType = context.User.FindFirstValue(ClaimTypesEx.UserType)
+                ?? context.User.FindFirstValue("role")
                 ?? context.User.FindFirstValue(ClaimTypes.Role);
 
-            if (string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
+            if (string.Equals(userType, "SuperAdmin", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userType, "Admin", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
+                || context.User.IsInRole("SuperAdmin")
+                || context.User.IsInRole("Admin")
                 || context.User.IsInRole(RoleCodes.Admin)
+                || context.User.HasClaim(ClaimTypes.Role, "SuperAdmin")
+                || context.User.HasClaim(ClaimTypes.Role, "Admin")
+                || context.User.HasClaim("role", "SuperAdmin")
+                || context.User.HasClaim("role", "Admin")
                 || context.User.HasClaim(ClaimTypes.Role, RoleCodes.Admin))
             {
                 context.Succeed(requirement);

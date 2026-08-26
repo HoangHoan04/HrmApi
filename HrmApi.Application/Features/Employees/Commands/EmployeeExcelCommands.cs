@@ -198,16 +198,16 @@ namespace HrmApi.Application.Features.Employees.Commands
     {
         private readonly IApplicationDbContext _context;
         private readonly IActionLogService _actionLog;
-        private readonly IPasswordHasherService _passwordHasher;
+        private readonly IAuthProvisioningService _authProvisioning;
 
         public ImportEmployeesExcelCommandHandler(
             IApplicationDbContext context,
             IActionLogService actionLog,
-            IPasswordHasherService passwordHasher)
+            IAuthProvisioningService authProvisioning)
         {
             _context = context;
             _actionLog = actionLog;
-            _passwordHasher = passwordHasher;
+            _authProvisioning = authProvisioning;
         }
 
         public async Task<EmployeeImportResultDto> Handle(ImportEmployeesExcelCommand request, CancellationToken cancellationToken)
@@ -283,49 +283,22 @@ namespace HrmApi.Application.Features.Employees.Commands
                     _ = _context.EmployeeEntities.Add(employee);
                     _ = await _context.SaveChangesAsync(cancellationToken);
 
-                    const string defaultPassword = "123@123@";
-                    string usernameNormalized = employee.Code.Trim().ToLower();
-                    bool userExists = await _context.UserEntities
-                        .AnyAsync(x => x.Username.ToLower() == usernameNormalized, cancellationToken);
-
-                    if (!userExists)
+                    bool hasEmployeeRole = await _context.RoleEntities.AsNoTracking()
+                        .AnyAsync(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive, cancellationToken);
+                    if (hasEmployeeRole)
                     {
-                        UserEntity user = new()
+                        Guid employeeRoleId = await _context.RoleEntities.AsNoTracking()
+                            .Where(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive)
+                            .Select(x => x.Id)
+                            .FirstAsync(cancellationToken);
+
+                        _ = _context.UserRoleEntities.Add(new UserRoleEntity
                         {
                             EmployeeId = employee.Id,
-                            Username = employee.Code.Trim(),
-                            Email = employee.Email,
-                            PhoneNumber = employee.Phone,
-                            Type = "EMPLOYEE",
-                            IsActive = true,
-                            IsLocked = false,
-                            MustChangePassword = true,
-                            CreatedAt = DateTime.UtcNow,
-                            CompanyId = employee.CompanyId,
-                            BranchId = employee.BranchId,
-                        };
-                        user.PasswordHash = _passwordHasher.HashPassword(user, defaultPassword);
-
-                        _ = _context.UserEntities.Add(user);
+                            RoleId = employeeRoleId,
+                            EffectiveFrom = DateTime.UtcNow,
+                        });
                         _ = await _context.SaveChangesAsync(cancellationToken);
-
-                        bool hasEmployeeRole = await _context.RoleEntities.AsNoTracking()
-                            .AnyAsync(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive, cancellationToken);
-                        if (hasEmployeeRole)
-                        {
-                            Guid employeeRoleId = await _context.RoleEntities.AsNoTracking()
-                                .Where(x => x.Code == RoleCodes.Employee && !x.IsDeleted && x.IsActive)
-                                .Select(x => x.Id)
-                                .FirstAsync(cancellationToken);
-
-                            _ = _context.UserRoleEntities.Add(new UserRoleEntity
-                            {
-                                UserId = user.Id,
-                                RoleId = employeeRoleId,
-                                EffectiveFrom = DateTime.UtcNow,
-                            });
-                            _ = await _context.SaveChangesAsync(cancellationToken);
-                        }
                     }
 
                     await _actionLog.LogActionAsync(
@@ -335,6 +308,23 @@ namespace HrmApi.Application.Features.Employees.Commands
                         null,
                         EmployeeMapper.ToLogObject(employee),
                         "Import Excel - Tạo mới nhân viên " + employee.FullName);
+
+                    // Tạo tài khoản Auth cho nhân viên import
+                    if (!string.IsNullOrWhiteSpace(employee.Email))
+                    {
+                        var userId = await _authProvisioning.ProvisionEmployeeAccountAsync(
+                            employee.Email,
+                            employee.FullName ?? employee.Code,
+                            employee.Phone,
+                            null,
+                            cancellationToken);
+
+                        if (userId != Guid.Empty)
+                        {
+                            employee.UserId = userId;
+                            await _context.SaveChangesAsync(cancellationToken);
+                        }
+                    }
 
                     result.SuccessCount++;
                 }
