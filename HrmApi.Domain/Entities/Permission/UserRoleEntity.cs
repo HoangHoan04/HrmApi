@@ -42,5 +42,10 @@ namespace HrmApi.Domain.Entities.Permission
         /// Navigation property tới vai trò
         /// </summary>
         public virtual RoleEntity Role { get; set; } = null!;
+
+        /// <summary>
+        /// Navigation property tới người dùng
+        /// </summary>
+        public virtual UserEntity? User { get; set; }
     }
 }

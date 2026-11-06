@@ -309,14 +309,15 @@ namespace HrmApi.Application.Features.Employees.Commands
                         EmployeeMapper.ToLogObject(employee),
                         "Import Excel - Tạo mới nhân viên " + employee.FullName);
 
-                    // Tạo tài khoản Auth cho nhân viên import
+                    // Tạo tài khoản đăng nhập cho nhân viên import
                     if (!string.IsNullOrWhiteSpace(employee.Email))
                     {
                         var userId = await _authProvisioning.ProvisionEmployeeAccountAsync(
+                            employee.Id,
                             employee.Email,
-                            employee.FullName ?? employee.Code,
                             employee.Phone,
-                            null,
+                            employee.CompanyId,
+                            employee.BranchId,
                             cancellationToken);
 
                         if (userId != Guid.Empty)

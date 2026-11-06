@@ -17,6 +17,7 @@ namespace HrmApi.Infrastructure
             var npgsqlBuilder = NpgsqlConnectionFactory.Build(configuration.GetConnectionString("DefaultConnection"));
 
             services.AddDbContext<ApplicationDbContext>(options =>
+            {
                 options.UseNpgsql(npgsqlBuilder.ConnectionString, builder =>
                 {
                     builder.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
@@ -25,18 +26,26 @@ namespace HrmApi.Infrastructure
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
                         errorCodesToAdd: null);
-                }));
+                });
+                options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            });
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+            services.AddScoped<Microsoft.AspNetCore.Identity.IPasswordHasher<HrmApi.Domain.Entities.Permission.UserEntity>, Microsoft.AspNetCore.Identity.PasswordHasher<HrmApi.Domain.Entities.Permission.UserEntity>>();
+            services.AddScoped<IPasswordHasherService, PasswordHasherService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddHttpClient(nameof(UploadFileService));
             services.AddScoped<IUploadFileService, UploadFileService>();
-            services.AddHttpClient<IAuthProvisioningService, AuthProvisioningService>();
+            // Tài khoản đăng nhập được tạo trực tiếp trong DB HRM (không còn gọi sang AuthApi/cổng SSO).
+            services.AddScoped<IAuthProvisioningService, LocalAuthProvisioningService>();
 
-            var issuer = configuration["JwtSettings:Issuer"] ?? "https://auth.company.com";
-            var audience = configuration["JwtSettings:Audience"] ?? "erp-ecosystem";
-            var jwksUrl = configuration["JwtSettings:JwksUrl"] ?? "http://localhost:5000/.well-known/jwks.json";
+            // JWT do chính HrmApi phát hành (AuthController) — ký HMAC bằng JwtSettings:Secret.
+            var jwtSecret = configuration["JwtSettings:Secret"] ?? JwtDefaults.Secret;
+            var symmetricKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+            var issuer = configuration["JwtSettings:Issuer"] ?? JwtDefaults.Issuer;
+            var audience = configuration["JwtSettings:Audience"] ?? JwtDefaults.Audience;
 
             services.AddAuthentication(options =>
             {
@@ -50,10 +59,7 @@ namespace HrmApi.Infrastructure
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
-                    {
-                        return HrmApi.Infrastructure.Security.JwksKeyResolver.ResolveSigningKeys(jwksUrl, kid);
-                    },
+                    IssuerSigningKey = symmetricKey,
                     ValidateIssuer = true,
                     ValidIssuer = issuer,
                     ValidateAudience = true,
@@ -78,5 +84,15 @@ namespace HrmApi.Infrastructure
 
             return services;
         }
+    }
+
+    /// <summary>
+    /// Giá trị mặc định cho JWT khi appsettings không cấu hình (dùng chung cho phát hành và xác thực token).
+    /// </summary>
+    public static class JwtDefaults
+    {
+        public const string Secret = "SuperSecretKeyForHrmSystem2026!AwesomeDesignPleaseChangeMeInProduction";
+        public const string Issuer = "HrmApi";
+        public const string Audience = "HrmAdmin";
     }
 }

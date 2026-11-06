@@ -1,4 +1,3 @@
-
 using ClosedXML.Excel;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
@@ -196,7 +195,7 @@ namespace HrmApi.Application.Features.Branches.Commands
 
         private static BranchCommandFields ReadRow(IXLRangeRow row, Dictionary<string, Guid> companyDict)
         {
-            string companyCode = ExcelHelper.GetCellString(row, 31).Trim().ToLower();
+            string companyCode = ExcelHelper.GetCellString(row, 30).Trim().ToLower();
             Guid? companyId = !string.IsNullOrWhiteSpace(companyCode) && companyDict.TryGetValue(companyCode, out Guid cid) ? cid : null;
 
             return new BranchCommandFields

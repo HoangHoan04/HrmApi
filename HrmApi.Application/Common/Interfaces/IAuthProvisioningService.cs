@@ -1,18 +1,20 @@
 namespace HrmApi.Application.Common.Interfaces;
 
 /// <summary>
-/// Service gọi sang AuthApi để tạo/cập nhật tài khoản người dùng khi HRM tạo nhân viên.
+/// Tạo tài khoản đăng nhập (UserEntities) ngay trong DB HRM khi thêm nhân viên mới.
 /// </summary>
 public interface IAuthProvisioningService
 {
     /// <summary>
-    /// Tạo mới tài khoản Auth cho nhân viên vừa được thêm vào HRM.
-    /// Trả về UserId từ Auth (Guid.Empty nếu thất bại không nghiêm trọng).
+    /// Tạo (hoặc liên kết nếu đã tồn tại) tài khoản đăng nhập cho nhân viên.
+    /// Username = email; mật khẩu mặc định lấy từ AuthSettings:DefaultEmployeePassword, bắt buộc đổi ở lần đăng nhập đầu.
+    /// Trả về UserId (Guid.Empty nếu không tạo được — không chặn luồng tạo nhân viên).
     /// </summary>
     Task<Guid> ProvisionEmployeeAccountAsync(
+        Guid employeeId,
         string email,
-        string fullName,
         string? phone,
         Guid? companyId,
+        Guid? branchId,
         CancellationToken cancellationToken = default);
 }

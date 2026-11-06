@@ -58,7 +58,13 @@ namespace HrmApi.Application.Common.Services
             var roleIds = roleRows.Select(x => x.Id).Distinct().ToList();
             List<string> permissions = [];
 
-            bool isAdmin = roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
+            string? userType = await _context.UserEntities.AsNoTracking()
+                .Where(u => u.Id == userId && !u.IsDeleted)
+                .Select(u => u.Type)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            bool isAdmin = string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase)
+                || roles.Any(r => string.Equals(r, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase));
 
             if (isAdmin)
             {

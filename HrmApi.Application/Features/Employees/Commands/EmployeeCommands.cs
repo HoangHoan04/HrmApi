@@ -76,14 +76,15 @@ namespace HrmApi.Application.Features.Employees.Commands
                 EmployeeMapper.ToLogObject(employee),
                 "Tạo mới nhân viên " + employee.FullName + " thành công");
 
-            // Tạo tài khoản Auth cho nhân viên mới
+            // Tạo tài khoản đăng nhập cho nhân viên mới
             if (!string.IsNullOrWhiteSpace(employee.Email))
             {
                 var userId = await _authProvisioning.ProvisionEmployeeAccountAsync(
+                    employee.Id,
                     employee.Email,
-                    employee.FullName ?? employee.Code,
                     employee.Phone,
-                    null,
+                    employee.CompanyId,
+                    employee.BranchId,
                     cancellationToken);
 
                 if (userId != Guid.Empty)
