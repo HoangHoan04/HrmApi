@@ -250,6 +250,8 @@ namespace HrmApi.Application.Features.Positions.Queries
                 .Select(x => new PositionSelectBoxDto
                 {
                     Id = x.Id,
+                    Code = x.PositionMaster != null ? x.PositionMaster.Code : null,
+                    Name = x.PositionMaster != null ? x.PositionMaster.Name : null,
                     PositionMasterId = x.PositionMasterId,
                     DepartmentId = x.DepartmentId
                 })

@@ -167,7 +167,7 @@ namespace HrmApi.Application.Features.WorkSchedules.Commands
             using MemoryStream stream = new(request.FileContent);
             using XLWorkbook workbook = new(stream);
             IXLWorksheet worksheet = workbook.Worksheet(1);
-            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
+            List<IXLRangeRow> rows = ExcelHelper.GetImportDataRows(worksheet);
 
             result.TotalRows = rows.Count;
 

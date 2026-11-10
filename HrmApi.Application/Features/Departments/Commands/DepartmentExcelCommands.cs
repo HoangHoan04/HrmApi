@@ -169,7 +169,7 @@ namespace HrmApi.Application.Features.Departments.Commands
             using var stream = new MemoryStream(request.FileContent);
             using var workbook = new XLWorkbook(stream);
             IXLWorksheet worksheet = workbook.Worksheet(1);
-            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
+            List<IXLRangeRow> rows = ExcelHelper.GetImportDataRows(worksheet);
 
             result.TotalRows = rows.Count;
 

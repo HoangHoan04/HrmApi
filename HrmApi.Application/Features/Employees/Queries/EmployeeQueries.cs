@@ -19,6 +19,54 @@ namespace HrmApi.Application.Features.Employees.Queries
         public string? Email { get; set; }
         public string? Status { get; set; }
         public bool? IsDeleted { get; set; }
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public Guid? PartId { get; set; }
+        /// <summary>Lọc theo chức vụ chung (PositionMaster) của vị trí nhân viên đang giữ.</summary>
+        public Guid? PositionMasterId { get; set; }
+    }
+
+    /// <summary>Bộ lọc theo cơ cấu tổ chức, dùng chung cho danh sách và xuất Excel nhân viên.</summary>
+    public static class EmployeeOrgFilter
+    {
+        public static IQueryable<EmployeeEntity> ApplyOrgFilters(
+            this IQueryable<EmployeeEntity> query,
+            IApplicationDbContext context,
+            Guid? companyId,
+            Guid? branchId,
+            Guid? departmentId,
+            Guid? partId,
+            Guid? positionMasterId)
+        {
+            if (companyId.HasValue && companyId != Guid.Empty)
+            {
+                query = query.Where(x => x.CompanyId == companyId);
+            }
+
+            if (branchId.HasValue && branchId != Guid.Empty)
+            {
+                query = query.Where(x => x.BranchId == branchId);
+            }
+
+            if (departmentId.HasValue && departmentId != Guid.Empty)
+            {
+                query = query.Where(x => x.DepartmentId == departmentId);
+            }
+
+            if (partId.HasValue && partId != Guid.Empty)
+            {
+                query = query.Where(x => x.PartId == partId);
+            }
+
+            if (positionMasterId.HasValue && positionMasterId != Guid.Empty)
+            {
+                query = query.Where(x => context.PositionEntities.Any(p =>
+                    p.Id == x.PositionId && p.PositionMasterId == positionMasterId));
+            }
+
+            return query;
+        }
     }
 
     public class GetEmployeesPagedQueryHandler : IRequestHandler<GetEmployeesPagedQuery, PagedResult<EmployeeDto>>
@@ -75,6 +123,14 @@ namespace HrmApi.Application.Features.Employees.Queries
             {
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
             }
+
+            query = query.ApplyOrgFilters(
+                _context,
+                request.CompanyId,
+                request.BranchId,
+                request.DepartmentId,
+                request.PartId,
+                request.PositionMasterId);
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {

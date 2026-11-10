@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Features.Employees.Queries;
 using HrmApi.Application.Mappings;
 using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Permission;
@@ -15,8 +16,14 @@ namespace HrmApi.Application.Features.Employees.Commands
     {
         public string? Code { get; set; }
         public string? FullName { get; set; }
+        public string? Phone { get; set; }
         public string? Status { get; set; }
         public bool? IsDeleted { get; set; }
+        public Guid? CompanyId { get; set; }
+        public Guid? BranchId { get; set; }
+        public Guid? DepartmentId { get; set; }
+        public Guid? PartId { get; set; }
+        public Guid? PositionMasterId { get; set; }
     }
 
     public class ExportEmployeesExcelQueryHandler : IRequestHandler<ExportEmployeesExcelQuery, byte[]>
@@ -53,10 +60,24 @@ namespace HrmApi.Application.Features.Employees.Commands
                 query = query.Where(x => x.Status != null && x.Status.ToLower() == status);
             }
 
+            if (!string.IsNullOrWhiteSpace(request.Phone))
+            {
+                string phone = request.Phone.Trim().ToLower();
+                query = query.Where(x => x.Phone.ToLower().Contains(phone));
+            }
+
             if (request.IsDeleted.HasValue)
             {
                 query = query.Where(x => x.IsDeleted == request.IsDeleted.Value);
             }
+
+            query = query.ApplyOrgFilters(
+                _context,
+                request.CompanyId,
+                request.BranchId,
+                request.DepartmentId,
+                request.PartId,
+                request.PositionMasterId);
 
             List<EmployeeEntity> employees = await query.OrderBy(x => x.Code).ToListAsync(cancellationToken);
 
@@ -158,7 +179,9 @@ namespace HrmApi.Application.Features.Employees.Commands
                 .ToListAsync(cancellationToken);
             ExcelHelper.WriteReferenceSheet(workbook, "BoPhan", "Mã bộ phận", "Tên bộ phận", parts.Select(x => (x.Code ?? string.Empty, x.Name ?? string.Empty)));
 
-            var positions = await _context.PositionEntities
+            // EF Core không dịch được GroupBy(...).Select(g => g.First()) sang SQL,
+            // nên lấy dữ liệu về rồi lọc trùng mã chức vụ trong bộ nhớ.
+            var positionRows = await _context.PositionEntities
                 .AsNoTracking()
                 .Where(x =>
                     !x.IsDeleted &&
@@ -166,13 +189,19 @@ namespace HrmApi.Application.Features.Employees.Commands
                     !x.PositionMaster.IsDeleted)
                 .Select(x => new
                 {
-                    Code = x.PositionMaster!.Code.Trim(),
+                    x.PositionMaster!.Code,
                     x.PositionMaster.Name
                 })
-                .GroupBy(x => x.Code.ToLower())
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var positions = positionRows
+                .Select(x => new { Code = (x.Code ?? string.Empty).Trim(), Name = x.Name ?? string.Empty })
+                .Where(x => x.Code.Length > 0)
+                .GroupBy(x => x.Code.ToLowerInvariant())
                 .Select(g => g.First())
                 .OrderBy(x => x.Code)
-                .ToListAsync(cancellationToken);
+                .ToList();
             ExcelHelper.WriteReferenceSheet(workbook, "ChucVu", "Mã chức vụ", "Tên chức vụ", positions.Select(x => (x.Code, x.Name)));
 
             using MemoryStream stream = new();
@@ -217,7 +246,7 @@ namespace HrmApi.Application.Features.Employees.Commands
             using MemoryStream stream = new(request.FileContent);
             using XLWorkbook workbook = new(stream);
             IXLWorksheet worksheet = workbook.Worksheet(1);
-            List<IXLRangeRow> rows = worksheet.RangeUsed()?.RowsUsed().Skip(1).ToList() ?? [];
+            List<IXLRangeRow> rows = ExcelHelper.GetImportDataRows(worksheet);
 
             result.TotalRows = rows.Count;
 
@@ -309,12 +338,12 @@ namespace HrmApi.Application.Features.Employees.Commands
                         EmployeeMapper.ToLogObject(employee),
                         "Import Excel - Tạo mới nhân viên " + employee.FullName);
 
-                    // Tạo tài khoản đăng nhập cho nhân viên import
-                    if (!string.IsNullOrWhiteSpace(employee.Email))
+                    // Tạo tài khoản đăng nhập cho nhân viên import (tên đăng nhập = email công ty)
+                    if (!string.IsNullOrWhiteSpace(employee.CompanyEmail))
                     {
                         var userId = await _authProvisioning.ProvisionEmployeeAccountAsync(
                             employee.Id,
-                            employee.Email,
+                            employee.CompanyEmail,
                             employee.Phone,
                             employee.CompanyId,
                             employee.BranchId,

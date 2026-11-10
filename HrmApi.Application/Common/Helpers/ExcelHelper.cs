@@ -130,6 +130,27 @@ namespace HrmApi.Application.Common.Helpers
             worksheet.SheetView.FreezeRows(1);
         }
 
+        /// <summary>
+        /// Trả về các dòng dữ liệu của file import: header luôn là dòng 1 của sheet (theo file mẫu),
+        /// dữ liệu bắt đầu từ dòng 2, cột bắt đầu từ cột A.
+        /// Không dùng <c>RangeUsed().RowsUsed().Skip(1)</c> vì khi dòng 1 không có nội dung
+        /// (ô trống / chỉ có định dạng), RangeUsed bắt đầu từ dòng 2 và Skip(1) sẽ bỏ mất dòng dữ liệu đầu tiên.
+        /// </summary>
+        public static List<IXLRangeRow> GetImportDataRows(IXLWorksheet worksheet)
+        {
+            IXLRow? lastRow = worksheet.LastRowUsed();
+            IXLColumn? lastColumn = worksheet.LastColumnUsed();
+            if (lastRow == null || lastColumn == null || lastRow.RowNumber() < 2)
+            {
+                return [];
+            }
+
+            return worksheet
+                .Range(2, 1, lastRow.RowNumber(), lastColumn.ColumnNumber())
+                .RowsUsed()
+                .ToList();
+        }
+
         public static string GetCellString(IXLRangeRow row, int column)
         {
             IXLCell cell = row.Cell(column);

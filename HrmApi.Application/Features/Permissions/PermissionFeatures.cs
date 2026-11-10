@@ -74,20 +74,25 @@ namespace HrmApi.Application.Features.Permissions
                 ["OPERATE_SHIFT"] = ("OPERATE", "Vận hành", "Ca làm việc", 38),
                 ["OPERATE_WORK_SCHEDULE"] = ("OPERATE", "Vận hành", "Lịch làm việc", 39),
                 ["OPERATE_WORK_PATTERN"] = ("OPERATE", "Vận hành", "Mẫu ca NV", 40),
-                ["PAYROLL"] = ("PAYROLL", "Lương", "Lương", 50),
-                ["PAYROLL_SALARY"] = ("PAYROLL", "Lương", "Bảng lương", 51),
-                ["PAYROLL_CONFIG"] = ("PAYROLL", "Lương", "Cấu hình lương", 52),
+                ["OPERATE_OVERTIME"] = ("OPERATE", "Vận hành", "Làm thêm giờ (OT)", 41),
+
+                ["PAYROLL"] = ("PAYROLL", "Lương", "Lương", 45),
+                ["PAYROLL_SALARY"] = ("PAYROLL", "Lương", "Bảng lương", 46),
+                ["PAYROLL_CONFIG"] = ("PAYROLL", "Lương", "Cấu hình lương", 47),
+                ["PAYROLL_ALLOWANCE"] = ("PAYROLL", "Lương", "Phụ cấp", 48),
+                ["PAYROLL_ADVANCE"] = ("PAYROLL", "Lương", "Tạm ứng lương", 49),
+                ["PAYROLL_ADJUSTMENT"] = ("PAYROLL", "Lương", "Điều chỉnh lương", 50),
 
                 ["RECRUITMENT"] = ("RECRUITMENT", "Tuyển dụng", "Tuyển dụng", 55),
                 ["RECRUITMENT_HEADCOUNT"] = ("RECRUITMENT", "Tuyển dụng", "Định biên", 56),
                 ["RECRUITMENT_JD"] = ("RECRUITMENT", "Tuyển dụng", "JD tuyển dụng", 57),
                 ["RECRUITMENT_CRITERIA"] = ("RECRUITMENT", "Tuyển dụng", "Tiêu chí đánh giá", 58),
-                ["RECRUITMENT_SOURCE"] = ("RECRUITMENT", "Tuyển dụng", "Nguồn tuyển dụng", 58),
-                ["RECRUITMENT_REQUEST"] = ("RECRUITMENT", "Tuyển dụng", "Yêu cầu tuyển dụng", 59),
-                ["RECRUITMENT_PLAN"] = ("RECRUITMENT", "Tuyển dụng", "Kế hoạch tuyển dụng", 60),
-                ["RECRUITMENT_CANDIDATE"] = ("RECRUITMENT", "Tuyển dụng", "Ứng viên", 61),
-                ["RECRUITMENT_INTERVIEW"] = ("RECRUITMENT", "Tuyển dụng", "Phỏng vấn", 62),
-                ["RECRUITMENT_PIPELINE"] = ("RECRUITMENT", "Tuyển dụng", "Xử lý hồ sơ", 63),
+                ["RECRUITMENT_SOURCE"] = ("RECRUITMENT", "Tuyển dụng", "Nguồn tuyển dụng", 59),
+                ["RECRUITMENT_REQUEST"] = ("RECRUITMENT", "Tuyển dụng", "Yêu cầu tuyển dụng", 60),
+                ["RECRUITMENT_PLAN"] = ("RECRUITMENT", "Tuyển dụng", "Kế hoạch tuyển dụng", 61),
+                ["RECRUITMENT_CANDIDATE"] = ("RECRUITMENT", "Tuyển dụng", "Ứng viên", 62),
+                ["RECRUITMENT_INTERVIEW"] = ("RECRUITMENT", "Tuyển dụng", "Phỏng vấn", 63),
+                ["RECRUITMENT_PIPELINE"] = ("RECRUITMENT", "Tuyển dụng", "Xử lý hồ sơ", 64),
 
                 ["DISCIPLINE"] = ("DISCIPLINE", "Kỷ luật", "Kỷ luật", 70),
                 ["DISCIPLINE_TYPE"] = ("DISCIPLINE", "Kỷ luật", "Loại vi phạm", 71),
@@ -98,6 +103,7 @@ namespace HrmApi.Application.Features.Permissions
                 ["PERFORMANCE_GOAL"] = ("PERFORMANCE", "Hiệu suất", "Mục tiêu KPI", 77),
                 ["PERFORMANCE_RESULT"] = ("PERFORMANCE", "Hiệu suất", "Kết quả KPI", 78),
                 ["PERFORMANCE_COMPETENCY"] = ("PERFORMANCE", "Hiệu suất", "Khung năng lực", 79),
+                ["PERFORMANCE_360"] = ("PERFORMANCE", "Hiệu suất", "Đánh giá 360°", 79),
 
                 ["TRAINING"] = ("TRAINING", "Đào tạo", "Đào tạo", 80),
                 ["TRAINING_COURSE"] = ("TRAINING", "Đào tạo", "Khóa đào tạo", 81),
@@ -106,13 +112,23 @@ namespace HrmApi.Application.Features.Permissions
 
                 ["ASSET"] = ("ASSET", "Tài sản", "Tài sản", 85),
                 ["ASSET_INVENTORY"] = ("ASSET", "Tài sản", "Kho tài sản", 86),
+                ["ASSET_TYPE"] = ("ASSET", "Tài sản", "Loại tài sản", 87),
+                ["ASSET_TICKET"] = ("ASSET", "Tài sản", "Phiếu cấp phát / thu hồi", 88),
 
-                ["ROLE"] = ("SYSTEM", "Hệ thống", "Vai trò", 90),
-                ["USER"] = ("SYSTEM", "Hệ thống", "Tài khoản", 91),
-                ["SYSTEM_SETTING"] = ("SYSTEM", "Hệ thống", "Cài đặt hệ thống", 92),
-                ["ACTION_LOG"] = ("SYSTEM", "Hệ thống", "Nhật ký thao tác", 93),
+                ["WORKFLOW"] = ("WORKFLOW", "Quy trình duyệt", "Quy trình duyệt", 89),
+
+                ["REPORT_SCHEDULE"] = ("REPORT", "Báo cáo & tuân thủ", "Lịch gửi báo cáo", 90),
+                ["COMPLIANCE"] = ("REPORT", "Báo cáo & tuân thủ", "Tuân thủ", 91),
+
+                ["ROLE"] = ("SYSTEM", "Hệ thống", "Vai trò", 92),
+                ["USER"] = ("SYSTEM", "Hệ thống", "Tài khoản", 93),
+                ["SYSTEM_SETTING"] = ("SYSTEM", "Hệ thống", "Cài đặt hệ thống", 94),
+                ["SYSTEM_SETTINGS"] = ("SYSTEM", "Hệ thống", "Cấu hình hệ thống", 95),
+                ["ACTION_LOG"] = ("SYSTEM", "Hệ thống", "Nhật ký thao tác", 96),
                 ["MOBILE"] = ("MOBILE", "Di động", "Ứng dụng di động", 100),
             };
+
+        private const int UnknownModuleOrder = 999;
 
         private static readonly Dictionary<string, string> ActionNames = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -139,6 +155,8 @@ namespace HrmApi.Application.Features.Permissions
             ["BULK_ASSIGN"] = "Gán hàng loạt",
             ["RESET_PASSWORD"] = "Đặt lại mật khẩu",
             ["ACCESS"] = "Truy cập",
+            ["COMPLETE"] = "Hoàn tất",
+            ["INBOX"] = "Hộp thư duyệt",
         };
 
         public Task<List<PermissionModuleTreeDto>> Handle(GetPermissionTreeQuery request, CancellationToken cancellationToken)
@@ -146,11 +164,12 @@ namespace HrmApi.Application.Features.Permissions
             var catalog = RbacPermissionCatalog.Items
                 .Select(x =>
                 {
-                    _ = ModuleMeta.TryGetValue(x.Module, out (string ParentKey, string ParentName, string ItemName, int Order) meta);
-                    string parentKey = meta.ParentKey ?? x.Module;
-                    string parentName = meta.ParentName ?? x.Module;
-                    string itemName = meta.ItemName ?? x.Module;
-                    int order = meta.Order;
+                    // Module chưa khai báo tên -> đưa vào nhóm "Khác" ở cuối, không hiện lên đầu như trước
+                    bool known = ModuleMeta.TryGetValue(x.Module, out (string ParentKey, string ParentName, string ItemName, int Order) meta);
+                    string parentKey = known ? meta.ParentKey : "OTHER";
+                    string parentName = known ? meta.ParentName : "Khác";
+                    string itemName = known ? meta.ItemName : x.Module;
+                    int order = known ? meta.Order : UnknownModuleOrder;
                     return new
                     {
                         Item = x,

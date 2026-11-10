@@ -84,5 +84,41 @@ namespace HrmApi.Application.DTOs.Role
         public bool IsSystem { get; set; }
         public DateTime? EffectiveFrom { get; set; }
         public DateTime? EffectiveTo { get; set; }
+        /// <summary>EMPLOYEE = gán theo nhân viên (sửa được ở màn phân quyền theo nhân viên); USER = gán trực tiếp cho tài khoản.</summary>
+        public string Source { get; set; } = "EMPLOYEE";
+    }
+
+    /// <summary>Tóm tắt quyền truy cập của một nhân viên cho màn phân quyền theo nhân viên.</summary>
+    public class EmployeeAccessSummaryDto
+    {
+        public Guid EmployeeId { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? AvatarUrl { get; set; }
+        public string? CompanyEmail { get; set; }
+        public string? Status { get; set; }
+        public string? CompanyName { get; set; }
+        public string? BranchName { get; set; }
+        public string? DepartmentName { get; set; }
+        public string? PositionName { get; set; }
+
+        /// <summary>Tài khoản đăng nhập; null nếu nhân viên chưa có tài khoản.</summary>
+        public EmployeeAccountInfoDto? Account { get; set; }
+
+        public List<UserRoleItemDto> Roles { get; set; } = [];
+
+        /// <summary>Không có vai trò nào -> hệ thống tự áp dụng quyền của vai trò EMPLOYEE.</summary>
+        public bool UsesDefaultEmployeeRole { get; set; }
+    }
+
+    public class EmployeeAccountInfoDto
+    {
+        public Guid UserId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string? Type { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsLocked { get; set; }
+        public bool MustChangePassword { get; set; }
+        public DateTime? LastLoginAt { get; set; }
     }
 }

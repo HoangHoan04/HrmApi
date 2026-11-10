@@ -44,6 +44,14 @@ namespace HrmApi.WebApi.Controllers
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
+        [HttpPost("employee-summary")]
+        [RequirePermission(PermissionCodes.UserView)]
+        public async Task<ActionResult<EmployeeAccessSummaryDto>> EmployeeSummary([FromBody] GetEmployeeAccessSummaryQuery query)
+        {
+            try { return Ok(await _mediator.Send(query)); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
         [HttpPost("set-by-employee")]
         [RequirePermission(PermissionCodes.UserUpdate)]
         public async Task<ActionResult<bool>> SetByEmployee([FromBody] SetUserRolesByEmployeeCommand command)

@@ -76,12 +76,12 @@ namespace HrmApi.Application.Features.Employees.Commands
                 EmployeeMapper.ToLogObject(employee),
                 "Tạo mới nhân viên " + employee.FullName + " thành công");
 
-            // Tạo tài khoản đăng nhập cho nhân viên mới
-            if (!string.IsNullOrWhiteSpace(employee.Email))
+            // Tạo tài khoản đăng nhập cho nhân viên mới (tên đăng nhập = email công ty)
+            if (!string.IsNullOrWhiteSpace(employee.CompanyEmail))
             {
                 var userId = await _authProvisioning.ProvisionEmployeeAccountAsync(
                     employee.Id,
-                    employee.Email,
+                    employee.CompanyEmail,
                     employee.Phone,
                     employee.CompanyId,
                     employee.BranchId,
@@ -173,6 +173,30 @@ namespace HrmApi.Application.Features.Employees.Commands
                 throw new InvalidOperationException("Số CCCD đã tồn tại trong hệ thống.");
             }
 
+            // Email công ty là tên đăng nhập -> không được trùng với nhân viên / tài khoản khác
+            if (!string.IsNullOrWhiteSpace(request.CompanyEmail))
+            {
+                string companyEmail = request.CompanyEmail.Trim().ToLower();
+
+                bool companyEmailExists = await context.EmployeeEntities
+                    .AnyAsync(x => !x.IsDeleted
+                        && x.CompanyEmail != null && x.CompanyEmail.ToLower() == companyEmail
+                        && (!excludeId.HasValue || x.Id != excludeId.Value), cancellationToken);
+                if (companyEmailExists)
+                {
+                    throw new InvalidOperationException("Email công ty đã được dùng cho nhân viên khác.");
+                }
+
+                bool usedByOtherAccount = await context.UserEntities
+                    .AnyAsync(u => !u.IsDeleted
+                        && (u.Username.ToLower() == companyEmail || (u.Email != null && u.Email.ToLower() == companyEmail))
+                        && (!excludeId.HasValue || u.EmployeeId == null || u.EmployeeId != excludeId.Value), cancellationToken);
+                if (usedByOtherAccount)
+                {
+                    throw new InvalidOperationException("Email công ty đã được dùng làm tài khoản đăng nhập khác.");
+                }
+            }
+
             if (request.DirectManagerId.HasValue && request.DirectManagerId != Guid.Empty)
             {
                 if (excludeId.HasValue && request.DirectManagerId == excludeId.Value)
@@ -201,11 +225,16 @@ namespace HrmApi.Application.Features.Employees.Commands
     {
         private readonly IApplicationDbContext _context;
         private readonly IActionLogService _actionLog;
+        private readonly IAuthProvisioningService _authProvisioning;
 
-        public UpdateEmployeeCommandHandler(IApplicationDbContext context, IActionLogService actionLog)
+        public UpdateEmployeeCommandHandler(
+            IApplicationDbContext context,
+            IActionLogService actionLog,
+            IAuthProvisioningService authProvisioning)
         {
             _context = context;
             _actionLog = actionLog;
+            _authProvisioning = authProvisioning;
         }
 
         public async Task<bool> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
@@ -226,6 +255,9 @@ namespace HrmApi.Application.Features.Employees.Commands
             employee.UpdatedAt = DateTime.UtcNow;
 
             _ = await _context.SaveChangesAsync(cancellationToken);
+
+            // Đổi email công ty -> đổi tên đăng nhập; chưa có tài khoản -> tạo mới
+            _ = await _authProvisioning.SyncEmployeeLoginAsync(employee.Id, cancellationToken);
 
             object newValue = EmployeeMapper.ToLogObject(employee);
 

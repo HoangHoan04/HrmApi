@@ -18,49 +18,48 @@ namespace HrmApi.WebApi.Services
 
         private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
 
+        /// <summary>
+        /// Tìm claim KHÔNG phân biệt hoa thường. Từ Microsoft.IdentityModel 8.x, JwtBearer tạo
+        /// CaseSensitiveClaimsIdentity nên FindFirstValue("EmployeeId") không khớp claim "employeeId"
+        /// mà AuthController phát hành -> EmployeeId/CompanyId/BranchId luôn null.
+        /// </summary>
+        private string? FindClaimValue(params string[] claimTypes)
+        {
+            if (User == null) return null;
+            foreach (string type in claimTypes)
+            {
+                Claim? claim = User.Claims.FirstOrDefault(c =>
+                    string.Equals(c.Type, type, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(c.Value));
+                if (claim != null) return claim.Value;
+            }
+            return null;
+        }
+
+        private Guid? FindGuidClaim(params string[] claimTypes)
+        {
+            string? idStr = FindClaimValue(claimTypes);
+            return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
+        }
+
         public Guid? UserId
         {
             get
             {
-                string? idStr = User?.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? User?.FindFirstValue("sub");
+                string? idStr = FindClaimValue(ClaimTypes.NameIdentifier, "sub");
                 return Guid.TryParse(idStr, out Guid id) ? id : null;
             }
         }
 
-        public Guid? EmployeeId
-        {
-            get
-            {
-                string? idStr = User?.FindFirstValue("EmployeeId") ?? User?.FindFirstValue("employee_id");
-                return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
-            }
-        }
+        public Guid? EmployeeId => FindGuidClaim("employeeId", "employee_id");
 
-        public Guid? CompanyId
-        {
-            get
-            {
-                string? idStr = User?.FindFirstValue("company_id") ?? User?.FindFirstValue("CompanyId");
-                return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
-            }
-        }
+        public Guid? CompanyId => FindGuidClaim("companyId", "company_id");
 
-        public Guid? BranchId
-        {
-            get
-            {
-                string? idStr = User?.FindFirstValue("BranchId") ?? User?.FindFirstValue("branch_id");
-                return Guid.TryParse(idStr, out Guid id) && id != Guid.Empty ? id : null;
-            }
-        }
+        public Guid? BranchId => FindGuidClaim("branchId", "branch_id");
 
-        public string? UserCode => User?.FindFirstValue("UserCode") ?? Username;
+        public string? UserCode => FindClaimValue("UserCode") ?? Username;
 
-        public string? Username => User?.FindFirstValue(ClaimTypes.Name)
-            ?? User?.FindFirstValue("name")
-            ?? User?.FindFirstValue(ClaimTypes.Email)
-            ?? User?.FindFirstValue("email");
+        public string? Username => FindClaimValue(ClaimTypes.Name, "name", "username", ClaimTypes.Email, "email");
 
         public string? IpAddress => _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
 
@@ -87,9 +86,7 @@ namespace HrmApi.WebApi.Services
         {
             get
             {
-                string? userType = User?.FindFirstValue(ClaimTypesEx.UserType)
-                    ?? User?.FindFirstValue("role")
-                    ?? User?.FindFirstValue(ClaimTypes.Role);
+                string? userType = FindClaimValue(ClaimTypesEx.UserType, "type", "role", ClaimTypes.Role);
                 if (string.Equals(userType, "SuperAdmin", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(userType, "Admin", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(userType, RoleCodes.Admin, StringComparison.OrdinalIgnoreCase))

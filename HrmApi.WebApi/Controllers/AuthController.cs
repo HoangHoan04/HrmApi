@@ -5,8 +5,12 @@ using System.Text;
 using HrmApi.Application.Common.Constants;
 using HrmApi.Application.Common.Helpers;
 using HrmApi.Application.Common.Interfaces;
+using HrmApi.Application.Features.MobileTimekeeping.Queries;
+using HrmApi.Application.Features.RegisterDayOffs.Queries;
+using HrmApi.Domain.Entities.Employee;
 using HrmApi.Domain.Entities.Permission;
 using HrmApi.Domain.Enums;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -34,37 +38,42 @@ namespace HrmApi.WebApi.Controllers
         private readonly IAuthContextService _authContextService;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly IMediator _mediator;
+        private readonly ILogger<AuthController> _logger;
 
         public AuthController(
             IApplicationDbContext context,
             IPasswordHasher<UserEntity> passwordHasher,
             IAuthContextService authContextService,
             IConfiguration configuration,
-            IEmailService emailService)
+            IEmailService emailService,
+            IMediator mediator,
+            ILogger<AuthController> logger)
         {
             _context = context;
             _passwordHasher = passwordHasher;
             _authContextService = authContextService;
             _configuration = configuration;
             _emailService = emailService;
+            _mediator = mediator;
+            _logger = logger;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var identifier = !string.IsNullOrWhiteSpace(request.Username) ? request.Username.Trim() : request.Email?.Trim();
+            var identifier = (!string.IsNullOrWhiteSpace(request.Username) ? request.Username : request.Email)?.Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(request.Password))
             {
-                return BadRequest(new { message = "Vui lòng nhập tên đăng nhập và mật khẩu." });
+                return BadRequest(new { message = "Vui lòng nhập email công ty và mật khẩu." });
             }
 
-            var user = await _context.UserEntities
-                .Include(u => u.Employee)
-                .FirstOrDefaultAsync(u => !u.IsDeleted && (u.Username.ToLower() == identifier.ToLower() || (u.Email != null && u.Email.ToLower() == identifier.ToLower())), HttpContext.RequestAborted);
+            // Đăng nhập bằng EMAIL CÔNG TY (tài khoản nhân viên) hoặc tên đăng nhập (tài khoản quản trị, vd "admin")
+            var user = await FindUserByLoginAsync(identifier);
 
             if (user == null)
             {
-                return Unauthorized(new { message = "Tài khoản hoặc mật khẩu không chính xác." });
+                return Unauthorized(new { message = "Email công ty hoặc mật khẩu không chính xác." });
             }
 
             if (!user.IsActive)
@@ -82,7 +91,7 @@ namespace HrmApi.WebApi.Controllers
             if (verifyResult == PasswordVerificationResult.Failed)
             {
                 await RegisterFailedLoginAsync(user);
-                return Unauthorized(new { message = "Tài khoản hoặc mật khẩu không chính xác." });
+                return Unauthorized(new { message = "Email công ty hoặc mật khẩu không chính xác." });
             }
 
             if (verifyResult == PasswordVerificationResult.SuccessRehashNeeded)
@@ -302,12 +311,31 @@ namespace HrmApi.WebApi.Controllers
             }
 
             var user = await _context.UserEntities
-                .Include(u => u.Employee)
+                .Include(u => u.Employee).ThenInclude(e => e!.Company)
+                .Include(u => u.Employee).ThenInclude(e => e!.Branch)
+                .Include(u => u.Employee).ThenInclude(e => e!.Department)
+                .Include(u => u.Employee).ThenInclude(e => e!.Part)
+                .Include(u => u.Employee).ThenInclude(e => e!.Position).ThenInclude(p => p!.PositionMaster)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId, HttpContext.RequestAborted);
 
             if (user == null || !user.IsActive)
             {
                 return Unauthorized(new { message = "Tài khoản không tồn tại hoặc đã bị khóa." });
+            }
+
+            // Một số tài khoản chỉ được liên kết qua EmployeeEntities.UserId
+            EmployeeEntity? employee = user.Employee;
+            if (employee == null)
+            {
+                employee = await _context.EmployeeEntities
+                    .Include(e => e.Company)
+                    .Include(e => e.Branch)
+                    .Include(e => e.Department)
+                    .Include(e => e.Part)
+                    .Include(e => e.Position).ThenInclude(p => p!.PositionMaster)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.UserId == user.Id && !e.IsDeleted, HttpContext.RequestAborted);
             }
 
             var authContext = await _authContextService.LoadAuthContextAsync(user.Id, HttpContext.RequestAborted);
@@ -324,24 +352,176 @@ namespace HrmApi.WebApi.Controllers
             }
 
             var primaryRole = roles.FirstOrDefault() ?? RoleCodes.Employee;
-            var displayName = user.Employee != null ? $"{user.Employee.LastName} {user.Employee.FirstName}".Trim() : user.Username;
+            var displayName = employee != null
+                ? (!string.IsNullOrWhiteSpace(employee.FullName)
+                    ? employee.FullName!.Trim()
+                    : $"{employee.LastName} {employee.FirstName}".Trim())
+                : user.Username;
+
+            var stats = employee != null ? await LoadProfileStatsAsync() : null;
 
             return Ok(new
             {
                 id = user.Id,
                 username = user.Username,
-                email = user.Email ?? "",
+                // email = email cá nhân (liên hệ); loginEmail = email công ty dùng để đăng nhập
+                email = FirstNonEmpty(employee?.Email, user.Email) ?? "",
+                loginEmail = FirstNonEmpty(employee?.CompanyEmail, user.Username),
                 fullName = displayName,
                 role = primaryRole,
                 type = user.Type,
-                employeeId = user.EmployeeId,
-                companyId = user.CompanyId,
-                branchId = user.BranchId,
+                employeeId = employee?.Id ?? user.EmployeeId,
+                companyId = employee?.CompanyId ?? user.CompanyId,
+                branchId = employee?.BranchId ?? user.BranchId,
                 mustChangePassword = user.MustChangePassword,
                 twoFactorEnabled = user.TwoFactorEnabled,
                 roles,
-                permissions
+                permissions,
+
+                // Thông tin hồ sơ nhân viên (dùng cho tab Hồ sơ trên mobile)
+                employeeCode = employee?.Code,
+                firstName = employee?.FirstName,
+                lastName = employee?.LastName,
+                gender = employee?.Gender,
+                avatarUrl = employee?.AvatarUrl,
+                phone = FirstNonEmpty(employee?.Phone, user.PhoneNumber),
+                phoneNumber = FirstNonEmpty(employee?.Phone, user.PhoneNumber),
+                companyEmail = employee?.CompanyEmail,
+                dateOfBirth = FormatDate(employee?.DayOfBirth),
+                address = FirstNonEmpty(employee?.NowAddress, employee?.PermanentAddress),
+                permanentAddress = employee?.PermanentAddress,
+                departmentId = employee?.DepartmentId,
+                partId = employee?.PartId,
+                positionId = employee?.PositionId,
+                companyName = employee?.Company?.Name,
+                branchName = employee?.Branch?.Name,
+                departmentName = employee?.Department?.Name,
+                partName = FirstNonEmpty(employee?.Part?.Name, employee?.Part?.Code),
+                positionName = employee?.Position?.PositionMaster?.Name,
+                joinDate = FormatDate(employee?.JoinDate),
+                status = employee?.Status,
+                level = employee?.Level,
+                workingMode = employee?.WorkingMode,
+                contractType = employee?.ContractType,
+                bankAccountNumber = employee?.BankAccountNumber,
+                bankName = employee?.BankName,
+                stats
             });
+        }
+
+        /// <summary>
+        /// Thống kê tháng hiện tại cho tab Hồ sơ. Dùng lại các query của chấm công / nghỉ phép trên mobile
+        /// để số liệu khớp với các tab khác. Lỗi ở đây không được làm hỏng việc tải hồ sơ.
+        /// </summary>
+        private async Task<object?> LoadProfileStatsAsync()
+        {
+            int? workDays = null, onTimeDays = null, lateDays = null, absentDays = null, leaveDaysThisMonth = null;
+            decimal? leaveRemaining = null;
+            var now = DateTime.Now;
+
+            try
+            {
+                var month = await _mediator.Send(new GetMobileMonthQuery { Year = now.Year, Month = now.Month }, HttpContext.RequestAborted);
+                workDays = month.OnTimeDays + month.LateDays + month.EarlyDays;
+                onTimeDays = month.OnTimeDays;
+                lateDays = month.LateDays;
+                absentDays = month.AbsentDays;
+                leaveDaysThisMonth = month.LeaveDays;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Profile] Không tải được thống kê chấm công tháng.");
+            }
+
+            try
+            {
+                var balance = await _mediator.Send(new GetMyLeaveBalanceQuery { Year = now.Year }, HttpContext.RequestAborted);
+                leaveRemaining = balance.AnnualRemaining;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Profile] Không tải được số ngày phép còn lại.");
+            }
+
+            return new
+            {
+                workDaysThisMonth = workDays,
+                onTimeDays,
+                lateDays,
+                absentDays,
+                leaveDaysThisMonth,
+                leaveDaysRemaining = leaveRemaining
+            };
+        }
+
+        private static string? FirstNonEmpty(params string?[] values)
+            => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+        private static string? FormatDate(DateTime? value)
+            => value.HasValue && value.Value.Year > 1900 ? value.Value.ToString("dd/MM/yyyy") : null;
+
+        /// <summary>
+        /// Nhân viên tự cập nhật thông tin liên hệ (email cá nhân, số điện thoại) và ảnh đại diện từ mobile.
+        /// KHÔNG đổi tài khoản đăng nhập: tên đăng nhập luôn là email công ty, do admin quản lý trên hồ sơ nhân viên.
+        /// </summary>
+        [Authorize]
+        [HttpPost("update-profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] HrmApi.Application.DTOs.Auth.UpdateProfileRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value
+                ?? User.FindFirst("uid")?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Không xác định được danh tính người dùng." });
+            }
+
+            var user = await _context.UserEntities
+                .Include(u => u.Employee)
+                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, HttpContext.RequestAborted);
+            if (user == null || !user.IsActive)
+            {
+                return Unauthorized(new { message = "Tài khoản không tồn tại hoặc đã bị khóa." });
+            }
+
+            EmployeeEntity? employee = user.Employee
+                ?? await _context.EmployeeEntities
+                    .FirstOrDefaultAsync(e => e.UserId == user.Id && !e.IsDeleted, HttpContext.RequestAborted);
+
+            string email = (request.Email ?? string.Empty).Trim().ToLowerInvariant();
+            string phone = (request.PhoneNumber ?? string.Empty).Trim();
+            string? avatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl.Trim();
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { message = "Vui lòng nhập email." });
+            }
+            if (!System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                return BadRequest(new { message = "Email không hợp lệ." });
+            }
+            if (phone.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(phone, @"^\+?[0-9 .\-()]{8,20}$"))
+            {
+                return BadRequest(new { message = "Số điện thoại không hợp lệ." });
+            }
+
+            if (phone.Length > 0)
+            {
+                user.PhoneNumber = phone;
+            }
+            user.UpdatedAt = DateTime.UtcNow;
+
+            if (employee != null)
+            {
+                // Email cá nhân chỉ là thông tin liên hệ, không phải tài khoản đăng nhập
+                employee.Email = email;
+                if (phone.Length > 0) employee.Phone = phone;
+                if (avatarUrl != null) employee.AvatarUrl = avatarUrl;
+                employee.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync(HttpContext.RequestAborted);
+            return Ok(new { success = true, message = "Cập nhật thông tin thành công." });
         }
 
         [Authorize]
@@ -733,22 +913,31 @@ namespace HrmApi.WebApi.Controllers
                 .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted && u.IsActive, HttpContext.RequestAborted);
         }
 
-        private async Task<UserEntity?> FindUserByEmailAsync(string email)
+        /// <summary>
+        /// Tìm tài khoản theo thông tin đăng nhập: tên đăng nhập, email tài khoản, hoặc email công ty của nhân viên.
+        /// Email cá nhân của nhân viên KHÔNG được dùng để đăng nhập.
+        /// </summary>
+        private async Task<UserEntity?> FindUserByLoginAsync(string login)
         {
+            login = login.Trim().ToLowerInvariant();
             return await _context.UserEntities
                 .Include(u => u.Employee)
                 .Where(u => !u.IsDeleted)
                 .FirstOrDefaultAsync(u =>
-                        (u.Email != null && u.Email.ToLower() == email)
-                        || u.Username.ToLower() == email
-                        || (u.Employee != null && u.Employee.Email.ToLower() == email),
+                        u.Username.ToLower() == login
+                        || (u.Email != null && u.Email.ToLower() == login)
+                        || (u.Employee != null && u.Employee.CompanyEmail != null && u.Employee.CompanyEmail.ToLower() == login),
                     HttpContext.RequestAborted);
         }
 
+        /// <summary>Quên mật khẩu: nhập email công ty (hoặc email tài khoản quản trị).</summary>
+        private Task<UserEntity?> FindUserByEmailAsync(string email) => FindUserByLoginAsync(email);
+
+        /// <summary>Nơi nhận mã OTP: email công ty / email tài khoản.</summary>
         private static string? ResolveEmail(UserEntity user)
         {
+            if (!string.IsNullOrWhiteSpace(user.Employee?.CompanyEmail)) return user.Employee.CompanyEmail;
             if (!string.IsNullOrWhiteSpace(user.Email)) return user.Email;
-            if (!string.IsNullOrWhiteSpace(user.Employee?.Email)) return user.Employee.Email;
             return user.Username.Contains('@') ? user.Username : null;
         }
 
